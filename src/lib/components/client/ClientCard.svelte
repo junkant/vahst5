@@ -1,5 +1,5 @@
 <script>
-  import { useClients } from '$lib/stores/client';
+  import { useClients } from '$lib/stores/client.svelte';
   
   export let client;
   

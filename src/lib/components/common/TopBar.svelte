@@ -1,7 +1,7 @@
 <script>
   import { createPopover, melt } from '@melt-ui/svelte';
-  import { useAuth } from '$lib/stores/auth';
-  import { useClients } from '$lib/stores/client';
+  import { useAuth } from '$lib/stores/auth.svelte';
+  import { useClients } from '$lib/stores/client.svelte';
   
   const auth = useAuth();
   const clients = useClients();

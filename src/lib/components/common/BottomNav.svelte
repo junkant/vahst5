@@ -1,86 +1,81 @@
 <script>
-  import { page } from '$app/stores';
   import { goto } from '$app/navigation';
-  import { useUI } from '$lib/stores/ui';
+  import { page } from '$app/stores';
   
-  const ui = useUI();
+  function navigateTo(path) {
+    goto(path);
+  }
   
-  const tabs = [
-    { label: 'Clients', icon: 'users', path: '/clients' },
-    { label: 'Today', icon: 'calendar', path: '/today' },
-    { label: 'Add', icon: 'plus', path: '/quick-add', primary: true },
-    { label: 'Tools', icon: 'wrench', path: '/tools' },
-    { label: 'More', icon: 'menu', path: '/more' }
-  ];
+  // Determine active tab based on current path
+  $: currentPath = $page.url.pathname;
+  $: activeTab = getActiveTab(currentPath);
   
-  $effect(() => {
-    // Update selected tab based on current path
-    const currentPath = $page.url.pathname;
-    const index = tabs.findIndex(tab => currentPath.startsWith(tab.path));
-    if (index !== -1) {
-      ui.setBottomTab(index);
-    }
-  });
+  function getActiveTab(path) {
+    if (path.includes('/clients')) return 'clients';
+    if (path.includes('/today')) return 'today';  
+    if (path.includes('/quick-add')) return 'quick-add';
+    if (path.includes('/tools')) return 'tools';
+    if (path.includes('/more')) return 'more';
+    return 'clients'; // default
+  }
 </script>
 
-<nav class="bg-white border-t border-gray-200 safe-bottom">
-  <div class="flex items-center justify-around px-2 py-1">
-    {#each tabs as tab, index}
-      <button 
-        class="flex flex-col items-center justify-center py-2 px-3 rounded-lg
-               transition-all duration-200 relative group
-               {ui.bottomTabIndex === index ? 'text-primary-600' : 'text-gray-500'}
-               {tab.primary ? 'scale-110' : ''}"
-        on:click={() => {
-          ui.setBottomTab(index);
-          goto(tab.path);
-        }}>
-        
-        <!-- Icon -->
-        <div class="relative">
-          {#if tab.icon === 'users'}
-            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
-                    d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-            </svg>
-          {:else if tab.icon === 'calendar'}
-            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
-                    d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-            </svg>
-          {:else if tab.icon === 'plus'}
-            <div class="bg-primary-600 text-white rounded-full p-2">
-              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" 
-                      d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-              </svg>
-            </div>
-          {:else if tab.icon === 'wrench'}
-            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
-                    d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
-                    d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-            </svg>
-          {:else if tab.icon === 'menu'}
-            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
-                    d="M4 6h16M4 12h16M4 18h16" />
-            </svg>
-          {/if}
-        </div>
-        
-        <!-- Label -->
-        <span class="text-xs mt-1 font-medium">
-          {tab.label}
-        </span>
-        
-        <!-- Active indicator -->
-        {#if ui.bottomTabIndex === index && !tab.primary}
-          <div class="absolute -top-1 left-1/2 -translate-x-1/2 w-1 h-1 
-                      bg-primary-600 rounded-full"></div>
-        {/if}
-      </button>
-    {/each}
+<nav class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-4 py-2 z-30">
+  <div class="flex items-center justify-around">
+    
+    <!-- Clients Tab -->
+    <button 
+      class="flex flex-col items-center py-2 px-3 rounded-lg transition-colors {activeTab === 'clients' ? 'text-blue-600 bg-blue-50' : 'text-gray-500'}"
+      onclick={() => navigateTo('/clients')}
+    >
+      <svg class="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+      </svg>
+      <span class="text-xs">Clients</span>
+    </button>
+    
+    <!-- Today Tab -->
+    <button 
+      class="flex flex-col items-center py-2 px-3 rounded-lg transition-colors {activeTab === 'today' ? 'text-blue-600 bg-blue-50' : 'text-gray-500'}"
+      onclick={() => navigateTo('/today')}
+    >
+      <svg class="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+      </svg>
+      <span class="text-xs">Today</span>
+    </button>
+    
+    <!-- Quick Action (Center) -->
+    <button 
+      class="flex flex-col items-center py-2 px-4 bg-blue-600 text-white rounded-full shadow-lg hover:bg-blue-700 transition-colors"
+      onclick={() => navigateTo('/quick-add')}
+    >
+      <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+      </svg>
+    </button>
+    
+    <!-- Tools Tab -->
+    <button 
+      class="flex flex-col items-center py-2 px-3 rounded-lg transition-colors {activeTab === 'tools' ? 'text-blue-600 bg-blue-50' : 'text-gray-500'}"
+      onclick={() => navigateTo('/tools')}
+    >
+      <svg class="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+      </svg>
+      <span class="text-xs">Tools</span>
+    </button>
+    
+    <!-- More Tab -->
+    <button 
+      class="flex flex-col items-center py-2 px-3 rounded-lg transition-colors {activeTab === 'more' ? 'text-blue-600 bg-blue-50' : 'text-gray-500'}"
+      onclick={() => navigateTo('/more')}
+    >
+      <svg class="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h.01M12 12h.01M19 12h.01M6 12a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0z" />
+      </svg>
+      <span class="text-xs">More</span>
+    </button>
+    
   </div>
 </nav>

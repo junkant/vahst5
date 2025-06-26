@@ -1,7 +1,7 @@
 <script>
   import { onMount } from 'svelte';
   import { createDatePicker, melt } from '@melt-ui/svelte';
-  import { useAuth } from '$lib/stores/auth';
+  import { useAuth } from '$lib/stores/auth.svelte';
   import { subscribeToTodayJobs } from '$lib/firebase/firestore';
   
   const auth = useAuth();

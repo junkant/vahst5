@@ -1,7 +1,7 @@
 <script>
   import { createDialog, melt } from '@melt-ui/svelte';
   import { goto } from '$app/navigation';
-  import { useClients } from '$lib/stores/client';
+  import { useClients } from '$lib/stores/client.svelte';
   import NewClientForm from '$lib/components/client/NewClientForm.svelte';
   
   const clients = useClients();

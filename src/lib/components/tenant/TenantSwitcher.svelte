@@ -1,10 +1,10 @@
 <script>
   import { createDialog, createSelect, melt } from '@melt-ui/svelte';
-  import { useAuth } from '$lib/stores/auth';
+  import { useAuth } from '$lib/stores/auth.svelte';
   
   const auth = useAuth();
   
-  export let open = false;
+  let { open = $bindable(false) } = $props();
   
   const dialog = createDialog({
     forceVisible: open,
