@@ -1,37 +1,25 @@
-import { writable, type Writable, get } from 'svelte/store';
+import { writable } from 'svelte/store';
+import type { Readable } from 'svelte/store';
 
-export const offlineQueue: Writable<any[]> = writable([]);
-export const isOnline: Writable<boolean> = writable(typeof navigator !== 'undefined' ? navigator.onLine : true);
+function createOfflineStore() {
+  const { subscribe, set } = writable<boolean>(typeof navigator !== 'undefined' ? navigator.onLine : false);
 
-if (typeof window !== 'undefined') {
-  window.addEventListener('online', () => {
-    isOnline.set(true);
-    processOfflineQueue();
-  });
-
-  window.addEventListener('offline', () => {
-    isOnline.set(false);
-  });
-}
-
-async function processOfflineQueue() {
-  const queue = get(offlineQueue);
-  while (queue.length > 0) {
-    const operation = queue.shift();
-    try {
-      await operation.execute();
-    } catch (error) {
-      console.error('Failed to process offline operation:', error);
-      queue.unshift(operation);
-      break;
-    }
+  if (typeof window !== 'undefined') {
+    window.addEventListener('online', () => set(true));
+    window.addEventListener('offline', () => set(false));
   }
-  offlineQueue.set(queue);
+
+  return { subscribe };
 }
 
-export function addToQueue(operation: any) {
-  const queue = get(offlineQueue);
-  queue.push(operation);
-  offlineQueue.set(queue);
-  if (get(isOnline)) processOfflineQueue();
+let offlineStore: ReturnType<typeof createOfflineStore>;
+
+/**
+ * Returns a Readable<boolean> that tracks navigator.onLine.
+ */
+export function useOffline(): Readable<boolean> {
+  if (!offlineStore) {
+    offlineStore = createOfflineStore();
+  }
+  return offlineStore;
 }
