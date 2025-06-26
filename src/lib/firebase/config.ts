@@ -2,10 +2,11 @@ import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 
-// Using direct values since env vars aren't loading
+// Using direct values since env vars aren't loading properly
+// TODO: Fix environment variable loading later
 const firebaseConfig = {
   apiKey: "AIzaSyDZ2cGgriL4f3ipiCxnVulH-bbFk_SqKrc",
-  authDomain: "vahst5.firebaseapp.com",
+  authDomain: "vahst5.firebaseapp.com", 
   projectId: "vahst5",
   storageBucket: "vahst5.firebasestorage.app",
   messagingSenderId: "483828342118",

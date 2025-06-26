@@ -1,88 +1,99 @@
 <script>
-  import { createDialog, createSelect, melt } from '@melt-ui/svelte';
   import { useAuth } from '$lib/stores/auth.svelte';
   
   const auth = useAuth();
   
   let { open = $bindable(false) } = $props();
   
-  const dialog = createDialog({
-    forceVisible: open,
-    onOpenChange: ({ curr }) => {
-      open = curr;
-      return curr;
-    }
-  });
-  
-  const tenantSelect = createSelect({
-    defaultSelected: { 
-      value: auth.tenant?.id, 
-      label: auth.tenant?.name 
-    }
-  });
-  
-  function handleTenantChange(selected) {
-    const tenant = auth.tenants.find(t => t.id === selected.value);
+  function handleTenantChange(tenant) {
     if (tenant) {
       auth.setTenant(tenant);
       open = false;
     }
   }
   
-  $effect(() => {
-    if ($tenantSelect.states.selected) {
-      handleTenantChange($tenantSelect.states.selected);
+  function closeDialog() {
+    open = false;
+  }
+  
+  function handleOverlayClick(event) {
+    if (event.target === event.currentTarget) {
+      closeDialog();
     }
-  });
+  }
+  
+  function handleKeyDown(event) {
+    if (event.key === 'Escape') {
+      closeDialog();
+    }
+  }
 </script>
 
-{#if $dialog.states.open}
-  <div use:melt={$dialog.elements.overlay} 
-       class="fixed inset-0 bg-black/50 z-40"></div>
-  
-  <div use:melt={$dialog.elements.content}
-       class="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 
-              bg-white rounded-lg shadow-xl p-6 w-[90%] max-w-md z-50">
-    
-    <h2 class="text-xl font-semibold mb-4">Switch Tenant</h2>
-    
-    <div class="space-y-4">
-      <div>
-        <label class="block text-sm font-medium text-gray-700 mb-2">
-          Select Tenant
-        </label>
-        
-        <button use:melt={$tenantSelect.elements.trigger}
-                class="w-full px-4 py-2 text-left bg-white border border-gray-300 
-                       rounded-lg focus:outline-none focus:ring-2 
-                       focus:ring-primary-500 focus:border-transparent">
-          {$tenantSelect.states.selectedLabel || 'Select a tenant'}
+{#if open}
+  <!-- Overlay -->
+  <div 
+    class="fixed inset-0 bg-black/50 z-40 flex items-center justify-center p-4"
+    onclick={handleOverlayClick}
+    onkeydown={handleKeyDown}
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="tenant-dialog-title"
+  >
+    <!-- Modal -->
+    <div class="bg-white rounded-lg shadow-xl w-full max-w-md">
+      <!-- Header -->
+      <div class="flex items-center justify-between p-4 border-b border-gray-200">
+        <h2 id="tenant-dialog-title" class="text-xl font-semibold">Switch Tenant</h2>
+        <button 
+          onclick={closeDialog}
+          class="text-gray-400 hover:text-gray-600"
+          aria-label="Close dialog"
+        >
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+          </svg>
         </button>
-        
-        {#if $tenantSelect.states.open}
-          <div use:melt={$tenantSelect.elements.menu}
-               class="absolute mt-1 w-full bg-white border border-gray-200 
-                      rounded-lg shadow-lg z-50 max-h-60 overflow-auto">
-            {#each auth.tenants as tenant}
-              <div use:melt={$tenantSelect.elements.option({
-                     value: tenant.id,
-                     label: tenant.name
-                   })}
-                   class="px-4 py-2 hover:bg-gray-50 cursor-pointer 
-                          flex items-center justify-between">
-                <span>{tenant.name}</span>
-                <span class="text-xs text-gray-500">{tenant.userRole}</span>
-              </div>
-            {/each}
-          </div>
-        {/if}
       </div>
       
-      <div class="flex gap-3 justify-end pt-4">
-        <button use:melt={$dialog.elements.close}
-                class="btn-secondary">
-          Cancel
-        </button>
+      <!-- Content -->
+      <div class="p-4 space-y-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-3">
+            Select Tenant
+          </label>
+          
+          <div class="space-y-2">
+            {#if auth.tenants && auth.tenants.length > 0}
+              {#each auth.tenants as tenant}
+                <button
+                  onclick={() => handleTenantChange(tenant)}
+                  class="w-full px-4 py-3 text-left bg-white border border-gray-200 
+                         rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 
+                         focus:ring-blue-500 transition-colors
+                         {auth.tenant?.id === tenant.id ? 'ring-2 ring-blue-500 bg-blue-50' : ''}"
+                >
+                  <div class="flex items-center justify-between">
+                    <span class="font-medium">{tenant.name}</span>
+                    <span class="text-xs text-gray-500">{tenant.userRole}</span>
+                  </div>
+                </button>
+              {/each}
+            {:else}
+              <p class="text-sm text-gray-500 text-center py-4">
+                No tenants available
+              </p>
+            {/if}
+          </div>
+        </div>
+        
+        <div class="flex gap-3 justify-end pt-4 border-t border-gray-200">
+          <button
+            onclick={closeDialog}
+            class="px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50"
+          >
+            Cancel
+          </button>
+        </div>
       </div>
     </div>
   </div>

@@ -1,27 +1,14 @@
 <script>
-  import { createDialog, createAccordion, melt } from '@melt-ui/svelte';
-  
   let { 
     client = $bindable(), 
     open = $bindable(false),
     onClose = () => {}
   } = $props();
   
-  const dialog = createDialog({
-    forceVisible: open,
-    onOpenChange: ({ curr }) => {
-      open = curr;
-      if (!curr) onClose();
-      return curr;
-    }
-  });
-  
-  const {
-    elements: { root: accordionRoot, item: accordionItem, trigger: accordionTrigger, content: accordionContent },
-    helpers: { isSelected }
-  } = createAccordion({
-    type: 'multiple',
-    defaultValue: ['info']
+  let expandedSections = $state({
+    info: true,
+    equipment: false,
+    history: false
   });
   
   // Functions
@@ -48,43 +35,63 @@
       window.open(`mailto:${client.email}`);
     }
   }
+  
+  function closeDialog() {
+    open = false;
+    onClose();
+  }
+  
+  function handleOverlayClick(event) {
+    if (event.target === event.currentTarget) {
+      closeDialog();
+    }
+  }
+  
+  function toggleSection(section) {
+    expandedSections[section] = !expandedSections[section];
+  }
 </script>
 
-{#if $dialog.states.open && client}
-  <div use:melt={$dialog.elements.overlay} class="fixed inset-0 bg-black bg-opacity-50 z-40"></div>
+{#if open && client}
+  <!-- Overlay -->
   <div 
-    use:melt={$dialog.elements.content}
-    class="fixed inset-x-4 top-20 bottom-20 bg-white rounded-lg shadow-xl z-50 overflow-hidden flex flex-col"
+    class="fixed inset-0 bg-black/50 z-40 flex items-center justify-center p-4"
+    onclick={handleOverlayClick}
+    onkeydown={(e) => e.key === 'Escape' && closeDialog()}
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="client-detail-title"
+    tabindex="-1"
   >
-    <!-- Dialog Header -->
-    <div class="flex items-center justify-between p-4 border-b border-gray-200">
-      <h2 class="text-lg font-semibold text-gray-900">{client.name}</h2>
-      <button 
-        use:melt={$dialog.elements.close} 
-        class="text-gray-400 hover:text-gray-600"
-        aria-label="Close client details"
-      >
-        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-        </svg>
-      </button>
-    </div>
-    
-    <!-- Dialog Content -->
-    <div class="flex-1 overflow-y-auto">
-      <div use:melt={$accordionRoot} class="divide-y divide-gray-200">
-        
+    <!-- Modal -->
+    <div class="bg-white rounded-lg shadow-xl w-full max-w-md max-h-[90vh] overflow-hidden flex flex-col">
+      <!-- Header -->
+      <div class="flex items-center justify-between p-4 border-b border-gray-200">
+        <h2 id="client-detail-title" class="text-lg font-semibold text-gray-900">{client.name}</h2>
+        <button 
+          onclick={closeDialog}
+          class="text-gray-400 hover:text-gray-600"
+          aria-label="Close client details"
+        >
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+      
+      <!-- Content -->
+      <div class="flex-1 overflow-y-auto">
         <!-- Client Info Section -->
-        <div use:melt={$accordionItem('info')}>
+        <div class="border-b border-gray-200">
           <button 
-            use:melt={$accordionTrigger('info')}
+            onclick={() => toggleSection('info')}
             class="w-full px-4 py-3 text-left font-medium hover:bg-gray-50 flex justify-between items-center"
           >
             Client Information
-            <span class="transform transition-transform {$isSelected('info') ? 'rotate-180' : ''}">▼</span>
+            <span class="transform transition-transform {expandedSections.info ? 'rotate-180' : ''}">▼</span>
           </button>
-          {#if $isSelected('info')}
-            <div use:melt={$accordionContent('info')} class="px-4 py-3 bg-gray-50 space-y-3">
+          {#if expandedSections.info}
+            <div class="px-4 py-3 bg-gray-50 space-y-3">
               <div>
                 <p class="text-sm font-medium text-gray-900">Address</p>
                 <p class="text-sm text-gray-600">{client.address}</p>
@@ -120,16 +127,16 @@
         </div>
         
         <!-- Equipment Section -->
-        <div use:melt={$accordionItem('equipment')}>
+        <div class="border-b border-gray-200">
           <button 
-            use:melt={$accordionTrigger('equipment')}
+            onclick={() => toggleSection('equipment')}
             class="w-full px-4 py-3 text-left font-medium hover:bg-gray-50 flex justify-between items-center"
           >
             Equipment ({client.equipment?.length || 0})
-            <span class="transform transition-transform {$isSelected('equipment') ? 'rotate-180' : ''}">▼</span>
+            <span class="transform transition-transform {expandedSections.equipment ? 'rotate-180' : ''}">▼</span>
           </button>
-          {#if $isSelected('equipment')}
-            <div use:melt={$accordionContent('equipment')} class="px-4 py-3 bg-gray-50">
+          {#if expandedSections.equipment}
+            <div class="px-4 py-3 bg-gray-50">
               {#if client.equipment && client.equipment.length > 0}
                 <div class="space-y-2">
                   {#each client.equipment as equipment}
@@ -146,53 +153,53 @@
         </div>
         
         <!-- Service History Section -->
-        <div use:melt={$accordionItem('history')}>
+        <div>
           <button 
-            use:melt={$accordionTrigger('history')}
+            onclick={() => toggleSection('history')}
             class="w-full px-4 py-3 text-left font-medium hover:bg-gray-50 flex justify-between items-center"
           >
             Service History
-            <span class="transform transition-transform {$isSelected('history') ? 'rotate-180' : ''}">▼</span>
+            <span class="transform transition-transform {expandedSections.history ? 'rotate-180' : ''}">▼</span>
           </button>
-          {#if $isSelected('history')}
-            <div use:melt={$accordionContent('history')} class="px-4 py-3 bg-gray-50">
+          {#if expandedSections.history}
+            <div class="px-4 py-3 bg-gray-50">
               <p class="text-sm text-gray-500">Service history will appear here</p>
             </div>
           {/if}
         </div>
       </div>
-    </div>
-    
-    <!-- Action Buttons -->
-    <div class="p-4 border-t border-gray-200 space-y-2">
-      <button 
-        onclick={startJob}
-        class="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 px-4 rounded-lg font-medium transition-colors"
-      >
-        Start Job
-      </button>
-      <div class="grid grid-cols-3 gap-2">
+      
+      <!-- Action Buttons -->
+      <div class="p-4 border-t border-gray-200 space-y-2">
         <button 
-          onclick={callClient}
-          class="bg-green-100 hover:bg-green-200 text-green-800 py-2 px-4 rounded-lg text-sm font-medium transition-colors"
-          aria-label="Call client"
+          onclick={startJob}
+          class="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 px-4 rounded-lg font-medium transition-colors"
         >
-          📞 Call
+          Start Job
         </button>
-        <button 
-          onclick={emailClient}
-          class="bg-blue-100 hover:bg-blue-200 text-blue-800 py-2 px-4 rounded-lg text-sm font-medium transition-colors"
-          aria-label="Email client"
-        >
-          ✉️ Email
-        </button>
-        <button 
-          onclick={getDirections}
-          class="bg-purple-100 hover:bg-purple-200 text-purple-800 py-2 px-4 rounded-lg text-sm font-medium transition-colors"
-          aria-label="Get directions"
-        >
-          🗺️ Directions
-        </button>
+        <div class="grid grid-cols-3 gap-2">
+          <button 
+            onclick={callClient}
+            class="bg-green-100 hover:bg-green-200 text-green-800 py-2 px-4 rounded-lg text-sm font-medium transition-colors"
+            aria-label="Call client"
+          >
+            📞 Call
+          </button>
+          <button 
+            onclick={emailClient}
+            class="bg-blue-100 hover:bg-blue-200 text-blue-800 py-2 px-4 rounded-lg text-sm font-medium transition-colors"
+            aria-label="Email client"
+          >
+            ✉️ Email
+          </button>
+          <button 
+            onclick={getDirections}
+            class="bg-purple-100 hover:bg-purple-200 text-purple-800 py-2 px-4 rounded-lg text-sm font-medium transition-colors"
+            aria-label="Get directions"
+          >
+            🗺️ Directions
+          </button>
+        </div>
       </div>
     </div>
   </div>

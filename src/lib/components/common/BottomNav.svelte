@@ -2,21 +2,26 @@
   import { goto } from '$app/navigation';
   import { page } from '$app/stores';
   
+  let showQuickActions = $state(false);
+  
   function navigateTo(path) {
     goto(path);
   }
   
+  function toggleQuickActions() {
+    showQuickActions = !showQuickActions;
+  }
+  
   // Determine active tab based on current path
-  $: currentPath = $page.url.pathname;
-  $: activeTab = getActiveTab(currentPath);
+  let currentPath = $derived($page.url.pathname);
+  let activeTab = $derived(getActiveTab(currentPath));
   
   function getActiveTab(path) {
     if (path.includes('/clients')) return 'clients';
     if (path.includes('/today')) return 'today';  
-    if (path.includes('/quick-add')) return 'quick-add';
     if (path.includes('/tools')) return 'tools';
     if (path.includes('/more')) return 'more';
-    return 'clients'; // default
+    return 'today'; // default to today instead of clients
   }
 </script>
 
@@ -48,7 +53,8 @@
     <!-- Quick Action (Center) -->
     <button 
       class="flex flex-col items-center py-2 px-4 bg-blue-600 text-white rounded-full shadow-lg hover:bg-blue-700 transition-colors"
-      onclick={() => navigateTo('/quick-add')}
+      onclick={toggleQuickActions}
+      aria-label="Quick actions"
     >
       <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
@@ -79,3 +85,65 @@
     
   </div>
 </nav>
+
+<!-- Quick Actions Popover -->
+{#if showQuickActions}
+  <div 
+    class="fixed inset-0 bg-black/30 z-40 flex items-end justify-center pb-24"
+    onclick={() => showQuickActions = false}
+    onkeydown={(e) => e.key === 'Escape' && (showQuickActions = false)}
+    role="dialog"
+    aria-modal="true"
+    tabindex="-1"
+  >
+    <div 
+      class="bg-white rounded-t-2xl shadow-xl w-full max-w-sm mx-4 p-6"
+      onclick={(e) => e.stopPropagation()}
+      role="document"
+    >
+      <div class="text-center mb-4">
+        <div class="w-8 h-1 bg-gray-300 rounded-full mx-auto mb-3"></div>
+        <h3 class="text-lg font-semibold text-gray-900">Quick Actions</h3>
+      </div>
+      
+      <div class="grid grid-cols-2 gap-3">
+        <button class="flex flex-col items-center p-4 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors">
+          <span class="text-2xl mb-2">📝</span>
+          <span class="text-sm font-medium text-gray-900">New Job</span>
+        </button>
+        
+        <button class="flex flex-col items-center p-4 bg-green-50 rounded-lg hover:bg-green-100 transition-colors">
+          <span class="text-2xl mb-2">➕</span>
+          <span class="text-sm font-medium text-gray-900">Add Client</span>
+        </button>
+        
+        <button class="flex flex-col items-center p-4 bg-yellow-50 rounded-lg hover:bg-yellow-100 transition-colors">
+          <span class="text-2xl mb-2">💰</span>
+          <span class="text-sm font-medium text-gray-900">Invoice</span>
+        </button>
+        
+        <button class="flex flex-col items-center p-4 bg-purple-50 rounded-lg hover:bg-purple-100 transition-colors">
+          <span class="text-2xl mb-2">📊</span>
+          <span class="text-sm font-medium text-gray-900">Report</span>
+        </button>
+        
+        <button class="flex flex-col items-center p-4 bg-indigo-50 rounded-lg hover:bg-indigo-100 transition-colors">
+          <span class="text-2xl mb-2">📞</span>
+          <span class="text-sm font-medium text-gray-900">Log Call</span>
+        </button>
+        
+        <button class="flex flex-col items-center p-4 bg-red-50 rounded-lg hover:bg-red-100 transition-colors">
+          <span class="text-2xl mb-2">📱</span>
+          <span class="text-sm font-medium text-gray-900">Scan QR</span>
+        </button>
+      </div>
+      
+      <button 
+        onclick={() => showQuickActions = false}
+        class="w-full mt-4 py-3 text-gray-600 text-sm font-medium"
+      >
+        Cancel
+      </button>
+    </div>
+  </div>
+{/if}

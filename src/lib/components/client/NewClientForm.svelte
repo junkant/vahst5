@@ -1,189 +1,152 @@
 <script>
-  import { onMount } from 'svelte';
-  import ClientDetail from '$lib/components/client/ClientDetail.svelte';
-  import NewClientForm from '$lib/components/client/NewClientForm.svelte';
+  let { open = $bindable(false) } = $props();
   
-  // Mock data for now - replace with real data later
-  const mockClients = [
-    {
-      id: 1,
-      name: "Johnson Residence",
-      address: "123 Oak Street",
-      phone: "(555) 123-4567",
-      email: "johnson@email.com",
-      lastVisit: "2 weeks ago",
-      status: "active",
-      notes: "Gate code: 1234. Dog in backyard.",
-      equipment: ["Carrier AC Unit - 2019", "Thermostat - Nest"]
-    },
-    {
-      id: 2,
-      name: "Smith Office Building", 
-      address: "456 Business Park Dr",
-      phone: "(555) 234-5678",
-      email: "manager@smithoffice.com",
-      lastVisit: "1 month ago",
-      status: "active",
-      notes: "Contact building manager first.",
-      equipment: ["Commercial HVAC - 2020", "Backup Generator"]
-    },
-    {
-      id: 3,
-      name: "Williams Family",
-      address: "789 Maple Avenue", 
-      phone: "(555) 345-6789",
-      email: "williams@email.com",
-      lastVisit: "Never",
-      status: "new",
-      notes: "New customer - heat pump installation.",
-      equipment: []
-    }
-  ];
-
-  // State management with runes
-  let searchQuery = $state('');
-  let selectedClient = $state(null);
-  let showClientDetail = $state(false);
-  let showNewClientForm = $state(false);
-  let clients = $state(mockClients);
-
-  // Derived state for filtered clients
-  let filteredClients = $derived(() => {
-    if (!searchQuery.trim()) return clients;
-    
-    return clients.filter(client => 
-      client.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      client.address.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      client.phone.includes(searchQuery)
-    );
+  // Form state
+  let formData = $state({
+    name: '',
+    email: '',
+    phone: '',
+    address: '',
+    notes: ''
   });
-
-  // Functions
-  function selectClient(client) {
-    selectedClient = client;
-    showClientDetail = true;
+  
+  function handleSubmit(event) {
+    event.preventDefault();
+    console.log('Creating new client:', formData);
+    // TODO: Implement actual client creation
+    open = false;
+    
+    // Reset form
+    formData = {
+      name: '',
+      email: '',
+      phone: '',
+      address: '',
+      notes: ''
+    };
   }
-
-  function closeClientDetail() {
-    showClientDetail = false;
-    selectedClient = null;
+  
+  function closeDialog() {
+    open = false;
   }
-
-  function openNewClientForm() {
-    showNewClientForm = true;
-  }
-
-  function closeNewClientForm() {
-    showNewClientForm = false;
-  }
-
-  function getStatusColor(status) {
-    switch(status) {
-      case 'active': return 'bg-green-100 text-green-800';
-      case 'inactive': return 'bg-gray-100 text-gray-800';
-      case 'new': return 'bg-blue-100 text-blue-800';
-      default: return 'bg-gray-100 text-gray-800';
+  
+  function handleOverlayClick(event) {
+    if (event.target === event.currentTarget) {
+      closeDialog();
     }
   }
 </script>
 
-<div class="h-full bg-gray-50">
-  <!-- Header -->
-  <div class="bg-white shadow-sm border-b border-gray-200 px-4 py-3">
-    <div class="flex items-center justify-between mb-3">
-      <h1 class="text-xl font-semibold text-gray-900">Clients</h1>
-      <button 
-        onclick={openNewClientForm}
-        class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-      >
-        + Add Client
-      </button>
-    </div>
-    
-    <!-- Search -->
-    <div class="relative">
-      <svg class="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-      </svg>
-      <input
-        type="text"
-        bind:value={searchQuery}
-        placeholder="Search clients..."
-        class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-      />
-    </div>
-  </div>
-
-  <!-- Client List -->
-  <div class="flex-1 overflow-y-auto p-4 pb-24">
-    {#if filteredClients.length === 0}
-      <div class="text-center py-12">
-        <div class="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center mx-auto mb-4">
-          <svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+{#if open}
+  <!-- Overlay -->
+  <div 
+    class="fixed inset-0 bg-black/50 z-40 flex items-center justify-center p-4"
+    onclick={handleOverlayClick}
+    onkeydown={(e) => e.key === 'Escape' && closeDialog()}
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="client-form-title"
+  >
+    <!-- Modal -->
+    <div class="bg-white rounded-lg shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
+      <!-- Header -->
+      <div class="flex items-center justify-between p-4 border-b border-gray-200">
+        <h2 id="client-form-title" class="text-xl font-semibold">Add New Client</h2>
+        <button 
+          onclick={closeDialog}
+          class="text-gray-400 hover:text-gray-600"
+          aria-label="Close form"
+        >
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
           </svg>
+        </button>
+      </div>
+      
+      <!-- Form -->
+      <form onsubmit={handleSubmit} class="p-4 space-y-4">
+        <div>
+          <label for="client-name" class="block text-sm font-medium text-gray-700 mb-1">
+            Client Name *
+          </label>
+          <input
+            id="client-name"
+            type="text"
+            bind:value={formData.name}
+            required
+            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            placeholder="Enter client name"
+          />
         </div>
-        <h3 class="text-lg font-medium text-gray-900 mb-2">
-          {searchQuery ? 'No clients found' : 'No clients yet'}
-        </h3>
-        <p class="text-gray-500 mb-4">
-          {searchQuery ? 'Try adjusting your search' : 'Get started by adding your first client'}
-        </p>
-        {#if !searchQuery}
-          <button 
-            onclick={openNewClientForm}
-            class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
-          >
-            Add Your First Client
-          </button>
-        {/if}
-      </div>
-    {:else}
-      <div class="space-y-3">
-        {#each filteredClients as client (client.id)}
+        
+        <div>
+          <label for="client-email" class="block text-sm font-medium text-gray-700 mb-1">
+            Email
+          </label>
+          <input
+            id="client-email"
+            type="email"
+            bind:value={formData.email}
+            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            placeholder="client@example.com"
+          />
+        </div>
+        
+        <div>
+          <label for="client-phone" class="block text-sm font-medium text-gray-700 mb-1">
+            Phone
+          </label>
+          <input
+            id="client-phone"
+            type="tel"
+            bind:value={formData.phone}
+            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            placeholder="(555) 123-4567"
+          />
+        </div>
+        
+        <div>
+          <label for="client-address" class="block text-sm font-medium text-gray-700 mb-1">
+            Address
+          </label>
+          <textarea
+            id="client-address"
+            bind:value={formData.address}
+            rows="2"
+            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            placeholder="123 Main St, City, State"
+          ></textarea>
+        </div>
+        
+        <div>
+          <label for="client-notes" class="block text-sm font-medium text-gray-700 mb-1">
+            Notes
+          </label>
+          <textarea
+            id="client-notes"
+            bind:value={formData.notes}
+            rows="3"
+            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            placeholder="Any special notes or instructions"
+          ></textarea>
+        </div>
+        
+        <div class="flex gap-3 pt-4">
           <button
-            onclick={() => selectClient(client)}
-            class="w-full bg-white rounded-lg shadow-sm border border-gray-200 p-4 hover:shadow-md transition-shadow text-left"
+            type="button"
+            onclick={closeDialog}
+            class="flex-1 py-2 px-4 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
           >
-            <div class="flex items-start justify-between">
-              <div class="flex-1">
-                <div class="flex items-center space-x-2 mb-1">
-                  <h3 class="font-semibold text-gray-900">{client.name}</h3>
-                  <span class="px-2 py-1 rounded-full text-xs {getStatusColor(client.status)}">
-                    {client.status}
-                  </span>
-                </div>
-                <p class="text-sm text-gray-600 mb-1">{client.address}</p>
-                <p class="text-sm text-gray-500">{client.phone}</p>
-                {#if client.lastVisit !== 'Never'}
-                  <p class="text-xs text-gray-400 mt-1">Last visit: {client.lastVisit}</p>
-                {/if}
-              </div>
-              <div class="text-right">
-                <div class="w-2 h-2 bg-green-400 rounded-full"></div>
-              </div>
-            </div>
-            
-            {#if client.notes}
-              <div class="mt-3 p-2 bg-yellow-50 rounded border border-yellow-200">
-                <p class="text-xs text-yellow-800">📝 {client.notes}</p>
-              </div>
-            {/if}
+            Cancel
           </button>
-        {/each}
-      </div>
-    {/if}
+          <button
+            type="submit"
+            class="flex-1 py-2 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+          >
+            Add Client
+          </button>
+        </div>
+      </form>
+    </div>
   </div>
-</div>
-
-<!-- Client Detail Modal -->
-{#if showClientDetail && selectedClient}
-  <ClientDetail 
-    client={selectedClient} 
-    bind:open={showClientDetail}
-    onClose={closeClientDetail}
-  />
 {/if}
-
-<!-- New Client Form Modal -->
-<NewClientForm bind:open={showNewClientForm} />
