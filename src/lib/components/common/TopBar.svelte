@@ -14,8 +14,8 @@
   let showUserMenu = $state(false);
   
   async function handleSignOut() {
-    await auth.logout();
-    goto('/login');
+    await auth.signOut();
+    goto('/');
   }
   
   function navigateToSettings() {
@@ -32,10 +32,14 @@
 <header class="bg-white border-b border-gray-200 safe-top">
   <div class="flex items-center justify-between gap-3 px-4 py-3">
     <!-- Business Name (Left) -->
-    <div class="flex-shrink-0">
-      <h1 class="text-lg font-semibold text-gray-900">
-        {auth.tenant?.name || 'Vahst'}
-      </h1>
+    <div class="flex-shrink-0 min-w-[120px]">
+      {#if auth.isLoading || !auth.tenant?.name}
+        <div class="h-7 w-32 bg-gray-200 rounded animate-pulse"></div>
+      {:else}
+        <h1 class="text-lg font-semibold text-gray-900 animate-fade-in">
+          {auth.tenant.name}
+        </h1>
+      {/if}
     </div>
     
     <!-- Client Selector (Center) -->
@@ -60,7 +64,7 @@
         onclick={() => showUserMenu = !showUserMenu}
         class="flex items-center gap-2 p-2 rounded-lg hover:bg-gray-100 transition-colors"
       >
-        <div class="w-8 h-8 bg-primary-600 rounded-full flex items-center justify-center text-white font-medium">
+        <div class="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white font-medium">
           {auth.user?.email?.[0]?.toUpperCase() || 'U'}
         </div>
         <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -118,3 +122,20 @@
     aria-label="Close menu"
   ></button>
 {/if}
+
+<style>
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+      transform: translateY(-4px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  
+  .animate-fade-in {
+    animation: fade-in 0.3s ease-out;
+  }
+</style>

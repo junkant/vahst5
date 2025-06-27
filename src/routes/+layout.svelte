@@ -1,17 +1,32 @@
+<!-- src/routes/+layout.svelte -->
 <script>
-  import '../app.css';
   import { onMount } from 'svelte';
-  import { useAuth } from '$lib/stores/auth.svelte';
+  import '../app.css';
   
-  const auth = useAuth();
+  let { children } = $props();
   
+  // Handle cross-component communication for auth modals
   onMount(() => {
-    // Initialize theme
-    if (typeof window !== 'undefined') {
-      const theme = localStorage.getItem('theme') || 'light';
-      document.documentElement.classList.toggle('dark', theme === 'dark');
-    }
+    // Listen for login modal trigger
+    const handleOpenLogin = () => {
+      const loginEvent = new CustomEvent('openLoginModal');
+      window.dispatchEvent(loginEvent);
+    };
+    
+    // Listen for register modal trigger
+    const handleOpenRegister = () => {
+      const registerEvent = new CustomEvent('openRegisterModal');
+      window.dispatchEvent(registerEvent);
+    };
+    
+    window.addEventListener('openLogin', handleOpenLogin);
+    window.addEventListener('openRegister', handleOpenRegister);
+    
+    return () => {
+      window.removeEventListener('openLogin', handleOpenLogin);
+      window.removeEventListener('openRegister', handleOpenRegister);
+    };
   });
 </script>
 
-<slot />
+{@render children()}
