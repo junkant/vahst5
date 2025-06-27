@@ -1,8 +1,10 @@
 <script lang="ts">
   import { fade, slide } from 'svelte/transition';
   import { useOffline } from '$lib/stores/offline.svelte';
+  import { useAuth } from '$lib/stores/auth.svelte';
   
   const offline = useOffline();
+  const auth = useAuth();
   
   let showDetails = $state(false);
   
@@ -16,7 +18,7 @@
   });
 </script>
 
-{#if !offline.isOnline || offline.hasQueuedOperations || offline.isSyncing}
+{#if auth.user && (!offline.isOnline || offline.hasQueuedOperations || offline.isSyncing)}
   <div 
     class="fixed bottom-20 left-4 right-4 md:left-auto md:right-4 md:w-96 z-50"
     transition:slide
@@ -118,7 +120,7 @@
 {/if}
 
 <!-- Simple connection status indicator -->
-{#if offline.isOnline && !offline.hasQueuedOperations && !offline.isSyncing}
+{#if auth.user && offline.isOnline && !offline.hasQueuedOperations && !offline.isSyncing}
   <div 
     class="fixed bottom-20 right-4 p-2"
     transition:fade
