@@ -1,30 +1,37 @@
 <!DOCTYPE html>
 <html lang="en" class="%sveltekit.theme%">
-  <head>
-    <meta charset="utf-8" />
-    <link rel="icon" href="%sveltekit.assets%/favicon.png" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    
-    <!-- Inter font -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    
-    <!-- PWA Configuration -->
-    <link rel="manifest" href="%sveltekit.assets%/manifest.json" />
-    <meta name="theme-color" content="#0F172A" />
-    
-    <!-- Modern mobile web app capable -->
-    <meta name="mobile-web-app-capable" content="yes">
-    
-    <!-- Apple specific (still needed for iOS) -->
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <link rel="apple-touch-icon" href="%sveltekit.assets%/icon-192.svg">
-
-    %sveltekit.head%
-  </head>
-  <body data-sveltekit-preload-data="hover" class="bg-gray-50 text-gray-900">
-    <div style="display: contents">%sveltekit.body%</div>
-  </body>
+	<head>
+		<meta charset="utf-8" />
+		<link rel="icon" href="%sveltekit.assets%/favicon.png" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		
+		<!-- Preconnect to external domains -->
+		<link rel="preconnect" href="https://fonts.googleapis.com">
+		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+		<link rel="preconnect" href="https://firebaseapp.com">
+		<link rel="preconnect" href="https://firebase.googleapis.com">
+		
+		<!-- DNS Prefetch for Firebase domains -->
+		<link rel="dns-prefetch" href="https://firestore.googleapis.com">
+		<link rel="dns-prefetch" href="https://identitytoolkit.googleapis.com">
+		
+		<!-- Web App Manifest -->
+		<link rel="manifest" href="%sveltekit.assets%/manifest.json" />
+		
+		<!-- Theme Color -->
+		<meta name="theme-color" content="#3B82F6" />
+		
+		<!-- Apple Touch Icon -->
+		<link rel="apple-touch-icon" href="%sveltekit.assets%/apple-touch-icon.png" />
+		
+		<!-- Remove font preload since Inter is not being used -->
+		<!-- If you want to use Inter font later, uncomment and add the font file:
+		<link rel="preload" href="/fonts/inter-var.woff2" as="font" type="font/woff2" crossorigin>
+		-->
+		
+		%sveltekit.head%
+	</head>
+	<body data-sveltekit-preload-data="hover" class="antialiased">
+		<div style="display: contents">%sveltekit.body%</div>
+	</body>
 </html>

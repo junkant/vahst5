@@ -27,6 +27,14 @@ interface TenantData {
   [key: string]: any;
 }
 
+export interface Client extends ClientData {
+  id: string;
+}
+
+export interface Job extends JobData {
+  id: string;
+}
+
 export function getTenantPath(tenantId: string, collectionName: string) {
   return `tenants/${tenantId}/${collectionName}`;
 }
@@ -60,7 +68,8 @@ export async function getClient(tenantId: string, clientId: string) {
 
 export function subscribeToClients(
   tenantId: string,
-  callback: (clients: any[]) => void,
+  callback: (clients: Client[]) => void,
+  onError?: (error: Error) => void,
   options: { limit?: number; orderBy?: { field: string; direction?: 'asc' | 'desc' } } = {}
 ) {
   const clientsRef = collection(db, getTenantPath(tenantId, 'clients'));
@@ -74,10 +83,20 @@ export function subscribeToClients(
     q = query(q, orderBy(options.orderBy.field, options.orderBy.direction || 'asc'));
   }
 
-  return onSnapshot(q, (snapshot) => {
-    const clients = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-    callback(clients);
-  });
+  return onSnapshot(
+    q, 
+    (snapshot) => {
+      const clients = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Client));
+      callback(clients);
+    },
+    (error) => {
+      if (onError) {
+        onError(error);
+      } else {
+        console.error('Error in subscribeToClients:', error);
+      }
+    }
+  );
 }
 
 export async function createJob(tenantId: string, jobData: JobData) {
@@ -96,7 +115,8 @@ export async function createJob(tenantId: string, jobData: JobData) {
 export function subscribeToClientJobs(
   tenantId: string,
   clientId: string,
-  callback: (jobs: any[]) => void
+  callback: (jobs: Job[]) => void,
+  onError?: (error: Error) => void
 ) {
   const jobsRef = collection(db, getTenantPath(tenantId, 'jobs'));
   const q = query(
@@ -105,10 +125,20 @@ export function subscribeToClientJobs(
     orderBy('scheduledDate', 'desc')
   );
 
-  return onSnapshot(q, (snapshot) => {
-    const jobs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-    callback(jobs);
-  });
+  return onSnapshot(
+    q,
+    (snapshot) => {
+      const jobs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Job));
+      callback(jobs);
+    },
+    (error) => {
+      if (onError) {
+        onError(error);
+      } else {
+        console.error('Error in subscribeToClientJobs:', error);
+      }
+    }
+  );
 }
 
 export async function createTenant(tenantData: TenantData) {

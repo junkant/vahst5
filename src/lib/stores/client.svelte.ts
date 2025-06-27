@@ -1,6 +1,8 @@
 // src/lib/stores/client.svelte.ts
 import { type Unsubscribe } from 'firebase/firestore';
 import { subscribeToClients, subscribeToClientJobs, type Client, type Job } from '$lib/firebase/firestore';
+import { localCache } from '$lib/utils/localCache';
+import { browser } from '$app/environment';
 
 interface ClientStore {
   clients: Client[];
@@ -11,6 +13,7 @@ interface ClientStore {
   error: string | null;
   hasClients: boolean;
   recentClients: Client[];
+  isOffline: boolean;
   selectClient: (client: Client | null) => void;
   clearSelection: () => void;
   restoreSelection: () => void;
@@ -28,13 +31,54 @@ class ClientStoreImpl {
   isLoadingJobs = $state(false);
   error = $state<string | null>(null);
   recentClientIds = $state<string[]>([]);
+  isOffline = $state(false);
+  
+  // Cache state
+  private cachedClients = $state<Client[]>([]);
+  private lastSync = $state<number>(0);
+  private syncInterval: ReturnType<typeof setInterval> | null = null;
 
   // Subscriptions
   private unsubscribeClients: Unsubscribe | null = null;
   private unsubscribeJobs: Unsubscribe | null = null;
+  private currentTenantId: string | undefined = undefined;
 
   constructor() {
     this.loadRecentClientIds();
+    this.initializeOfflineDetection();
+    this.startPeriodicCacheCleanup();
+  }
+
+  // Initialize offline detection
+  private initializeOfflineDetection() {
+    if (!browser) return;
+    
+    this.isOffline = !navigator.onLine;
+    
+    window.addEventListener('online', () => {
+      this.isOffline = false;
+      // Sync when back online
+      if (this.currentTenantId) {
+        this.syncWithServer(this.currentTenantId);
+      }
+    });
+    
+    window.addEventListener('offline', () => {
+      this.isOffline = true;
+      // Load from cache when offline
+      if (this.currentTenantId) {
+        this.loadFromCache(this.currentTenantId);
+      }
+    });
+  }
+
+  // Start periodic cache cleanup (every hour)
+  private startPeriodicCacheCleanup() {
+    if (!browser) return;
+    
+    this.syncInterval = setInterval(() => {
+      localCache.cleanOldData().catch(console.error);
+    }, 60 * 60 * 1000); // 1 hour
   }
 
   // Load recent client IDs from localStorage
@@ -58,9 +102,52 @@ class ClientStoreImpl {
     }
   }
 
+  // Load clients from IndexedDB cache
+  private async loadFromCache(tenantId: string) {
+    try {
+      this.isLoadingClients = true;
+      const cachedClients = await localCache.getAllClients(tenantId);
+      
+      if (cachedClients.length > 0) {
+        this.cachedClients = cachedClients;
+        this.clients = cachedClients;
+        
+        // Only log cache loads in development
+        if (import.meta.env.DEV) {
+          console.log(`Loaded ${cachedClients.length} clients from cache`);
+        }
+      }
+    } catch (error) {
+      console.error('Error loading from cache:', error);
+    } finally {
+      this.isLoadingClients = false;
+    }
+  }
+
+  // Sync clients with server and update cache
+  private async syncWithServer(tenantId: string) {
+    if (this.isOffline) return;
+    
+    try {
+      // Update cache with current clients
+      for (const client of this.clients) {
+        await localCache.setClient(client, tenantId);
+      }
+      this.lastSync = Date.now();
+      
+      // Only log successful syncs in development
+      if (import.meta.env.DEV) {
+        console.log('Synced clients to cache');
+      }
+    } catch (error) {
+      console.error('Error syncing to cache:', error);
+    }
+  }
+
   // Initialize tenant subscription
   subscribeTenant(tenantId: string | undefined) {
     if (tenantId) {
+      this.currentTenantId = tenantId;
       this.isLoadingClients = true;
       this.error = null;
       
@@ -69,137 +156,192 @@ class ClientStoreImpl {
         this.unsubscribeClients();
       }
       
-      // Subscribe to tenant's clients
-      this.unsubscribeClients = subscribeToClients(
-        tenantId,
-        (updatedClients) => {
-          this.clients = updatedClients;
-          this.isLoadingClients = false;
-          
-          // Check if selected client still exists
-          if (this.selectedClient && !updatedClients.find(c => c.id === this.selectedClient!.id)) {
-            this.selectedClient = null;
+      // Load from cache first (immediate response)
+      this.loadFromCache(tenantId);
+      
+      // Then subscribe to real-time updates if online
+      if (!this.isOffline) {
+        this.unsubscribeClients = subscribeToClients(
+          tenantId,
+          async (updatedClients) => {
+            this.clients = updatedClients;
+            this.isLoadingClients = false;
+            
+            // Update cache in background
+            this.syncWithServer(tenantId);
+            
+            // Check if selected client still exists
+            if (this.selectedClient && !updatedClients.find(c => c.id === this.selectedClient!.id)) {
+              this.selectedClient = null;
+              this.saveSelectedClientId(null);
+            }
+          },
+          (error) => {
+            // Only log errors if we're online (offline errors are expected)
+            if (!this.isOffline) {
+              console.error('Error subscribing to clients:', error);
+              this.error = error.message;
+            }
+            this.isLoadingClients = false;
+            
+            // Fall back to cache on error
+            this.loadFromCache(tenantId);
           }
-        },
-        { 
-          limit: 50, 
-          orderBy: { field: 'updatedAt', direction: 'desc' } 
-        }
-      );
+        );
+      }
     } else {
-      // No tenant, clear clients
+      // Clear state when no tenant
       this.clients = [];
       this.selectedClient = null;
       this.clientJobs = [];
       this.isLoadingClients = false;
-      
-      if (this.unsubscribeClients) {
-        this.unsubscribeClients();
-        this.unsubscribeClients = null;
-      }
+      this.isLoadingJobs = false;
+      this.error = null;
     }
   }
 
-  // Subscribe to client jobs
+  // Subscribe to jobs for selected client
   subscribeClientJobs(tenantId: string | undefined, clientId: string | undefined) {
-    if (tenantId && clientId) {
+    // Cleanup previous subscription
+    if (this.unsubscribeJobs) {
+      this.unsubscribeJobs();
+      this.unsubscribeJobs = null;
+    }
+    
+    if (tenantId && clientId && !this.isOffline) {
       this.isLoadingJobs = true;
       
-      // Cleanup previous subscription
-      if (this.unsubscribeJobs) {
-        this.unsubscribeJobs();
-      }
-      
-      // Subscribe to client's jobs
       this.unsubscribeJobs = subscribeToClientJobs(
         tenantId,
         clientId,
         (jobs) => {
           this.clientJobs = jobs;
           this.isLoadingJobs = false;
+          
+          // TODO: Cache jobs in IndexedDB
+        },
+        (error) => {
+          // Only log errors if we're online (offline errors are expected)
+          if (!this.isOffline) {
+            console.error('Error subscribing to client jobs:', error);
+          }
+          this.isLoadingJobs = false;
+          
+          // TODO: Load jobs from cache on error
         }
       );
     } else {
       this.clientJobs = [];
       this.isLoadingJobs = false;
-      
-      if (this.unsubscribeJobs) {
-        this.unsubscribeJobs();
-        this.unsubscribeJobs = null;
-      }
     }
   }
 
-  // Actions
+  // Select a client
   selectClient = (client: Client | null) => {
     this.selectedClient = client;
+    this.saveSelectedClientId(client?.id || null);
     
-    // Persist selection in session storage
+    // Update recent clients
     if (client) {
-      sessionStorage.setItem('selectedClientId', client.id);
-      
-      // Add to recent clients (max 5)
-      const filtered = this.recentClientIds.filter(id => id !== client.id);
-      this.recentClientIds = [client.id, ...filtered].slice(0, 5);
+      this.recentClientIds = [
+        client.id,
+        ...this.recentClientIds.filter(id => id !== client.id)
+      ].slice(0, 10);
       this.saveRecentClientIds();
-    } else {
-      sessionStorage.removeItem('selectedClientId');
     }
   }
 
+  // Clear client selection
   clearSelection = () => {
     this.selectedClient = null;
     this.clientJobs = [];
-    sessionStorage.removeItem('selectedClientId');
+    this.saveSelectedClientId(null);
   }
 
-  // Restore selected client from session storage
+  // Restore previous selection
   restoreSelection = () => {
-    const savedClientId = sessionStorage.getItem('selectedClientId');
-    if (savedClientId && this.clients.length > 0) {
-      const client = this.clients.find(c => c.id === savedClientId);
+    const savedId = this.getSelectedClientId();
+    if (savedId) {
+      const client = this.clients.find(c => c.id === savedId);
       if (client) {
         this.selectClient(client);
       }
     }
   }
 
-  // Search/filter clients
+  // Save selected client ID to sessionStorage
+  private saveSelectedClientId(id: string | null) {
+    if (typeof window !== 'undefined') {
+      if (id) {
+        sessionStorage.setItem('selectedClientId', id);
+      } else {
+        sessionStorage.removeItem('selectedClientId');
+      }
+    }
+  }
+
+  // Get selected client ID from sessionStorage
+  private getSelectedClientId(): string | null {
+    if (typeof window !== 'undefined') {
+      return sessionStorage.getItem('selectedClientId');
+    }
+    return null;
+  }
+
+  // Search clients by name
   searchClients = (query: string): Client[] => {
-    const searchTerm = query.toLowerCase();
-    return this.clients.filter(client => 
+    const searchTerm = query.toLowerCase().trim();
+    if (!searchTerm) return this.clients;
+    
+    // Search in both online and cached clients when offline
+    const clientsToSearch = this.isOffline && this.cachedClients.length > 0 
+      ? this.cachedClients 
+      : this.clients;
+    
+    return clientsToSearch.filter(client => 
       client.name.toLowerCase().includes(searchTerm) ||
-      client.address?.toLowerCase().includes(searchTerm) ||
-      client.phone?.includes(searchTerm) ||
-      client.email?.toLowerCase().includes(searchTerm)
+      client.email?.toLowerCase().includes(searchTerm) ||
+      client.phone?.includes(searchTerm)
     );
   }
 
-  // Get recent clients (actual client objects, not just IDs)
+  // Get recent clients
   getRecentClients = (count: number = 5): Client[] => {
-    const recent: Client[] = [];
+    const recentClients: Client[] = [];
+    const clientsToSearch = this.isOffline && this.cachedClients.length > 0 
+      ? this.cachedClients 
+      : this.clients;
     
-    // Map stored IDs to actual client objects
     for (const id of this.recentClientIds) {
-      const client = this.clients.find(c => c.id === id);
+      const client = clientsToSearch.find(c => c.id === id);
       if (client) {
-        recent.push(client);
+        recentClients.push(client);
+        if (recentClients.length >= count) break;
       }
-      if (recent.length >= count) break;
     }
     
-    return recent;
+    return recentClients;
   }
 
-  getById = (id: string) => this.clients.find(c => c.id === id);
+  // Get client by ID
+  getById = (id: string): Client | undefined => {
+    const clientsToSearch = this.isOffline && this.cachedClients.length > 0 
+      ? this.cachedClients 
+      : this.clients;
+    
+    return clientsToSearch.find(c => c.id === id);
+  }
 
-  // Cleanup
-  cleanup() {
+  // Cleanup on destroy
+  destroy() {
     if (this.unsubscribeClients) {
       this.unsubscribeClients();
     }
     if (this.unsubscribeJobs) {
       this.unsubscribeJobs();
+    }
+    if (this.syncInterval) {
+      clearInterval(this.syncInterval);
     }
   }
 }
@@ -221,9 +363,10 @@ export function useClients(): ClientStore {
     get isLoading() { return clientStore.isLoadingClients; },
     get isLoadingJobs() { return clientStore.isLoadingJobs; },
     get error() { return clientStore.error; },
+    get isOffline() { return clientStore.isOffline; },
     
     // Computed values
-    get hasClients() { return clientStore.clients.length > 0; },
+    get hasClients() { return clientStore.clients.length > 0 || (clientStore.isOffline && clientStore.cachedClients.length > 0); },
     get recentClients() { return clientStore.getRecentClients(); },
     
     // Actions
@@ -247,6 +390,14 @@ export function initializeClientStore(tenantId: string | undefined) {
 export function updateClientJobsSubscription(tenantId: string | undefined, clientId: string | undefined) {
   if (clientStore) {
     clientStore.subscribeClientJobs(tenantId, clientId);
+  }
+}
+
+// Cleanup function
+export function cleanupClientStore() {
+  if (clientStore) {
+    clientStore.destroy();
+    clientStore = null;
   }
 }
 

@@ -45,7 +45,8 @@ const CACHE_STRATEGIES = {
 const STATIC_ASSETS = [
   ...build,
   ...files,
-  ...prerendered
+  ...prerendered,
+  '/offline' // Add offline page to static assets
 ];
 
 // Install event - cache static assets
@@ -105,7 +106,7 @@ sw.addEventListener('fetch', (event) => {
 });
 
 // Request handling based on strategy
-async function handleRequest(request, strategy, cacheName) {
+async function handleRequest(request: Request, strategy: string, cacheName: string): Promise<Response> {
   const cache = await caches.open(cacheName);
 
   switch (strategy) {
@@ -121,7 +122,7 @@ async function handleRequest(request, strategy, cacheName) {
 }
 
 // Cache-first strategy - good for static assets
-async function cacheFirst(cache, request) {
+async function cacheFirst(cache: Cache, request: Request): Promise<Response> {
   const cached = await cache.match(request);
   if (cached) return cached;
 
@@ -132,13 +133,16 @@ async function cacheFirst(cache, request) {
     }
     return response;
   } catch (error) {
-    // Return offline page if available
-    return new Response('Offline - resource not available', { status: 503 });
+    // Return offline response for static assets
+    return new Response('Offline - resource not available', { 
+      status: 503,
+      statusText: 'Service Unavailable'
+    });
   }
 }
 
 // Network-first strategy - good for HTML and API calls
-async function networkFirst(cache, request) {
+async function networkFirst(cache: Cache, request: Request): Promise<Response> {
   try {
     const response = await fetch(request);
     if (response.ok) {
@@ -149,16 +153,28 @@ async function networkFirst(cache, request) {
     const cached = await cache.match(request);
     if (cached) return cached;
     
-    // Return offline fallback
+    // Return offline page for navigation requests
     if (request.destination === 'document') {
-      return caches.match('/offline.html') || new Response('Offline', { status: 503 });
+      // Try to get the offline page from any cache
+      const offlinePage = await caches.match('/offline');
+      if (offlinePage) {
+        return offlinePage;
+      }
     }
-    return new Response('Offline - resource not available', { status: 503 });
+    
+    // Return generic offline response
+    return new Response('Offline - resource not available', { 
+      status: 503,
+      statusText: 'Service Unavailable',
+      headers: new Headers({
+        'Content-Type': 'text/plain'
+      })
+    });
   }
 }
 
 // Stale-while-revalidate - return cache immediately, update in background
-async function staleWhileRevalidate(cache, request) {
+async function staleWhileRevalidate(cache: Cache, request: Request): Promise<Response> {
   const cached = await cache.match(request);
   
   const fetchPromise = fetch(request).then((response) => {
@@ -179,8 +195,8 @@ sw.addEventListener('sync', (event) => {
 });
 
 // Sync offline operations when back online
-async function syncOfflineOperations() {
-  // This will be implemented with your offline queue
+async function syncOfflineOperations(): Promise<void> {
+  // Notify all clients that sync is starting
   const clients = await sw.clients.matchAll();
   clients.forEach(client => {
     client.postMessage({
@@ -188,19 +204,24 @@ async function syncOfflineOperations() {
       message: 'Syncing offline operations...'
     });
   });
+  
+  // The actual sync logic will be handled by the offline store
+  // when it receives this message
 }
 
 // Handle push notifications
 sw.addEventListener('push', (event) => {
   if (event.data) {
     const data = event.data.json();
-    const options = {
+    const options: NotificationOptions = {
       body: data.body,
       icon: '/icon-192.png',
       badge: '/icon-96.png',
       vibrate: [200, 100, 200],
       data: data.data,
-      actions: data.actions || []
+      actions: data.actions || [],
+      tag: data.tag || 'vahst-notification',
+      requireInteraction: data.requireInteraction || false
     };
     
     event.waitUntil(
@@ -213,9 +234,33 @@ sw.addEventListener('push', (event) => {
 sw.addEventListener('notificationclick', (event) => {
   event.notification.close();
   
-  if (event.action === 'view') {
+  // Handle action clicks
+  if (event.action === 'view' && event.notification.data?.url) {
     event.waitUntil(
       sw.clients.openWindow(event.notification.data.url)
     );
+  } else {
+    // Default action - focus or open the app
+    event.waitUntil(
+      sw.clients.matchAll({ type: 'window' }).then(windowClients => {
+        // Check if there is already a window/tab open
+        for (const client of windowClients) {
+          if ('focus' in client) {
+            return client.focus();
+          }
+        }
+        // If no window is open, open a new one
+        if (sw.clients.openWindow) {
+          return sw.clients.openWindow('/');
+        }
+      })
+    );
+  }
+});
+
+// Listen for skip waiting message from client
+sw.addEventListener('message', (event) => {
+  if (event.data?.type === 'SKIP_WAITING') {
+    sw.skipWaiting();
   }
 });
