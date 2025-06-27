@@ -3,8 +3,10 @@
   import { goto } from '$app/navigation';
   import { page } from '$app/stores';
   import { useClients } from '$lib/stores/client.svelte';
+  import { useVoice } from '$lib/stores/voice.svelte';
   
   const client = useClients();
+  const voice = useVoice();
   let showQuickActions = $state(false);
   
   function navigateTo(path) {
@@ -85,13 +87,18 @@
       
       <!-- Voice -->
       <button 
-        class="flex flex-col items-center py-1 px-3 rounded-lg transition-colors text-gray-500"
-        onclick={() => {}}
+        class="flex flex-col items-center py-1 px-3 rounded-lg transition-colors {voice.isListening ? 'text-blue-600 bg-blue-50' : 'text-gray-500'}"
+        onclick={() => voice.startListening()}
       >
-        <svg class="w-6 h-6 mb-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
-        </svg>
-        <span class="text-xs">Voice</span>
+        <div class="relative">
+          <svg class="w-6 h-6 mb-0.5 {voice.isListening ? 'animate-pulse' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+          </svg>
+          {#if voice.isListening}
+            <div class="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
+          {/if}
+        </div>
+        <span class="text-xs">{voice.isListening ? 'Listening' : 'Voice'}</span>
       </button>
       
     </div>
@@ -179,6 +186,34 @@
       >
         Cancel
       </button>
+    </div>
+  </div>
+{/if}
+
+<!-- Voice Feedback Overlay -->
+{#if voice.isListening || voice.transcript}
+  <div class="fixed bottom-24 left-0 right-0 flex justify-center px-4 z-50 animate-fade-in">
+    <div class="bg-gray-900 text-white rounded-2xl px-6 py-3 shadow-xl max-w-sm w-full">
+      <div class="flex items-center justify-between">
+        <div class="flex-1">
+          {#if voice.isListening}
+            <p class="text-xs text-gray-400 mb-1">Listening... (click mic to stop)</p>
+          {/if}
+          <p class="text-sm font-medium">
+            {voice.transcript || 'Try saying: "Go to my day" or "Help"'}
+          </p>
+        </div>
+        {#if voice.isListening}
+          <div class="ml-3 flex space-x-1">
+            <div class="w-1 h-3 bg-blue-400 rounded-full animate-pulse"></div>
+            <div class="w-1 h-3 bg-blue-400 rounded-full animate-pulse" style="animation-delay: 0.2s"></div>
+            <div class="w-1 h-3 bg-blue-400 rounded-full animate-pulse" style="animation-delay: 0.4s"></div>
+          </div>
+        {/if}
+      </div>
+      {#if voice.error}
+        <p class="text-xs text-red-400 mt-1">{voice.error}</p>
+      {/if}
     </div>
   </div>
 {/if}
