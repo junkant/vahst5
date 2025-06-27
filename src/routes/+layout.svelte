@@ -12,12 +12,6 @@
       document.documentElement.classList.toggle('dark', theme === 'dark');
     }
   });
-
-    import { browser } from '$app/environment';
-  
-  if (browser) {
-    console.log('Firebase API Key:', import.meta.env.PUBLIC_FIREBASE_API_KEY);
-  }
 </script>
 
 <slot />

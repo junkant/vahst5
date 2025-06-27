@@ -1,17 +1,32 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
+import { 
+  PUBLIC_FIREBASE_API_KEY,
+  PUBLIC_FIREBASE_AUTH_DOMAIN,
+  PUBLIC_FIREBASE_PROJECT_ID,
+  PUBLIC_FIREBASE_STORAGE_BUCKET,
+  PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+  PUBLIC_FIREBASE_APP_ID
+} from '$env/static/public';
 
-// Using direct values since env vars aren't loading properly
-// TODO: Fix environment variable loading later
 const firebaseConfig = {
-  apiKey: "AIzaSyDZ2cGgriL4f3ipiCxnVulH-bbFk_SqKrc",
-  authDomain: "vahst5.firebaseapp.com", 
-  projectId: "vahst5",
-  storageBucket: "vahst5.firebasestorage.app",
-  messagingSenderId: "483828342118",
-  appId: "1:483828342118:web:0fac6d022074768e377ca7"
+  apiKey: PUBLIC_FIREBASE_API_KEY,
+  authDomain: PUBLIC_FIREBASE_AUTH_DOMAIN,
+  projectId: PUBLIC_FIREBASE_PROJECT_ID,
+  storageBucket: PUBLIC_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+  appId: PUBLIC_FIREBASE_APP_ID
 };
+
+// Verify environment variables loaded correctly
+if (!PUBLIC_FIREBASE_API_KEY) {
+  console.error('❌ Firebase environment variables not loaded');
+  console.error('Check that your .env file is in the project root and formatted correctly');
+} else {
+  console.log('✅ Firebase environment variables loaded successfully');
+  console.log('🔥 Firebase initialized with project:', PUBLIC_FIREBASE_PROJECT_ID);
+}
 
 export const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
