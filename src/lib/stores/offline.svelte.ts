@@ -1,4 +1,4 @@
-// src/lib/stores/offline.ts
+// src/lib/stores/offline.svelte.ts
 
 interface OfflineOperation {
   id: string;
@@ -14,34 +14,45 @@ let isOnline = $state(typeof navigator !== 'undefined' ? navigator.onLine : true
 let offlineQueue = $state<OfflineOperation[]>([]);
 let isSyncing = $state(false);
 
-// Initialize online/offline listeners
-if (typeof window !== 'undefined') {
-  window.addEventListener('online', () => {
-    isOnline = true;
-    processOfflineQueue();
-  });
-  
-  window.addEventListener('offline', () => {
-    isOnline = false;
-  });
-  
-  // Load offline queue from localStorage
-  const savedQueue = localStorage.getItem('offlineQueue');
-  if (savedQueue) {
-    try {
-      offlineQueue = JSON.parse(savedQueue);
-    } catch (e) {
-      console.error('Failed to load offline queue:', e);
+// Initialize function to be called from a component
+function initializeOfflineStore() {
+  if (typeof window !== 'undefined') {
+    // Set up online/offline listeners
+    window.addEventListener('online', () => {
+      isOnline = true;
+      processOfflineQueue();
+    });
+    
+    window.addEventListener('offline', () => {
+      isOnline = false;
+    });
+    
+    // Load offline queue from localStorage
+    const savedQueue = localStorage.getItem('offlineQueue');
+    if (savedQueue) {
+      try {
+        offlineQueue = JSON.parse(savedQueue);
+      } catch (e) {
+        console.error('Failed to load offline queue:', e);
+      }
     }
+    
+    // Set up automatic save to localStorage
+    // This will be called from a component with $effect
   }
 }
 
-// Save queue to localStorage whenever it changes
-$effect(() => {
+// Call initialization immediately if in browser
+if (typeof window !== 'undefined') {
+  initializeOfflineStore();
+}
+
+// Save queue to localStorage - to be called from effect
+function saveQueueToStorage() {
   if (typeof window !== 'undefined') {
     localStorage.setItem('offlineQueue', JSON.stringify(offlineQueue));
   }
-});
+}
 
 // Process offline queue
 async function processOfflineQueue() {
@@ -59,6 +70,7 @@ async function processOfflineQueue() {
       
       // Remove from queue on success
       offlineQueue = offlineQueue.slice(1);
+      saveQueueToStorage(); // Save after each successful operation
     } catch (error) {
       console.error('Failed to sync offline operation:', error);
       
@@ -73,6 +85,7 @@ async function processOfflineQueue() {
         // Move to end of queue
         offlineQueue = [...offlineQueue.slice(1), operation];
       }
+      saveQueueToStorage(); // Save queue state
       
       // Stop processing on error
       break;
@@ -100,6 +113,7 @@ function addToQueue(operation: Omit<OfflineOperation, 'id' | 'timestamp' | 'retr
   };
   
   offlineQueue = [...offlineQueue, newOperation];
+  saveQueueToStorage(); // Save immediately
   
   // Try to process immediately if online
   if (isOnline) {
@@ -110,6 +124,7 @@ function addToQueue(operation: Omit<OfflineOperation, 'id' | 'timestamp' | 'retr
 // Clear the queue
 function clearQueue() {
   offlineQueue = [];
+  saveQueueToStorage();
 }
 
 // Export the store hook
@@ -125,6 +140,7 @@ export function useOffline() {
     addToQueue,
     processQueue: processOfflineQueue,
     clearQueue,
+    saveQueueToStorage,
     
     // Computed values
     get hasQueuedOperations() { return offlineQueue.length > 0; }
