@@ -27,18 +27,21 @@
 </script>
 
 {#if open}
-  <button 
+  <div 
     class="fixed inset-0 bg-black/30 z-50 flex items-end sm:items-center justify-center"
     onclick={() => open = false}
     onkeydown={(e) => e.key === 'Escape' && (open = false)}
-    aria-label="Close client selector"
-    type="button"
+    role="dialog"
+    aria-modal="true"
+    tabindex="-1"
   >
     <div 
       class="bg-white rounded-t-2xl sm:rounded-2xl shadow-xl w-full max-w-md mx-4 max-h-[80vh] flex flex-col animate-slide-in"
       onclick={(e) => e.stopPropagation()}
+      onkeydown={(e) => e.stopPropagation()}
       role="dialog"
       aria-label="Select a client"
+      tabindex="-1"
     >
       <!-- Header -->
       <div class="p-4 border-b border-gray-200">

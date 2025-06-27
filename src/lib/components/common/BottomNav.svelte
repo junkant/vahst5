@@ -91,18 +91,21 @@
 
 <!-- Quick Actions Popover - Client Aware -->
 {#if showQuickActions}
-  <button 
+  <div 
     class="fixed inset-0 bg-black/30 z-40 flex items-end justify-center pb-24"
     onclick={() => showQuickActions = false}
     onkeydown={(e) => e.key === 'Escape' && (showQuickActions = false)}
-    aria-label="Close quick actions"
-    type="button"
+    role="dialog"
+    aria-modal="true"
+    tabindex="-1"
   >
     <div 
       class="bg-white rounded-t-2xl shadow-xl w-full max-w-sm mx-4 p-6 animate-slide-in"
       onclick={(e) => e.stopPropagation()}
+      onkeydown={(e) => e.stopPropagation()}
       role="dialog"
       aria-label="Quick actions menu"
+      tabindex="-1"
     >
       <div class="text-center mb-4">
         <div class="w-8 h-1 bg-gray-300 rounded-full mx-auto mb-3"></div>
@@ -152,7 +155,7 @@
             </svg>
             <p class="text-gray-600 mb-4">Please select a client first</p>
             <button 
-              onclick={() => { showQuickActions = false; showClientSelector = true; }}
+              onclick={() => { showQuickActions = false; }}
               class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
             >
               Select Client
@@ -168,5 +171,5 @@
         Cancel
       </button>
     </div>
-  </button>
+  </div>
 {/if}

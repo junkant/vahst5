@@ -1,3 +1,4 @@
+<!-- src/lib/components/tenant/TenantSwitcher.svelte -->
 <script>
   import { useAuth } from '$lib/stores/auth.svelte';
   
@@ -38,6 +39,7 @@
     role="dialog"
     aria-modal="true"
     aria-labelledby="tenant-dialog-title"
+    tabindex="-1"
   >
     <!-- Modal -->
     <div class="bg-white rounded-lg shadow-xl w-full max-w-md">
@@ -58,9 +60,9 @@
       <!-- Content -->
       <div class="p-4 space-y-4">
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-3">
+          <p class="block text-sm font-medium text-gray-700 mb-3">
             Select Tenant
-          </label>
+          </p>
           
           <div class="space-y-2">
             {#if auth.tenants && auth.tenants.length > 0}

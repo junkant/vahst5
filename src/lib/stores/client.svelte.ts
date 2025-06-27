@@ -1,216 +1,253 @@
 // src/lib/stores/client.svelte.ts
-import { onSnapshot, collection, query, where, orderBy, limit, type Unsubscribe } from 'firebase/firestore';
-import { db } from '$lib/firebase/config';
-import { useAuth } from './auth.svelte';
+import { type Unsubscribe } from 'firebase/firestore';
 import { subscribeToClients, subscribeToClientJobs, type Client, type Job } from '$lib/firebase/firestore';
 
-// Get auth instance
-const auth = useAuth();
-
-// Svelte 5 state using runes
-let clients = $state<Client[]>([]);
-let selectedClient = $state<Client | null>(null);
-let clientJobs = $state<Job[]>([]);
-let isLoadingClients = $state(false);
-let isLoadingJobs = $state(false);
-let error = $state<string | null>(null);
-let recentClientIds = $state<string[]>([]);
-
-// Store subscriptions
-let unsubscribeClients: Unsubscribe | null = null;
-let unsubscribeJobs: Unsubscribe | null = null;
-
-// Load recent client IDs from localStorage
-function loadRecentClientIds() {
-  if (typeof window !== 'undefined') {
-    const stored = localStorage.getItem('recentClientIds');
-    if (stored) {
-      try {
-        recentClientIds = JSON.parse(stored);
-      } catch (e) {
-        recentClientIds = [];
-      }
-    }
-  }
+interface ClientStore {
+  clients: Client[];
+  selectedClient: Client | null;
+  clientJobs: Job[];
+  isLoading: boolean;
+  isLoadingJobs: boolean;
+  error: string | null;
+  hasClients: boolean;
+  recentClients: Client[];
+  selectClient: (client: Client | null) => void;
+  clearSelection: () => void;
+  restoreSelection: () => void;
+  searchClients: (query: string) => Client[];
+  getRecentClients: (count?: number) => Client[];
+  getById: (id: string) => Client | undefined;
 }
 
-// Save recent client IDs to localStorage
-function saveRecentClientIds() {
-  if (typeof window !== 'undefined') {
-    localStorage.setItem('recentClientIds', JSON.stringify(recentClientIds));
+class ClientStoreImpl {
+  // State
+  clients = $state<Client[]>([]);
+  selectedClient = $state<Client | null>(null);
+  clientJobs = $state<Job[]>([]);
+  isLoadingClients = $state(false);
+  isLoadingJobs = $state(false);
+  error = $state<string | null>(null);
+  recentClientIds = $state<string[]>([]);
+
+  // Subscriptions
+  private unsubscribeClients: Unsubscribe | null = null;
+  private unsubscribeJobs: Unsubscribe | null = null;
+
+  constructor() {
+    this.loadRecentClientIds();
   }
-}
 
-// Initialize recent clients on load
-loadRecentClientIds();
-
-// Subscribe to clients when tenant changes
-$effect(() => {
-  const tenant = auth.tenant;
-  
-  if (tenant?.id) {
-    isLoadingClients = true;
-    error = null;
-    
-    // Cleanup previous subscription
-    if (unsubscribeClients) {
-      unsubscribeClients();
-    }
-    
-    // Subscribe to tenant's clients
-    unsubscribeClients = subscribeToClients(
-      tenant.id,
-      (updatedClients) => {
-        clients = updatedClients;
-        isLoadingClients = false;
-        
-        // Check if selected client still exists
-        if (selectedClient && !updatedClients.find(c => c.id === selectedClient.id)) {
-          selectedClient = null;
+  // Load recent client IDs from localStorage
+  private loadRecentClientIds() {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('recentClientIds');
+      if (stored) {
+        try {
+          this.recentClientIds = JSON.parse(stored);
+        } catch (e) {
+          this.recentClientIds = [];
         }
-      },
-      { 
-        limit: 50, 
-        orderBy: { field: 'updatedAt', direction: 'desc' } 
       }
-    );
-  } else {
-    // No tenant, clear clients
-    clients = [];
-    selectedClient = null;
-    clientJobs = [];
-    isLoadingClients = false;
+    }
   }
-  
-  // Cleanup on effect destroy
-  return () => {
-    if (unsubscribeClients) {
-      unsubscribeClients();
-    }
-  };
-});
 
-// Subscribe to selected client's jobs
-$effect(() => {
-  const tenant = auth.tenant;
-  const client = selectedClient;
-  
-  if (tenant?.id && client?.id) {
-    isLoadingJobs = true;
-    
-    // Cleanup previous subscription
-    if (unsubscribeJobs) {
-      unsubscribeJobs();
+  // Save recent client IDs to localStorage
+  private saveRecentClientIds() {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('recentClientIds', JSON.stringify(this.recentClientIds));
     }
-    
-    // Subscribe to client's jobs
-    unsubscribeJobs = subscribeToClientJobs(
-      tenant.id,
-      client.id,
-      (jobs) => {
-        clientJobs = jobs;
-        isLoadingJobs = false;
+  }
+
+  // Initialize tenant subscription
+  subscribeTenant(tenantId: string | undefined) {
+    if (tenantId) {
+      this.isLoadingClients = true;
+      this.error = null;
+      
+      // Cleanup previous subscription
+      if (this.unsubscribeClients) {
+        this.unsubscribeClients();
       }
-    );
-  } else {
-    clientJobs = [];
-    isLoadingJobs = false;
-  }
-  
-  // Cleanup on effect destroy
-  return () => {
-    if (unsubscribeJobs) {
-      unsubscribeJobs();
+      
+      // Subscribe to tenant's clients
+      this.unsubscribeClients = subscribeToClients(
+        tenantId,
+        (updatedClients) => {
+          this.clients = updatedClients;
+          this.isLoadingClients = false;
+          
+          // Check if selected client still exists
+          if (this.selectedClient && !updatedClients.find(c => c.id === this.selectedClient!.id)) {
+            this.selectedClient = null;
+          }
+        },
+        { 
+          limit: 50, 
+          orderBy: { field: 'updatedAt', direction: 'desc' } 
+        }
+      );
+    } else {
+      // No tenant, clear clients
+      this.clients = [];
+      this.selectedClient = null;
+      this.clientJobs = [];
+      this.isLoadingClients = false;
+      
+      if (this.unsubscribeClients) {
+        this.unsubscribeClients();
+        this.unsubscribeClients = null;
+      }
     }
-  };
-});
+  }
 
-// Actions
-function selectClient(client: Client | null) {
-  selectedClient = client;
-  
-  // Persist selection in session storage
-  if (client) {
-    sessionStorage.setItem('selectedClientId', client.id);
+  // Subscribe to client jobs
+  subscribeClientJobs(tenantId: string | undefined, clientId: string | undefined) {
+    if (tenantId && clientId) {
+      this.isLoadingJobs = true;
+      
+      // Cleanup previous subscription
+      if (this.unsubscribeJobs) {
+        this.unsubscribeJobs();
+      }
+      
+      // Subscribe to client's jobs
+      this.unsubscribeJobs = subscribeToClientJobs(
+        tenantId,
+        clientId,
+        (jobs) => {
+          this.clientJobs = jobs;
+          this.isLoadingJobs = false;
+        }
+      );
+    } else {
+      this.clientJobs = [];
+      this.isLoadingJobs = false;
+      
+      if (this.unsubscribeJobs) {
+        this.unsubscribeJobs();
+        this.unsubscribeJobs = null;
+      }
+    }
+  }
+
+  // Actions
+  selectClient = (client: Client | null) => {
+    this.selectedClient = client;
     
-    // Add to recent clients (max 5)
-    const filtered = recentClientIds.filter(id => id !== client.id);
-    recentClientIds = [client.id, ...filtered].slice(0, 5);
-    saveRecentClientIds();
-  } else {
+    // Persist selection in session storage
+    if (client) {
+      sessionStorage.setItem('selectedClientId', client.id);
+      
+      // Add to recent clients (max 5)
+      const filtered = this.recentClientIds.filter(id => id !== client.id);
+      this.recentClientIds = [client.id, ...filtered].slice(0, 5);
+      this.saveRecentClientIds();
+    } else {
+      sessionStorage.removeItem('selectedClientId');
+    }
+  }
+
+  clearSelection = () => {
+    this.selectedClient = null;
+    this.clientJobs = [];
     sessionStorage.removeItem('selectedClientId');
   }
-}
 
-function clearSelection() {
-  selectedClient = null;
-  clientJobs = [];
-  sessionStorage.removeItem('selectedClientId');
-}
+  // Restore selected client from session storage
+  restoreSelection = () => {
+    const savedClientId = sessionStorage.getItem('selectedClientId');
+    if (savedClientId && this.clients.length > 0) {
+      const client = this.clients.find(c => c.id === savedClientId);
+      if (client) {
+        this.selectClient(client);
+      }
+    }
+  }
 
-// Restore selected client from session storage
-function restoreSelection() {
-  const savedClientId = sessionStorage.getItem('selectedClientId');
-  if (savedClientId && clients.length > 0) {
-    const client = clients.find(c => c.id === savedClientId);
-    if (client) {
-      selectClient(client);
+  // Search/filter clients
+  searchClients = (query: string): Client[] => {
+    const searchTerm = query.toLowerCase();
+    return this.clients.filter(client => 
+      client.name.toLowerCase().includes(searchTerm) ||
+      client.address?.toLowerCase().includes(searchTerm) ||
+      client.phone?.includes(searchTerm) ||
+      client.email?.toLowerCase().includes(searchTerm)
+    );
+  }
+
+  // Get recent clients (actual client objects, not just IDs)
+  getRecentClients = (count: number = 5): Client[] => {
+    const recent: Client[] = [];
+    
+    // Map stored IDs to actual client objects
+    for (const id of this.recentClientIds) {
+      const client = this.clients.find(c => c.id === id);
+      if (client) {
+        recent.push(client);
+      }
+      if (recent.length >= count) break;
+    }
+    
+    return recent;
+  }
+
+  getById = (id: string) => this.clients.find(c => c.id === id);
+
+  // Cleanup
+  cleanup() {
+    if (this.unsubscribeClients) {
+      this.unsubscribeClients();
+    }
+    if (this.unsubscribeJobs) {
+      this.unsubscribeJobs();
     }
   }
 }
 
-// Search/filter clients
-function searchClients(query: string): Client[] {
-  const searchTerm = query.toLowerCase();
-  return clients.filter(client => 
-    client.name.toLowerCase().includes(searchTerm) ||
-    client.address?.toLowerCase().includes(searchTerm) ||
-    client.phone?.includes(searchTerm) ||
-    client.email?.toLowerCase().includes(searchTerm)
-  );
-}
-
-// Get recent clients (actual client objects, not just IDs)
-function getRecentClients(count: number = 5): Client[] {
-  const recent: Client[] = [];
-  
-  // Map stored IDs to actual client objects
-  for (const id of recentClientIds) {
-    const client = clients.find(c => c.id === id);
-    if (client) {
-      recent.push(client);
-    }
-    if (recent.length >= count) break;
-  }
-  
-  return recent;
-}
+// Create singleton instance
+let clientStore: ClientStoreImpl | null = null;
 
 // Export the store hook
-export function useClients() {
+export function useClients(): ClientStore {
+  if (!clientStore) {
+    clientStore = new ClientStoreImpl();
+  }
+
   return {
     // State getters
-    get clients() { return clients; },
-    get selectedClient() { return selectedClient; },
-    get clientJobs() { return clientJobs; },
-    get isLoading() { return isLoadingClients; },
-    get isLoadingJobs() { return isLoadingJobs; },
-    get error() { return error; },
+    get clients() { return clientStore.clients; },
+    get selectedClient() { return clientStore.selectedClient; },
+    get clientJobs() { return clientStore.clientJobs; },
+    get isLoading() { return clientStore.isLoadingClients; },
+    get isLoadingJobs() { return clientStore.isLoadingJobs; },
+    get error() { return clientStore.error; },
     
     // Computed values
-    get hasClients() { return clients.length > 0; },
-    get recentClients() { return getRecentClients(); },
+    get hasClients() { return clientStore.clients.length > 0; },
+    get recentClients() { return clientStore.getRecentClients(); },
     
     // Actions
-    selectClient,
-    clearSelection,
-    restoreSelection,
-    searchClients,
-    getRecentClients,
-    
-    // Find client by ID
-    getById: (id: string) => clients.find(c => c.id === id)
+    selectClient: clientStore.selectClient,
+    clearSelection: clientStore.clearSelection,
+    restoreSelection: clientStore.restoreSelection,
+    searchClients: clientStore.searchClients,
+    getRecentClients: clientStore.getRecentClients,
+    getById: clientStore.getById
   };
+}
+
+// Function to initialize subscriptions (call from component)
+export function initializeClientStore(tenantId: string | undefined) {
+  if (clientStore) {
+    clientStore.subscribeTenant(tenantId);
+  }
+}
+
+// Function to update client jobs subscription
+export function updateClientJobsSubscription(tenantId: string | undefined, clientId: string | undefined) {
+  if (clientStore) {
+    clientStore.subscribeClientJobs(tenantId, clientId);
+  }
 }
 
 // For backward compatibility with components expecting useClient

@@ -1,6 +1,5 @@
 <!-- src/lib/components/common/TopBar.svelte -->
 <script>
-  import { createPopover, melt } from '@melt-ui/svelte';
   import { goto } from '$app/navigation';
   import { useAuth } from '$lib/stores/auth.svelte';
   import { useClients } from '$lib/stores/client.svelte';
@@ -12,11 +11,7 @@
   
   let showClientSelector = $state(false);
   let showTenantSwitcher = $state(false);
-  
-  // User menu popover
-  const userMenu = createPopover({
-    positioning: { placement: 'bottom-end' }
-  });
+  let showUserMenu = $state(false);
   
   async function handleSignOut() {
     await auth.logout();
@@ -24,10 +19,12 @@
   }
   
   function navigateToSettings() {
+    showUserMenu = false;
     goto('/settings');
   }
   
   function openTenantSwitcher() {
+    showUserMenu = false;
     showTenantSwitcher = true;
   }
 </script>
@@ -67,58 +64,66 @@
     </button>
     
     <!-- User Menu -->
-    <button use:melt={$userMenu.elements.trigger}
-            class="flex items-center gap-2 p-2 rounded-lg hover:bg-gray-100 
-                   transition-colors">
-      <div class="w-8 h-8 bg-primary-600 rounded-full flex items-center 
-                  justify-center text-white font-medium">
-        {auth.user?.email?.[0]?.toUpperCase() || 'U'}
-      </div>
-      <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-      </svg>
-    </button>
-    
-    {#if $userMenu.states.open}
-      <div use:melt={$userMenu.elements.content}
-           class="bg-white rounded-lg shadow-lg border border-gray-200 
-                  p-2 min-w-[200px] z-50">
-        <div class="px-3 py-2 border-b border-gray-100 mb-2">
-          <p class="text-sm font-medium text-gray-900">
-            {auth.user?.email}
-          </p>
-          <p class="text-xs text-gray-500">
-            {auth.tenant?.name}
-          </p>
+    <div class="relative">
+      <button 
+        onclick={() => showUserMenu = !showUserMenu}
+        class="flex items-center gap-2 p-2 rounded-lg hover:bg-gray-100 transition-colors"
+      >
+        <div class="w-8 h-8 bg-primary-600 rounded-full flex items-center justify-center text-white font-medium">
+          {auth.user?.email?.[0]?.toUpperCase() || 'U'}
         </div>
-        
-        <button 
-          onclick={navigateToSettings}
-          class="w-full text-left px-3 py-2 text-sm text-gray-700 
-                 hover:bg-gray-100 rounded transition-colors"
+        <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+      
+      {#if showUserMenu}
+        <div 
+          class="absolute right-0 mt-2 bg-white rounded-lg shadow-lg border border-gray-200 p-2 min-w-[200px] z-50"
         >
-          Settings
-        </button>
-        <button 
-          onclick={openTenantSwitcher}
-          class="w-full text-left px-3 py-2 text-sm text-gray-700 
-                 hover:bg-gray-100 rounded transition-colors"
-        >
-          Switch Tenant
-        </button>
-        <hr class="my-2 border-gray-100" />
-        <button 
-          onclick={handleSignOut}
-          class="w-full text-left px-3 py-2 text-sm text-red-600 
-                 hover:bg-red-50 rounded transition-colors"
-        >
-          Sign Out
-        </button>
-      </div>
-    {/if}
+          <div class="px-3 py-2 border-b border-gray-100 mb-2">
+            <p class="text-sm font-medium text-gray-900">
+              {auth.user?.email}
+            </p>
+            <p class="text-xs text-gray-500">
+              {auth.tenant?.name}
+            </p>
+          </div>
+          
+          <button 
+            onclick={navigateToSettings}
+            class="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded transition-colors"
+          >
+            Settings
+          </button>
+          <button 
+            onclick={openTenantSwitcher}
+            class="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded transition-colors"
+          >
+            Switch Tenant
+          </button>
+          <hr class="my-2 border-gray-100" />
+          <button 
+            onclick={handleSignOut}
+            class="w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded transition-colors"
+          >
+            Sign Out
+          </button>
+        </div>
+      {/if}
+    </div>
   </div>
 </header>
 
 <!-- Modals -->
 <ClientSelector bind:open={showClientSelector} />
 <TenantSwitcher bind:open={showTenantSwitcher} />
+
+<!-- Click outside to close user menu -->
+{#if showUserMenu}
+  <button 
+    class="fixed inset-0 z-40" 
+    onclick={() => showUserMenu = false}
+    aria-label="Close menu"
+  ></button>
+{/if}

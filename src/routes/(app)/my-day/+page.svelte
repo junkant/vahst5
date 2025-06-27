@@ -1,10 +1,25 @@
+<!-- src/routes/(app)/my-day/+page.svelte -->
+<script>
+  import { useClients } from '$lib/stores/client.svelte';
+  
+  const clients = useClients();
+</script>
+
 <div class="h-full bg-gray-50 p-4">
   <div class="flex items-center justify-between mb-6">
-    <h1 class="text-2xl font-semibold text-gray-900">Today's Schedule</h1>
+    <h1 class="text-2xl font-semibold text-gray-900">My Day</h1>
     <span class="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm">
       3 appointments
     </span>
   </div>
+
+  {#if clients.selectedClient}
+    <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+      <p class="text-sm text-blue-800">
+        Working with: <span class="font-semibold">{clients.selectedClient.name}</span>
+      </p>
+    </div>
+  {/if}
 
   <!-- Today's Schedule Content -->
   <div class="space-y-4">
@@ -31,7 +46,7 @@
           <div>
             <h3 class="font-semibold text-gray-900">Smith Office Building</h3>
             <p class="text-sm text-gray-600">456 Business Park Dr • Maintenance</p>
-            <p class="text-xs text-gray-500">11:30 AM</p>
+            <p class="text-xs text-gray-500">1:30 PM</p>
           </div>
           <span class="px-2 py-1 text-xs bg-green-100 text-green-800 rounded-full">In Progress</span>
         </div>
@@ -40,7 +55,7 @@
           <div>
             <h3 class="font-semibold text-gray-900">Williams Family</h3>
             <p class="text-sm text-gray-600">789 Maple Avenue • Installation</p>
-            <p class="text-xs text-gray-500">2:00 PM</p>
+            <p class="text-xs text-gray-500">3:00 PM</p>
           </div>
           <span class="px-2 py-1 text-xs bg-yellow-100 text-yellow-800 rounded-full">Pending</span>
         </div>
