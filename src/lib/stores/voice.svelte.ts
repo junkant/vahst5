@@ -17,6 +17,8 @@ class VoiceControlStore {
   private recognition: SpeechRecognition | null = null;
   private synthesis = typeof window !== 'undefined' ? window.speechSynthesis : null;
   private clients = useClients();
+  private pendingSpeech: string | null = null;
+  private audioContext: AudioContext | null = null;
   
   constructor() {
     if (typeof window !== 'undefined') {
@@ -35,16 +37,33 @@ class VoiceControlStore {
     if (!this.recognition) return;
     
     // Adjust settings for better detection
-    this.recognition.continuous = true; // Keep listening
+    this.recognition.continuous = false; // Changed: Better for Mac
     this.recognition.interimResults = true;
     this.recognition.lang = 'en-US';
     this.recognition.maxAlternatives = 1;
+    
+    // Add this: Log available audio constraints
+    if ('getSupportedConstraints' in navigator.mediaDevices) {
+      const supported = navigator.mediaDevices.getSupportedConstraints();
+      console.log('Supported audio constraints:', supported);
+    }
     
     this.recognition.onstart = () => {
       console.log('Voice recognition started');
       this.isListening = true;
       this.error = null;
       this.transcript = '';
+      
+      // Play activation sound
+      this.playActivationSound();
+      
+      // Check current audio input
+      navigator.mediaDevices.enumerateDevices().then(devices => {
+        const audioInputs = devices.filter(device => device.kind === 'audioinput');
+        console.log('Available microphones:', audioInputs);
+        const defaultMic = audioInputs.find(device => device.deviceId === 'default');
+        console.log('Default microphone:', defaultMic?.label || 'Not found');
+      });
     };
     
     this.recognition.onaudiostart = () => {
@@ -85,9 +104,17 @@ class VoiceControlStore {
     this.recognition.onerror = (event) => {
       console.error('Speech recognition error:', event.error);
       
-      // Ignore no-speech errors when continuous mode is on
+      // Handle no-speech error differently
       if (event.error === 'no-speech') {
-        console.log('No speech detected, still listening...');
+        console.log('No speech detected. Restarting...');
+        this.isListening = false;
+        // Automatically restart for better UX
+        setTimeout(() => {
+          if (!this.isListening && this.recognition) {
+            console.log('Auto-restarting recognition...');
+            this.startListening();
+          }
+        }, 500);
         return;
       }
       
@@ -110,6 +137,14 @@ class VoiceControlStore {
     this.recognition.onend = () => {
       console.log('Voice recognition ended');
       this.isListening = false;
+      
+      // If there's a pending speech, speak it now
+      if (this.pendingSpeech) {
+        setTimeout(() => {
+          this.speak(this.pendingSpeech!);
+          this.pendingSpeech = null;
+        }, 100);
+      }
     };
     
     this.recognition.onnomatch = () => {
@@ -212,7 +247,7 @@ class VoiceControlStore {
     {
       patterns: [/help|what can you do|commands/i],
       action: () => {
-        this.speak('You can say: go to my day, show tasks, select client, new job, or ask what client is selected');
+        this.speak('I can help you navigate Vahst. Try saying: go to my day, show tasks, select a client, or create a new job. What would you like to do?');
       },
       description: 'Show help'
     }
@@ -239,13 +274,14 @@ class VoiceControlStore {
     }
     
     // No command matched
-    this.speak('Sorry, I didn\'t understand that command. Say help for available commands.');
+    this.speak('I didn\'t catch that. Could you try again? You can say "help" if you need assistance.');
   }
   
   private speak(text: string) {
-    // Skip speech synthesis during recognition to avoid conflicts
+    // If currently listening, save for later
     if (this.isListening) {
       console.log('Would speak:', text);
+      this.pendingSpeech = text;
       return;
     }
     
@@ -255,10 +291,81 @@ class VoiceControlStore {
     
     if (this.synthesis) {
       const utterance = new SpeechSynthesisUtterance(text);
-      utterance.rate = 1.1;
-      utterance.pitch = 1.0;
-      utterance.volume = 0.8;
+      
+      // Get available voices
+      const voices = this.synthesis.getVoices();
+      
+      // Find a female, friendly voice (prioritized list)
+      const preferredVoices = [
+        'Samantha', // macOS - warm and friendly
+        'Microsoft Zira', // Windows - calm and clear
+        'Google US English Female', // Chrome - professional
+        'Karen', // Australian - friendly
+        'Fiona', // Scottish - distinctive but warm
+        'Victoria', // UK - professional and calm
+      ];
+      
+      // Try to find one of our preferred voices
+      let selectedVoice = null;
+      for (const voiceName of preferredVoices) {
+        selectedVoice = voices.find(v => v.name.includes(voiceName));
+        if (selectedVoice) break;
+      }
+      
+      // Fallback: find any English female voice
+      if (!selectedVoice) {
+        selectedVoice = voices.find(v => 
+          v.lang.startsWith('en') && 
+          (v.name.includes('Female') || v.name.includes('female'))
+        );
+      }
+      
+      // Apply the voice if found
+      if (selectedVoice) {
+        utterance.voice = selectedVoice;
+        console.log('Using voice:', selectedVoice.name);
+      }
+      
+      // Calm and friendly voice settings
+      utterance.rate = 0.95;    // Slightly slower for calm delivery
+      utterance.pitch = 1.05;   // Slightly higher for friendliness
+      utterance.volume = 0.75;  // Gentle volume
+      
+      // Add a subtle pause at the beginning for a more natural feel
+      const pausedText = ' ' + text;
+      utterance.text = pausedText;
+      
       this.synthesis.speak(utterance);
+    }
+  }
+  
+  // New method to handle Mac-specific microphone setup
+  async requestMicrophoneWithConstraints() {
+    try {
+      // First, close any existing audio contexts
+      if ((window as any).globalAudioContext) {
+        (window as any).globalAudioContext.close();
+      }
+      
+      // Request microphone with specific constraints for Mac
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: false, // Important for Mac
+          noiseSuppression: false, // Let Chrome handle speech detection
+          autoGainControl: true,
+          sampleRate: 44100
+        }
+      });
+      
+      console.log('✓ Microphone access granted with optimized settings');
+      
+      // Important: Stop the stream immediately as we just needed permission
+      stream.getTracks().forEach(track => track.stop());
+      
+      return true;
+    } catch (error) {
+      console.error('Failed to get microphone access:', error);
+      return false;
     }
   }
   
@@ -278,13 +385,37 @@ class VoiceControlStore {
     this.transcript = '';
     this.error = null;
     
-    try {
-      this.recognition?.start();
-    } catch (error) {
-      console.error('Failed to start recognition:', error);
-      this.error = 'Failed to start voice recognition. Please try again.';
-      this.isListening = false;
-    }
+    // Add pre-flight check
+    console.log('Attempting to start voice recognition...');
+    console.log('Recognition object exists:', !!this.recognition);
+    console.log('Current URL protocol:', window.location.protocol);
+    
+    // Mac-specific: Request microphone permission first
+    this.requestMicrophoneWithConstraints().then((granted) => {
+      if (!granted) {
+        this.error = 'Microphone permission denied';
+        return;
+      }
+      
+      try {
+        this.recognition?.start();
+        console.log('start() method called successfully');
+      } catch (error: any) {
+        console.error('Failed to start recognition:', error);
+        
+        // More specific error handling
+        if (error.message?.includes('already started')) {
+          // Try to stop and restart
+          this.recognition?.abort();
+          setTimeout(() => {
+            this.recognition?.start();
+          }, 100);
+        } else {
+          this.error = 'Failed to start voice recognition. Please try again.';
+          this.isListening = false;
+        }
+      }
+    });
   }
   
   stopListening() {
@@ -295,6 +426,236 @@ class VoiceControlStore {
       } catch (error) {
         console.error('Error stopping recognition:', error);
       }
+    }
+  }
+  
+  // New diagnostic method to help troubleshoot microphone issues
+  async testMicrophone() {
+    console.log('=== Microphone Test Started ===');
+    console.log('Current URL:', window.location.href);
+    console.log('Protocol:', window.location.protocol);
+    
+    // Test 1: Check if speech recognition is supported
+    console.log('Speech Recognition supported:', this.isSupported);
+    
+    // Test 2: Try to get microphone permission explicitly
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      console.log('✓ Microphone permission granted');
+      console.log('Audio tracks:', stream.getAudioTracks().length);
+      
+      // Get microphone details
+      const track = stream.getAudioTracks()[0];
+      const settings = track.getSettings();
+      console.log('Microphone:', track.label);
+      console.log('Settings:', settings);
+      
+      // Clean up
+      stream.getTracks().forEach(track => track.stop());
+    } catch (error) {
+      console.error('✗ Microphone permission denied:', error);
+      return;
+    }
+    
+    // Test 3: Check speech synthesis (text-to-speech)
+    if (this.synthesis) {
+      console.log('✓ Speech synthesis available');
+      const voices = this.synthesis.getVoices();
+      console.log('Available voices:', voices.length);
+    }
+    
+    // Test 4: Try starting recognition
+    try {
+      this.recognition?.start();
+      console.log('✓ Recognition started successfully');
+      
+      // Stop after 1 second
+      setTimeout(() => {
+        this.recognition?.stop();
+        console.log('Recognition stopped');
+      }, 1000);
+    } catch (error) {
+      console.error('✗ Failed to start recognition:', error);
+    }
+    
+    console.log('=== Microphone Test Complete ===');
+  }
+  
+  // Monitor audio levels to see if microphone is picking up sound
+  async monitorAudioLevel() {
+    try {
+      // Get microphone access
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true
+        } 
+      });
+      
+      // Create audio context
+      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const analyser = audioContext.createAnalyser();
+      const microphone = audioContext.createMediaStreamSource(stream);
+      const javascriptNode = audioContext.createScriptProcessor(2048, 1, 1);
+
+      analyser.smoothingTimeConstant = 0.8;
+      analyser.fftSize = 1024;
+
+      microphone.connect(analyser);
+      analyser.connect(javascriptNode);
+      javascriptNode.connect(audioContext.destination);
+
+      javascriptNode.onaudioprocess = () => {
+        const array = new Uint8Array(analyser.frequencyBinCount);
+        analyser.getByteFrequencyData(array);
+        
+        // Calculate average volume
+        let values = 0;
+        const length = array.length;
+        for (let i = 0; i < length; i++) {
+          values += array[i];
+        }
+        const average = values / length;
+        
+        // Log the audio level
+        if (average > 5) {
+          console.log('Audio level:', '█'.repeat(Math.floor(average / 5)), average.toFixed(0));
+        }
+        
+        // If we're getting good audio levels but speech recognition isn't working
+        if (average > 20 && this.isListening && !this.transcript) {
+          console.log('⚠️ Audio detected but speech recognition not responding');
+        }
+      };
+      
+      // Stop monitoring after 10 seconds
+      setTimeout(() => {
+        stream.getTracks().forEach(track => track.stop());
+        audioContext.close();
+        console.log('Audio monitoring stopped');
+      }, 10000);
+      
+      console.log('Audio monitoring started - speak now to see levels');
+      console.log('Will monitor for 10 seconds...');
+    } catch (error) {
+      console.error('Error setting up audio monitoring:', error);
+    }
+  }
+  
+  // Test method for debugging Mac audio issues
+  async testSpeechRecognitionWithDelay() {
+    console.log('=== Testing Speech Recognition with Delay ===');
+    
+    // Step 1: Get mic permission
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      console.log('✓ Mic permission granted');
+      
+      // Keep stream active for a moment
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Step 2: Start recognition while stream is active
+      console.log('Starting recognition...');
+      this.recognition?.start();
+      
+      // Step 3: Speak after a delay
+      console.log('Ready! Start speaking in 3...');
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      console.log('2...');
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      console.log('1...');
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      console.log('SPEAK NOW!');
+      
+      // Keep stream active for 5 more seconds
+      setTimeout(() => {
+        stream.getTracks().forEach(track => track.stop());
+        console.log('Test complete. Did it work?');
+      }, 5000);
+      
+    } catch (error) {
+      console.error('Test failed:', error);
+    }
+  }
+  
+  // Create a signature "vahst" sound using Web Audio API
+  private playActivationSound() {
+    try {
+      if (!this.audioContext) {
+        this.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      }
+      
+      const ctx = this.audioContext;
+      const now = ctx.currentTime;
+      
+      // Create oscillators for our signature sound
+      const osc1 = ctx.createOscillator();
+      const osc2 = ctx.createOscillator();
+      const gainNode = ctx.createGain();
+      
+      // Connect nodes
+      osc1.connect(gainNode);
+      osc2.connect(gainNode);
+      gainNode.connect(ctx.destination);
+      
+      // Vahst signature sound: warm and welcoming
+      // First tone: C5 (523.25 Hz) - warm start
+      osc1.frequency.setValueAtTime(523.25, now);
+      // Second tone: G5 (783.99 Hz) - friendly lift
+      osc2.frequency.setValueAtTime(783.99, now + 0.08);
+      
+      // Gentler volume envelope for a softer feel
+      gainNode.gain.setValueAtTime(0, now);
+      gainNode.gain.linearRampToValueAtTime(0.2, now + 0.02); // Softer attack
+      gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.25); // Longer, gentler fade
+      
+      // Oscillator types for a warm, rounded sound
+      osc1.type = 'sine';
+      osc2.type = 'triangle'; // Warmer than sine for second tone
+      
+      // Play the tones with slight overlap for smoothness
+      osc1.start(now);
+      osc1.stop(now + 0.12);
+      
+      osc2.start(now + 0.08);
+      osc2.stop(now + 0.25);
+      
+      console.log('♪ Vahst activation sound played');
+    } catch (error) {
+      console.error('Could not play activation sound:', error);
+    }
+  }
+  
+  // Alternative: Play a completion sound when recognition ends
+  private playCompletionSound() {
+    try {
+      if (!this.audioContext) {
+        this.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      }
+      
+      const ctx = this.audioContext;
+      const now = ctx.currentTime;
+      
+      const osc = ctx.createOscillator();
+      const gainNode = ctx.createGain();
+      
+      osc.connect(gainNode);
+      gainNode.connect(ctx.destination);
+      
+      // Single descending tone for completion
+      osc.frequency.setValueAtTime(880, now);
+      osc.frequency.exponentialRampToValueAtTime(440, now + 0.1);
+      
+      gainNode.gain.setValueAtTime(0.2, now);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+      
+      osc.type = 'sine';
+      osc.start(now);
+      osc.stop(now + 0.15);
+      
+    } catch (error) {
+      console.error('Could not play completion sound:', error);
     }
   }
 }
@@ -313,6 +674,9 @@ export function useVoice() {
     get error() { return voiceStore.error; },
     get isSupported() { return voiceStore.isSupported; },
     startListening: () => voiceStore?.startListening(),
-    stopListening: () => voiceStore?.stopListening()
+    stopListening: () => voiceStore?.stopListening(),
+    testMicrophone: () => voiceStore?.testMicrophone(),
+    monitorAudioLevel: () => voiceStore?.monitorAudioLevel(),
+    testSpeechRecognitionWithDelay: () => voiceStore?.testSpeechRecognitionWithDelay()
   };
 }
