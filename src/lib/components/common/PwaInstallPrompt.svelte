@@ -12,6 +12,13 @@
     isInstalled = window.matchMedia('(display-mode: standalone)').matches ||
                   (window.navigator as any).standalone === true;
     
+    // Listen for manual trigger from header button
+    window.addEventListener('showInstallPrompt', () => {
+      if (deferredPrompt && !isInstalled) {
+        showPrompt = true;
+      }
+    });
+    
     // Listen for install prompt
     window.addEventListener('beforeinstallprompt', (e) => {
       e.preventDefault();

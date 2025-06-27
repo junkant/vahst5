@@ -1,21 +1,19 @@
 <!-- src/lib/components/common/BottomNav.svelte -->
-<script>
+<script lang="ts">
   import { goto } from '$app/navigation';
   import { page } from '$app/stores';
   import { useClients } from '$lib/stores/client.svelte';
   import { useVoice } from '$lib/stores/voice.svelte';
   
   let { 
-    mode = 'app',
-    openLogin = () => {},
-    openRegister = () => {}
+    mode = 'app'
   } = $props();
   
   const client = useClients();
   const voice = useVoice();
   let showQuickActions = $state(false);
   
-  function navigateTo(path) {
+  function navigateTo(path: string) {
     goto(path);
   }
   
@@ -23,17 +21,26 @@
     showQuickActions = !showQuickActions;
   }
   
-  function scrollToSection(id) {
+  function scrollToSection(id: string) {
     document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' });
+  }
+  
+  // Emit events for login/register modals
+  function openLogin() {
+    window.dispatchEvent(new Event('openLoginModal'));
+  }
+  
+  function openRegister() {
+    window.dispatchEvent(new Event('openRegisterModal'));
   }
   
   // Determine active tab based on current path
   let currentPath = $derived($page.url.pathname);
   let activeTab = $derived(getActiveTab(currentPath));
   
-  function getActiveTab(path) {
+  function getActiveTab(path: string) {
     if (path === '/') return 'home';
-    if (path.includes('/my-day') || path.includes('/today')) return 'my-day';
+    if (path.includes('/my-day')) return 'my-day';
     if (path.includes('/tasks')) return 'tasks';
     if (path.includes('/money')) return 'money';
     if (path.includes('/voice')) return 'voice';
@@ -110,13 +117,13 @@
     </div>
   </nav>
 {:else}
-  <!-- App Bottom Navigation (Original) -->
+  <!-- App Bottom Navigation - Authenticated Users -->
   <nav class="fixed bottom-0 left-0 right-0 z-30">
     <!-- Shadow and curve effect -->
     <div class="absolute inset-x-0 bottom-0 h-16 bg-white rounded-t-[2rem] shadow-[0_-10px_40px_rgba(0,0,0,0.1)]"></div>
     
     <!-- Navigation content -->
-    <div class="relative bg-white rounded-t-[2rem] px-6 pt-1 pb-2">
+    <div class="relative bg-white rounded-t-[2rem] px-6 pt-1 pb-2 safe-bottom">
       <div class="flex items-center justify-around">
         
         <!-- My Day -->
@@ -141,7 +148,7 @@
           <span class="text-xs">Tasks</span>
         </button>
         
-        <!-- Center Action Button -->
+        <!-- Center Action Button - Quick Actions -->
         <button 
           class="flex items-center justify-center w-14 h-14 -mt-4 bg-blue-600 rounded-full shadow-lg hover:bg-blue-700 transition-all transform hover:scale-105"
           onclick={toggleQuickActions}

@@ -1,5 +1,5 @@
 <!-- src/routes/(app)/tasks/+page.svelte -->
-<script>
+<script lang="ts">
   import { useClients } from '$lib/stores/client.svelte';
   import { onMount } from 'svelte';
   
@@ -70,7 +70,7 @@
     });
   });
   
-  function toggleTaskStatus(taskId) {
+  function toggleTaskStatus(taskId: number) {
     const task = tasks.find(t => t.id === taskId);
     if (task) {
       task.status = task.status === 'completed' ? 'pending' : 'completed';
@@ -86,7 +86,7 @@
       description: newTask.description,
       priority: newTask.priority,
       dueDate: newTask.dueDate,
-      status: 'pending',
+      status: 'pending' as const,
       clientId: clients.selectedClient?.id || null,
       clientName: clients.selectedClient?.name || 'No client'
     };
@@ -103,20 +103,12 @@
     showNewTaskForm = false;
   }
   
-  function getPriorityColor(priority) {
+  function getPriorityColor(priority: string) {
     switch(priority) {
       case 'high': return 'text-red-600 bg-red-50';
       case 'medium': return 'text-yellow-600 bg-yellow-50';
       case 'low': return 'text-green-600 bg-green-50';
       default: return 'text-gray-600 bg-gray-50';
-    }
-  }
-  
-  function getStatusIcon(status) {
-    switch(status) {
-      case 'completed': return '✓';
-      case 'in-progress': return '⏳';
-      default: return '○';
     }
   }
 </script>
@@ -199,6 +191,7 @@
           <button
             onclick={() => toggleTaskStatus(task.id)}
             class="mt-1 w-5 h-5 rounded border-2 {task.status === 'completed' ? 'bg-green-600 border-green-600 text-white' : 'border-gray-300'} flex items-center justify-center text-xs"
+            aria-label="{task.status === 'completed' ? 'Mark as incomplete' : 'Mark as complete'}: {task.title}"
           >
             {task.status === 'completed' ? '✓' : ''}
           </button>
@@ -227,7 +220,10 @@
               </div>
               
               <!-- Actions -->
-              <button class="text-gray-400 hover:text-gray-600">
+              <button 
+                class="text-gray-400 hover:text-gray-600"
+                aria-label="More actions for {task.title}"
+              >
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
                 </svg>
@@ -249,10 +245,11 @@
       <form onsubmit={(e) => { e.preventDefault(); createTask(); }}>
         <div class="space-y-4">
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">
+            <label for="task-title" class="block text-sm font-medium text-gray-700 mb-1">
               Task Title
             </label>
             <input
+              id="task-title"
               type="text"
               bind:value={newTask.title}
               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -262,10 +259,11 @@
           </div>
           
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">
+            <label for="task-description" class="block text-sm font-medium text-gray-700 mb-1">
               Description
             </label>
             <textarea
+              id="task-description"
               bind:value={newTask.description}
               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               rows="3"
@@ -275,10 +273,11 @@
           
           <div class="grid grid-cols-2 gap-4">
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">
+              <label for="task-priority" class="block text-sm font-medium text-gray-700 mb-1">
                 Priority
               </label>
               <select
+                id="task-priority"
                 bind:value={newTask.priority}
                 class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
@@ -289,10 +288,11 @@
             </div>
             
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">
+              <label for="task-due-date" class="block text-sm font-medium text-gray-700 mb-1">
                 Due Date
               </label>
               <input
+                id="task-due-date"
                 type="date"
                 bind:value={newTask.dueDate}
                 class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
