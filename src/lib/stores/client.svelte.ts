@@ -1,3 +1,4 @@
+// src/lib/stores/client.svelte.ts
 import { onSnapshot, collection, query, where, orderBy, limit, type Unsubscribe } from 'firebase/firestore';
 import { db } from '$lib/firebase/config';
 import { useAuth } from './auth.svelte';
@@ -13,10 +14,35 @@ let clientJobs = $state<Job[]>([]);
 let isLoadingClients = $state(false);
 let isLoadingJobs = $state(false);
 let error = $state<string | null>(null);
+let recentClientIds = $state<string[]>([]);
 
 // Store subscriptions
 let unsubscribeClients: Unsubscribe | null = null;
 let unsubscribeJobs: Unsubscribe | null = null;
+
+// Load recent client IDs from localStorage
+function loadRecentClientIds() {
+  if (typeof window !== 'undefined') {
+    const stored = localStorage.getItem('recentClientIds');
+    if (stored) {
+      try {
+        recentClientIds = JSON.parse(stored);
+      } catch (e) {
+        recentClientIds = [];
+      }
+    }
+  }
+}
+
+// Save recent client IDs to localStorage
+function saveRecentClientIds() {
+  if (typeof window !== 'undefined') {
+    localStorage.setItem('recentClientIds', JSON.stringify(recentClientIds));
+  }
+}
+
+// Initialize recent clients on load
+loadRecentClientIds();
 
 // Subscribe to clients when tenant changes
 $effect(() => {
@@ -106,6 +132,11 @@ function selectClient(client: Client | null) {
   // Persist selection in session storage
   if (client) {
     sessionStorage.setItem('selectedClientId', client.id);
+    
+    // Add to recent clients (max 5)
+    const filtered = recentClientIds.filter(id => id !== client.id);
+    recentClientIds = [client.id, ...filtered].slice(0, 5);
+    saveRecentClientIds();
   } else {
     sessionStorage.removeItem('selectedClientId');
   }
@@ -139,9 +170,20 @@ function searchClients(query: string): Client[] {
   );
 }
 
-// Get recent clients
+// Get recent clients (actual client objects, not just IDs)
 function getRecentClients(count: number = 5): Client[] {
-  return clients.slice(0, count);
+  const recent: Client[] = [];
+  
+  // Map stored IDs to actual client objects
+  for (const id of recentClientIds) {
+    const client = clients.find(c => c.id === id);
+    if (client) {
+      recent.push(client);
+    }
+    if (recent.length >= count) break;
+  }
+  
+  return recent;
 }
 
 // Export the store hook
@@ -170,3 +212,6 @@ export function useClients() {
     getById: (id: string) => clients.find(c => c.id === id)
   };
 }
+
+// For backward compatibility with components expecting useClient
+export const useClient = useClients;

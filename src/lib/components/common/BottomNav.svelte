@@ -1,7 +1,10 @@
+<!-- src/lib/components/common/BottomNav.svelte -->
 <script>
   import { goto } from '$app/navigation';
   import { page } from '$app/stores';
+  import { useClients } from '$lib/stores/client.svelte';
   
+  const client = useClients();
   let showQuickActions = $state(false);
   
   function navigateTo(path) {
@@ -17,125 +20,145 @@
   let activeTab = $derived(getActiveTab(currentPath));
   
   function getActiveTab(path) {
-    if (path.includes('/clients')) return 'clients';
-    if (path.includes('/today')) return 'today';  
-    if (path.includes('/tools')) return 'tools';
-    if (path.includes('/more')) return 'more';
-    return 'today'; // default to today instead of clients
+    if (path.includes('/my-day') || path.includes('/today')) return 'my-day';
+    if (path.includes('/tasks')) return 'tasks';
+    if (path.includes('/money')) return 'money';
+    if (path.includes('/voice')) return 'voice';
+    return 'my-day';
   }
 </script>
 
-<nav class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-4 py-2 z-30">
+<nav class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-2 py-2 z-30 safe-bottom">
   <div class="flex items-center justify-around">
     
-    <!-- Clients Tab -->
+    <!-- My Day (formerly Today) -->
     <button 
-      class="flex flex-col items-center py-2 px-3 rounded-lg transition-colors {activeTab === 'clients' ? 'text-blue-600 bg-blue-50' : 'text-gray-500'}"
-      onclick={() => navigateTo('/clients')}
+      class="flex flex-col items-center py-2 px-3 rounded-lg transition-colors {activeTab === 'my-day' ? 'text-blue-600 bg-blue-50' : 'text-gray-500'}"
+      onclick={() => navigateTo('/my-day')}
     >
       <svg class="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
       </svg>
-      <span class="text-xs">Clients</span>
+      <span class="text-xs">My Day</span>
     </button>
     
-    <!-- Today Tab -->
+    <!-- Tasks (replacing Clients) -->
     <button 
-      class="flex flex-col items-center py-2 px-3 rounded-lg transition-colors {activeTab === 'today' ? 'text-blue-600 bg-blue-50' : 'text-gray-500'}"
-      onclick={() => navigateTo('/today')}
+      class="flex flex-col items-center py-2 px-3 rounded-lg transition-colors {activeTab === 'tasks' ? 'text-blue-600 bg-blue-50' : 'text-gray-500'}"
+      onclick={() => navigateTo('/tasks')}
     >
       <svg class="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
       </svg>
-      <span class="text-xs">Today</span>
+      <span class="text-xs">Tasks</span>
     </button>
     
-    <!-- Quick Action (Center) -->
+    <!-- Quick Action (Center) - Client Aware -->
     <button 
-      class="flex flex-col items-center py-2 px-4 bg-blue-600 text-white rounded-full shadow-lg hover:bg-blue-700 transition-colors"
+      class="relative flex flex-col items-center py-2 px-4 bg-blue-600 text-white rounded-full shadow-lg hover:bg-blue-700 transition-colors"
       onclick={toggleQuickActions}
       aria-label="Quick actions"
     >
       <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
       </svg>
     </button>
     
-    <!-- Tools Tab -->
+    <!-- Money (replacing Tools) -->
     <button 
-      class="flex flex-col items-center py-2 px-3 rounded-lg transition-colors {activeTab === 'tools' ? 'text-blue-600 bg-blue-50' : 'text-gray-500'}"
-      onclick={() => navigateTo('/tools')}
+      class="flex flex-col items-center py-2 px-3 rounded-lg transition-colors {activeTab === 'money' ? 'text-blue-600 bg-blue-50' : 'text-gray-500'}"
+      onclick={() => navigateTo('/money')}
     >
       <svg class="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
       </svg>
-      <span class="text-xs">Tools</span>
+      <span class="text-xs">Money</span>
     </button>
     
-    <!-- More Tab -->
+    <!-- Voice (replacing More) -->
     <button 
-      class="flex flex-col items-center py-2 px-3 rounded-lg transition-colors {activeTab === 'more' ? 'text-blue-600 bg-blue-50' : 'text-gray-500'}"
-      onclick={() => navigateTo('/more')}
+      class="flex flex-col items-center py-2 px-3 rounded-lg transition-colors {activeTab === 'voice' ? 'text-blue-600 bg-blue-50' : 'text-gray-500'}"
+      onclick={() => navigateTo('/voice')}
     >
       <svg class="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h.01M12 12h.01M19 12h.01M6 12a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0z" />
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
       </svg>
-      <span class="text-xs">More</span>
+      <span class="text-xs">Voice</span>
     </button>
     
   </div>
 </nav>
 
-<!-- Quick Actions Popover -->
+<!-- Quick Actions Popover - Client Aware -->
 {#if showQuickActions}
-  <div 
+  <button 
     class="fixed inset-0 bg-black/30 z-40 flex items-end justify-center pb-24"
     onclick={() => showQuickActions = false}
     onkeydown={(e) => e.key === 'Escape' && (showQuickActions = false)}
-    role="dialog"
-    aria-modal="true"
-    tabindex="-1"
+    aria-label="Close quick actions"
+    type="button"
   >
     <div 
-      class="bg-white rounded-t-2xl shadow-xl w-full max-w-sm mx-4 p-6"
+      class="bg-white rounded-t-2xl shadow-xl w-full max-w-sm mx-4 p-6 animate-slide-in"
       onclick={(e) => e.stopPropagation()}
-      role="document"
+      role="dialog"
+      aria-label="Quick actions menu"
     >
       <div class="text-center mb-4">
         <div class="w-8 h-1 bg-gray-300 rounded-full mx-auto mb-3"></div>
         <h3 class="text-lg font-semibold text-gray-900">Quick Actions</h3>
+        {#if client.selectedClient}
+          <p class="text-sm text-gray-500 mt-1">for {client.selectedClient.name}</p>
+        {/if}
       </div>
       
       <div class="grid grid-cols-2 gap-3">
-        <button class="flex flex-col items-center p-4 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors">
-          <span class="text-2xl mb-2">📝</span>
-          <span class="text-sm font-medium text-gray-900">New Job</span>
-        </button>
-        
-        <button class="flex flex-col items-center p-4 bg-green-50 rounded-lg hover:bg-green-100 transition-colors">
-          <span class="text-2xl mb-2">➕</span>
-          <span class="text-sm font-medium text-gray-900">Add Client</span>
-        </button>
-        
-        <button class="flex flex-col items-center p-4 bg-yellow-50 rounded-lg hover:bg-yellow-100 transition-colors">
-          <span class="text-2xl mb-2">💰</span>
-          <span class="text-sm font-medium text-gray-900">Invoice</span>
-        </button>
-        
-        <button class="flex flex-col items-center p-4 bg-purple-50 rounded-lg hover:bg-purple-100 transition-colors">
-          <span class="text-2xl mb-2">📊</span>
-          <span class="text-sm font-medium text-gray-900">Report</span>
-        </button>
-        
-        <button class="flex flex-col items-center p-4 bg-indigo-50 rounded-lg hover:bg-indigo-100 transition-colors">
-          <span class="text-2xl mb-2">📞</span>
-          <span class="text-sm font-medium text-gray-900">Log Call</span>
-        </button>
-        
-        <button class="flex flex-col items-center p-4 bg-red-50 rounded-lg hover:bg-red-100 transition-colors">
-          <span class="text-2xl mb-2">📱</span>
-          <span class="text-sm font-medium text-gray-900">Scan QR</span>
-        </button>
+        {#if client.selectedClient}
+          <!-- Client-specific actions -->
+          <button class="flex flex-col items-center p-4 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors">
+            <span class="text-2xl mb-2">📝</span>
+            <span class="text-sm font-medium text-gray-900">New Job</span>
+          </button>
+          
+          <button class="flex flex-col items-center p-4 bg-green-50 rounded-lg hover:bg-green-100 transition-colors">
+            <span class="text-2xl mb-2">💰</span>
+            <span class="text-sm font-medium text-gray-900">Create Invoice</span>
+          </button>
+          
+          <button class="flex flex-col items-center p-4 bg-yellow-50 rounded-lg hover:bg-yellow-100 transition-colors">
+            <span class="text-2xl mb-2">📋</span>
+            <span class="text-sm font-medium text-gray-900">New Estimate</span>
+          </button>
+          
+          <button class="flex flex-col items-center p-4 bg-purple-50 rounded-lg hover:bg-purple-100 transition-colors">
+            <span class="text-2xl mb-2">📸</span>
+            <span class="text-sm font-medium text-gray-900">Take Photo</span>
+          </button>
+          
+          <button class="flex flex-col items-center p-4 bg-indigo-50 rounded-lg hover:bg-indigo-100 transition-colors">
+            <span class="text-2xl mb-2">📞</span>
+            <span class="text-sm font-medium text-gray-900">Log Call</span>
+          </button>
+          
+          <button class="flex flex-col items-center p-4 bg-red-50 rounded-lg hover:bg-red-100 transition-colors">
+            <span class="text-2xl mb-2">📍</span>
+            <span class="text-sm font-medium text-gray-900">Check In</span>
+          </button>
+        {:else}
+          <!-- No client selected - show prompt -->
+          <div class="col-span-2 text-center py-8">
+            <svg class="w-12 h-12 text-gray-400 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+            <p class="text-gray-600 mb-4">Please select a client first</p>
+            <button 
+              onclick={() => { showQuickActions = false; showClientSelector = true; }}
+              class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              Select Client
+            </button>
+          </div>
+        {/if}
       </div>
       
       <button 
@@ -145,5 +168,5 @@
         Cancel
       </button>
     </div>
-  </div>
+  </button>
 {/if}

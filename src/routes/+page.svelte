@@ -1,10 +1,11 @@
+<!-- src/routes/+page.svelte -->
 <script>
   import { goto } from '$app/navigation';
   import { onMount } from 'svelte';
 
   onMount(() => {
-    // Redirect to today's dashboard on load
-    goto('/today', { replaceState: true });
+    // Redirect to my-day dashboard on load
+    goto('/my-day', { replaceState: true });
   });
 </script>
 
