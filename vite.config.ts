@@ -28,10 +28,26 @@ export default defineConfig({
 		// Optional: open browser automatically
 		open: true
 	},
+	build: {
+		rollupOptions: {
+			output: {
+				manualChunks: {
+					// Split Firebase into separate chunks for better caching
+					'firebase-auth': ['firebase/auth'],
+					'firebase-firestore': ['firebase/firestore'],
+					'firebase-messaging': ['firebase/messaging'],
+					// Group UI components
+					'ui-vendor': ['@melt-ui/svelte', 'lucide-svelte'],
+					// Other large dependencies
+					'vendor': ['date-fns']
+				}
+			}
+		}
+	},
 	test: {
 		projects: [
 			{
-				extends: './vite.config.ts',
+				extends: './vite.config.js',
 				test: {
 					name: 'client',
 					environment: 'browser',
@@ -46,7 +62,7 @@ export default defineConfig({
 				}
 			},
 			{
-				extends: './vite.config.ts',
+				extends: './vite.config.js',
 				test: {
 					name: 'server',
 					environment: 'node',
