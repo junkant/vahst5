@@ -1,5 +1,5 @@
 <!-- src/routes/(app)/my-day/+page.svelte -->
-<script>
+<script lang="ts">
   import { useClients } from '$lib/stores/client.svelte';
   
   const clients = useClients();

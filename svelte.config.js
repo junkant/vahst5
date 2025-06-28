@@ -37,8 +37,8 @@ const config = {
 		csp: {
 			directives: {
 				'script-src': ['self', 'https://apis.google.com', 'https://www.gstatic.com'],
-				'frame-src': ['self', 'https://vahst.firebaseapp.com'],
-				'img-src': ['self', 'data:', 'https:'],
+				'frame-src': ['self', 'https://vahst.firebaseapp.com', 'https://vahst5.firebaseapp.com'],
+				'img-src': ['self', 'data:', 'https:', 'https://www.google.com'],
 				'connect-src': ['self', 'https://*.googleapis.com', 'https://*.firebaseio.com', 'https://*.firebaseapp.com']
 			}
 		},

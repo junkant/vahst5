@@ -71,10 +71,15 @@ let isSyncing = $state(false);
 let syncErrors = $state<Error[]>([]);
 let conflicts = $state<SyncConflict[]>([]);
 let conflictResolver = $state<ConflictResolver>(defaultResolvers.clients);
+let backgroundSyncSupported = $state(false);
+let lastSyncAttempt = $state<number>(0);
 
 // Initialize function to be called from a component
 function initializeOfflineStore() {
   if (typeof window !== 'undefined') {
+    // Check for background sync support
+    backgroundSyncSupported = 'serviceWorker' in navigator && 'SyncManager' in window;
+    
     // Set up online/offline listeners
     window.addEventListener('online', () => {
       isOnline = true;
@@ -103,6 +108,12 @@ function initializeOfflineStore() {
         }
       });
     }
+    
+    // Process queue on initialization if online and has pending operations
+    if (isOnline && offlineQueue.length > 0) {
+      // Delay to ensure auth is ready
+      setTimeout(() => processOfflineQueue(), 1000);
+    }
   }
 }
 
@@ -111,11 +122,52 @@ if (typeof window !== 'undefined') {
   initializeOfflineStore();
 }
 
+// Register background sync
+async function registerBackgroundSync() {
+  if (!backgroundSyncSupported || !('serviceWorker' in navigator)) return;
+  
+  try {
+    const registration = await navigator.serviceWorker.ready;
+    if ('sync' in registration) {
+      await registration.sync.register('sync-offline-operations');
+      if (import.meta.env.DEV) {
+        console.log('Background sync registered');
+      }
+    }
+  } catch (error) {
+    console.error('Failed to register background sync:', error);
+  }
+}
+
 // Save queue to localStorage - to be called from effect
 function saveQueueToStorage() {
   if (typeof window !== 'undefined') {
     localStorage.setItem('offlineQueue', JSON.stringify(offlineQueue));
   }
+}
+
+// Notify about sync status
+function notifySync(status: 'success' | 'error' | 'progress', operation?: OfflineOperation) {
+  if (typeof window === 'undefined') return;
+  
+  // Post message to service worker for cross-tab sync
+  if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+    navigator.serviceWorker.controller.postMessage({
+      type: 'SYNC_STATUS',
+      status,
+      operation: operation ? {
+        type: operation.type,
+        collection: operation.collection,
+        id: operation.documentId
+      } : undefined,
+      queueLength: offlineQueue.length
+    });
+  }
+  
+  // Dispatch custom event for UI updates
+  window.dispatchEvent(new CustomEvent('offline-sync', {
+    detail: { status, operation, queueLength: offlineQueue.length }
+  }));
 }
 
 // Check for conflicts before executing operation
@@ -193,7 +245,34 @@ async function resolveConflict(conflict: SyncConflict): Promise<any> {
   }
 }
 
-// Process offline queue with conflict detection
+// Execute operation with retry logic
+async function executeOperationWithRetry(operation: OfflineOperation, maxRetries = 3) {
+  let lastError;
+  
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      await executeOperation(operation);
+      return; // Success
+    } catch (error) {
+      lastError = error;
+      
+      // Don't retry on client errors (4xx)
+      if (error instanceof Error && error.message.includes('permission')) {
+        throw error;
+      }
+      
+      // Wait before retrying with exponential backoff
+      if (attempt < maxRetries - 1) {
+        const delay = Math.min(1000 * Math.pow(2, attempt), 5000);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
+  }
+  
+  throw lastError;
+}
+
+// Process offline queue with conflict detection and background sync
 async function processOfflineQueue() {
   if (!isOnline || isSyncing || offlineQueue.length === 0) return;
   
@@ -205,6 +284,10 @@ async function processOfflineQueue() {
   
   isSyncing = true;
   syncErrors = []; // Clear previous errors
+  lastSyncAttempt = Date.now();
+  
+  // Notify sync start
+  notifySync('progress');
   
   // Process queue in order
   while (offlineQueue.length > 0 && isOnline) {
@@ -232,12 +315,15 @@ async function processOfflineQueue() {
         }
       }
       
-      // Execute the operation
-      await executeOperation(operation);
+      // Execute the operation with retry
+      await executeOperationWithRetry(operation);
       
       // Remove from queue on success
       offlineQueue = offlineQueue.slice(1);
       saveQueueToStorage();
+      
+      // Notify successful sync
+      notifySync('success', operation);
     } catch (error) {
       console.error('Failed to sync offline operation:', error);
       
@@ -252,23 +338,51 @@ async function processOfflineQueue() {
       // Increment retry count
       operation.retries++;
       
+      // Calculate backoff delay
+      const backoffDelay = Math.min(1000 * Math.pow(2, operation.retries), 30000); // Max 30 seconds
+      
       // Remove if too many retries
-      if (operation.retries > 3) {
-        console.error('Giving up on operation after 3 retries:', operation);
+      if (operation.retries > 5) {
+        console.error('Giving up on operation after 5 retries:', operation);
         syncErrors = [...syncErrors, error as Error];
         offlineQueue = offlineQueue.slice(1);
+        notifySync('error', operation);
       } else {
-        // Move to end of queue
+        // Move to end of queue with delay
         offlineQueue = [...offlineQueue.slice(1), operation];
+        
+        // Wait before continuing if online
+        if (isOnline) {
+          await new Promise(resolve => setTimeout(resolve, backoffDelay));
+        }
       }
       saveQueueToStorage();
       
-      // Stop processing on error
-      break;
+      // Stop processing on error if offline
+      if (!isOnline) break;
     }
   }
   
   isSyncing = false;
+  
+  // Final notification
+  if (offlineQueue.length === 0 && syncErrors.length === 0) {
+    notifySync('success');
+  } else if (syncErrors.length > 0) {
+    notifySync('error');
+  }
+  
+  // Register background sync if queue still has items
+  if (offlineQueue.length > 0 && !isOnline) {
+    await registerBackgroundSync();
+  }
+  
+  // Notify service worker of completion
+  if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+    navigator.serviceWorker.controller.postMessage({
+      type: offlineQueue.length === 0 ? 'SYNC_COMPLETE' : 'SYNC_FAILED'
+    });
+  }
 }
 
 // Execute a queued operation
@@ -338,7 +452,7 @@ async function executeOperation(operation: OfflineOperation) {
   }
 }
 
-// Add operation to queue with timestamp
+// Add operation to queue with timestamp and background sync
 function addToQueue(operation: Omit<OfflineOperation, 'id' | 'timestamp' | 'retries'>) {
   const auth = useAuth();
   const newOperation: OfflineOperation = {
@@ -360,6 +474,9 @@ function addToQueue(operation: Omit<OfflineOperation, 'id' | 'timestamp' | 'retr
   // Try to process immediately if online
   if (isOnline) {
     processOfflineQueue();
+  } else {
+    // Register background sync when offline
+    registerBackgroundSync();
   }
 }
 
@@ -382,6 +499,7 @@ function clearQueue() {
   syncErrors = [];
   conflicts = [];
   saveQueueToStorage();
+  notifySync('success');
 }
 
 // Resolve a manual conflict
@@ -422,6 +540,8 @@ export function useOffline() {
     get isSyncing() { return isSyncing; },
     get syncErrors() { return syncErrors; },
     get conflicts() { return conflicts; },
+    get backgroundSyncSupported() { return backgroundSyncSupported; },
+    get lastSyncAttempt() { return lastSyncAttempt; },
     
     // Actions
     addToQueue,
@@ -432,6 +552,7 @@ export function useOffline() {
     clearQueue,
     saveQueueToStorage,
     resolveManualConflict,
+    registerBackgroundSync,
     
     // Configuration
     setConflictResolver: (collection: string, resolver: ConflictResolver) => {

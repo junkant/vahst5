@@ -150,19 +150,48 @@ async function networkFirst(cache: Cache, request: Request): Promise<Response> {
     }
     return response;
   } catch (error) {
+    // Try cache first
     const cached = await cache.match(request);
     if (cached) return cached;
     
-    // Return offline page for navigation requests
-    if (request.destination === 'document') {
+    // For navigation requests, return the offline page
+    if (request.destination === 'document' || request.mode === 'navigate') {
       // Try to get the offline page from any cache
-      const offlinePage = await caches.match('/offline');
-      if (offlinePage) {
-        return offlinePage;
+      for (const cacheName of await caches.keys()) {
+        const cache = await caches.open(cacheName);
+        const offlinePage = await cache.match('/offline');
+        if (offlinePage) {
+          return offlinePage;
+        }
       }
+      
+      // If offline page not found, return a basic offline response
+      return new Response(
+        `<!DOCTYPE html>
+        <html>
+          <head>
+            <title>Offline - VAHST</title>
+            <meta name="viewport" content="width=device-width, initial-scale=1">
+            <style>
+              body { font-family: sans-serif; text-align: center; padding: 50px; }
+              h1 { color: #333; }
+              button { padding: 10px 20px; margin-top: 20px; cursor: pointer; }
+            </style>
+          </head>
+          <body>
+            <h1>You're Offline</h1>
+            <p>Please check your internet connection.</p>
+            <button onclick="location.reload()">Try Again</button>
+          </body>
+        </html>`,
+        {
+          status: 200,
+          headers: { 'Content-Type': 'text/html' }
+        }
+      );
     }
     
-    // Return generic offline response
+    // Return generic offline response for other requests
     return new Response('Offline - resource not available', { 
       status: 503,
       statusText: 'Service Unavailable',
@@ -190,24 +219,78 @@ async function staleWhileRevalidate(cache: Cache, request: Request): Promise<Res
 // Handle background sync for offline operations
 sw.addEventListener('sync', (event) => {
   if (event.tag === 'sync-offline-operations') {
-    event.waitUntil(syncOfflineOperations());
+    event.waitUntil(handleBackgroundSync());
   }
 });
 
-// Sync offline operations when back online
-async function syncOfflineOperations(): Promise<void> {
-  // Notify all clients that sync is starting
-  const clients = await sw.clients.matchAll();
-  clients.forEach(client => {
-    client.postMessage({
-      type: 'SYNC_START',
-      message: 'Syncing offline operations...'
-    });
-  });
+// Handle background sync with proper error handling and retries
+async function handleBackgroundSync(): Promise<void> {
+  console.log('Background sync triggered');
   
-  // The actual sync logic will be handled by the offline store
-  // when it receives this message
+  try {
+    // Get all clients
+    const clients = await sw.clients.matchAll({ type: 'window' });
+    
+    if (clients.length === 0) {
+      // No active clients, try to process queue directly
+      // This would require implementing queue processing in the service worker
+      // For now, we'll wait for a client to be available
+      console.log('No active clients for background sync');
+      return;
+    }
+    
+    // Notify all clients to start syncing
+    const syncPromises = clients.map(client => {
+      return new Promise<void>((resolve) => {
+        // Set up one-time message listener for sync completion
+        const messageHandler = (event: MessageEvent) => {
+          if (event.data?.type === 'SYNC_COMPLETE' || event.data?.type === 'SYNC_FAILED') {
+            resolve();
+          }
+        };
+        
+        // Listen for response
+        const channel = new MessageChannel();
+        channel.port1.onmessage = messageHandler;
+        
+        // Send sync message with port for response
+        client.postMessage({
+          type: 'SYNC_START',
+          message: 'Starting background sync...'
+        }, [channel.port2]);
+        
+        // Timeout after 30 seconds
+        setTimeout(() => resolve(), 30000);
+      });
+    });
+    
+    // Wait for at least one client to complete sync
+    await Promise.race(syncPromises);
+    console.log('Background sync completed');
+    
+  } catch (error) {
+    console.error('Background sync failed:', error);
+    // Re-register sync to try again later
+    const registration = sw.registration;
+    if ('sync' in registration) {
+      await registration.sync.register('sync-offline-operations');
+    }
+  }
 }
+
+// Listen for sync status updates from clients
+sw.addEventListener('message', (event) => {
+  if (event.data?.type === 'SYNC_STATUS') {
+    // Broadcast sync status to all clients
+    sw.clients.matchAll({ type: 'window' }).then(clients => {
+      clients.forEach(client => {
+        if (client.id !== event.source?.id) {
+          client.postMessage(event.data);
+        }
+      });
+    });
+  }
+});
 
 // Handle push notifications
 sw.addEventListener('push', (event) => {
