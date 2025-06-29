@@ -14,12 +14,15 @@
     // Check if we should show the prompt
     if (!notifications.isSupported) return;
     
-    const permission = await notifications.checkPermission();
-    if (permission === 'default') {
-      // Wait a bit before showing the prompt for better UX
-      setTimeout(() => {
-        showPrompt = true;
-      }, 2000);
+    // Check permission status directly
+    if ('Notification' in window) {
+      const permission = Notification.permission;
+      if (permission === 'default') {
+        // Wait a bit before showing the prompt for better UX
+        setTimeout(() => {
+          showPrompt = true;
+        }, 2000);
+      }
     }
   });
   

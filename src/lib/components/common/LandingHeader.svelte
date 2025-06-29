@@ -1,198 +1,84 @@
 <!-- src/lib/components/common/LandingHeader.svelte -->
 <script lang="ts">
+  import { browser } from '$app/environment';
   import { onMount } from 'svelte';
-  import { page } from '$app/stores';
-  import { goto } from '$app/navigation';
-  import { useAuth } from '$lib/stores/auth.svelte';
   import { toast } from '$lib/utils/toast';
   
-  const auth = useAuth();
+  let isInstalled = $state(false);
+  let deferredPrompt = $state<any>(null);
   
-  let scrolled = $state(false);
-  let mobileMenuOpen = $state(false);
-  let deferredPrompt: any = null;
-  let isPWAInstalled = $state(false);
-  
-  const navItems = [
-    { label: 'Features', href: '#features' },
-    { label: 'How It Works', href: '#how-it-works' },
-    { label: 'Pricing', href: '#pricing' },
-    { label: 'Contact', href: '#contact' }
-  ];
-  
-  onMount(() => {
-    // Check scroll position
-    const handleScroll = () => {
-      scrolled = window.scrollY > 20;
-    };
-    
-    window.addEventListener('scroll', handleScroll);
-    
-    // Check if PWA is installed
-    if (window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone === true) {
-      isPWAInstalled = true;
-    }
-    
-    // Listen for install prompt
-    window.addEventListener('beforeinstallprompt', (e) => {
-      e.preventDefault();
-      deferredPrompt = e;
-    });
-    
-    // Check if app was just installed
-    window.addEventListener('appinstalled', () => {
-      isPWAInstalled = true;
-      deferredPrompt = null;
-    });
-    
-    return () => {
-      window.removeEventListener('scroll', handleScroll);
-    };
-  });
-  
-  async function handleAuth() {
-    if (auth.user) {
-      await goto('/my-day');
-    } else {
-      await goto('/login');
-    }
+  function scrollToSection(id: string) {
+    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' });
   }
   
-  async function handleEnableApp() {
-    if (isPWAInstalled) {
+  function openLogin() {
+    window.dispatchEvent(new Event('openLoginModal'));
+  }
+  
+  function handleEnableApp() {
+    if (isInstalled) {
+      // If already installed, could open the app or show a message
       toast.info('VAHST is already installed! Check your home screen or app drawer.');
-      return;
-    }
-    
-    if (deferredPrompt) {
-      deferredPrompt.prompt();
-      const { outcome } = await deferredPrompt.userChoice;
-      
-      if (outcome === 'accepted') {
-        isPWAInstalled = true;
-      }
-      
-      deferredPrompt = null;
+    } else if (deferredPrompt) {
+      // Show install prompt
+      window.dispatchEvent(new Event('showInstallPrompt'));
     } else {
+      // Show instructions for manual install
       toast.info('To install VAHST: Use your browser menu and select "Install App" or "Add to Home Screen"');
     }
   }
   
-  function scrollToSection(e: MouseEvent, href: string) {
-    e.preventDefault();
-    const element = document.querySelector(href);
-    if (element) {
-      element.scrollIntoView({ behavior: 'smooth' });
-      mobileMenuOpen = false;
+  // Check if PWA is installed
+  onMount(() => {
+    if (browser) {
+      // Check if already installed
+      isInstalled = window.matchMedia('(display-mode: standalone)').matches ||
+                   (window.navigator as any).standalone === true;
+      
+      // Listen for install prompt
+      window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();
+        deferredPrompt = e;
+      });
+      
+      // Update if app gets installed
+      window.addEventListener('appinstalled', () => {
+        isInstalled = true;
+        deferredPrompt = null;
+      });
     }
-  }
+  });
 </script>
 
-<header class="fixed top-0 left-0 right-0 z-50 transition-all duration-300
-  {scrolled ? 'bg-white/95 backdrop-blur-md shadow-sm' : 'bg-transparent'}">
+<header class="fixed top-0 left-0 right-0 bg-white/90 backdrop-blur-sm border-b border-gray-200 z-40">
   <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
     <div class="flex items-center justify-between h-16">
       <!-- Logo -->
       <div class="flex items-center">
-        <a href="/" class="flex items-center space-x-2">
-          <div class="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-            <span class="text-white font-bold text-xl">V</span>
-          </div>
-          <span class="font-bold text-xl {scrolled ? 'text-gray-900' : 'text-white'}">
-            VAHST
-          </span>
-        </a>
+        <span class="text-2xl font-bold text-blue-600">VAHST</span>
       </div>
       
       <!-- Desktop Navigation -->
-      <nav class="hidden md:flex items-center space-x-8">
-        {#each navItems as item}
-          <a 
-            href={item.href}
-            onclick={(e) => scrollToSection(e, item.href)}
-            class="text-sm font-medium transition-colors
-              {scrolled ? 'text-gray-700 hover:text-blue-600' : 'text-white/90 hover:text-white'}"
-          >
-            {item.label}
-          </a>
-        {/each}
-      </nav>
-      
-      <!-- Desktop CTA Buttons -->
-      <div class="hidden md:flex items-center space-x-4">
-        {#if !isPWAInstalled && deferredPrompt}
-          <button
-            onclick={handleEnableApp}
-            class="px-4 py-2 text-sm font-medium rounded-lg transition-all
-              {scrolled 
-                ? 'text-blue-600 hover:bg-blue-50' 
-                : 'text-white hover:bg-white/10'}"
-          >
-            Enable App
-          </button>
-        {/if}
-        
+      <nav class="hidden md:flex items-center gap-6">
         <button 
-          onclick={handleAuth}
-          class="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg 
-                 hover:bg-blue-700 transition-colors"
+          class="px-4 py-2 {isInstalled ? 'bg-green-600 hover:bg-green-700' : 'bg-blue-600 hover:bg-blue-700'} text-white rounded-lg transition-colors"
+          onclick={handleEnableApp}
         >
-          {auth.user ? 'Open App' : 'Get Started'}
+          {isInstalled ? '✓ App Enabled' : 'Enable App'}
         </button>
-      </div>
-      
-      <!-- Mobile Menu Button -->
-      <button
-        onclick={() => mobileMenuOpen = !mobileMenuOpen}
-        class="md:hidden p-2 rounded-lg transition-colors
-          {scrolled ? 'text-gray-700 hover:bg-gray-100' : 'text-white hover:bg-white/10'}"
-        aria-label="Toggle menu"
-      >
-        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          {#if mobileMenuOpen}
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-          {:else}
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
-          {/if}
-        </svg>
-      </button>
+        <button 
+          onclick={openLogin}
+          class="px-4 py-2 text-gray-700 hover:text-gray-900 font-medium transition-colors"
+        >
+          Login
+        </button>
+        <button 
+          onclick={() => window.dispatchEvent(new Event('openRegisterModal'))}
+          class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+        >
+          Get Started
+        </button>
+      </nav>
     </div>
   </div>
-  
-  <!-- Mobile Menu -->
-  {#if mobileMenuOpen}
-    <div class="md:hidden bg-white border-t shadow-lg">
-      <div class="px-4 py-6 space-y-4">
-        {#each navItems as item}
-          <a 
-            href={item.href}
-            onclick={(e) => scrollToSection(e, item.href)}
-            class="block text-base font-medium text-gray-700 hover:text-blue-600"
-          >
-            {item.label}
-          </a>
-        {/each}
-        
-        <div class="pt-4 space-y-3 border-t">
-          {#if !isPWAInstalled && deferredPrompt}
-            <button
-              onclick={handleEnableApp}
-              class="w-full px-4 py-2 text-sm font-medium text-blue-600 
-                     border border-blue-600 rounded-lg hover:bg-blue-50"
-            >
-              Enable App
-            </button>
-          {/if}
-          
-          <button 
-            onclick={handleAuth}
-            class="w-full px-4 py-2 text-sm font-medium text-white 
-                   bg-blue-600 rounded-lg hover:bg-blue-700"
-          >
-            {auth.user ? 'Open App' : 'Get Started'}
-          </button>
-        </div>
-      </div>
-    </div>
-  {/if}
 </header>
