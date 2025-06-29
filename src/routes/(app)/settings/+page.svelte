@@ -1,8 +1,13 @@
-<!-- src/routes/(app)/settings/storage/+page.svelte -->
-<script>
-  import StorageSettings from '$lib/components/settings/StorageSettings.svelte';
+<!-- src/routes/(app)/settings/+page.svelte -->
+<script lang="ts">
+  import { goto } from '$app/navigation';
+  
+  // This will redirect to the first settings page
+  $effect(() => {
+    goto('/settings/profile');
+  });
 </script>
 
-<div class="container mx-auto max-w-4xl p-6">
-  <StorageSettings />
+<div class="text-center py-8">
+  <p class="text-gray-500">Redirecting to settings...</p>
 </div>
