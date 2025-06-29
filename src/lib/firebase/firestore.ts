@@ -141,6 +141,40 @@ export function subscribeToClientJobs(
   );
 }
 
+// NEW FUNCTION: Subscribe to all jobs for a tenant
+export function subscribeToTenantJobs(
+  tenantId: string,
+  callback: (jobs: Job[]) => void,
+  onError?: (error: Error) => void
+) {
+  const jobsRef = collection(db, getTenantPath(tenantId, 'jobs'));
+  
+  // Query jobs ordered by scheduled date, limited to reasonable number
+  const q = query(
+    jobsRef,
+    orderBy('scheduledDate', 'desc'),
+    limit(100)
+  );
+
+  return onSnapshot(
+    q,
+    (snapshot) => {
+      const jobs = snapshot.docs.map(doc => ({ 
+        id: doc.id, 
+        ...doc.data() 
+      } as Job));
+      callback(jobs);
+    },
+    (error) => {
+      if (onError) {
+        onError(error);
+      } else {
+        console.error('Error in subscribeToTenantJobs:', error);
+      }
+    }
+  );
+}
+
 export async function createTenant(tenantData: TenantData) {
   const tenantRef = doc(collection(db, 'tenants'));
   const tenant = {

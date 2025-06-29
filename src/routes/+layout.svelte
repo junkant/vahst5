@@ -4,12 +4,14 @@
   import { goto } from '$app/navigation';
   import { useAuth } from '$lib/stores/auth.svelte';
   import { initializeClientStore, updateClientJobsSubscription, useClients } from '$lib/stores/client.svelte';
+  import { initializeJobStore, cleanupJobStore } from '$lib/stores/jobs.svelte';
   import { useOffline } from '$lib/stores/offline.svelte';
   import TopBar from '$lib/components/common/TopBar.svelte';
   import BottomNav from '$lib/components/common/BottomNav.svelte';
   import LandingHeader from '$lib/components/common/LandingHeader.svelte';
   import OfflineIndicator from '$lib/components/common/OfflineIndicator.svelte';
   import PwaInstallPrompt from '$lib/components/common/PwaInstallPrompt.svelte';
+  import NotificationPrompt from '$lib/components/notifications/NotificationPrompt.svelte';
   
   let { children } = $props();
   
@@ -34,6 +36,18 @@
     if (!isPublicPage && auth.tenant?.id) {
       initializeClientStore(auth.tenant.id);
     }
+  });
+  
+  // Initialize job store when tenant changes
+  $effect(() => {
+    if (!isPublicPage && auth.tenant?.id) {
+      initializeJobStore(auth.tenant.id);
+    }
+    
+    // Cleanup when tenant changes or component unmounts
+    return () => {
+      cleanupJobStore();
+    };
   });
   
   // Update client jobs when selected client changes
@@ -70,8 +84,6 @@
       goto('/');
     }
   });
-
-  import NotificationPrompt from '$lib/components/notifications/NotificationPrompt.svelte';
 </script>
 
 <div class="min-h-screen bg-gray-50">
@@ -93,4 +105,5 @@
   <!-- App-wide components -->
   <OfflineIndicator />
   <PwaInstallPrompt />
+  <NotificationPrompt />
 </div>
