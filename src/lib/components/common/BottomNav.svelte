@@ -3,6 +3,7 @@
   import { goto } from '$app/navigation';
   import { page } from '$app/stores';
   import { useClients } from '$lib/stores/client.svelte';
+  import { useAuth } from '$lib/stores/auth.svelte';
   import { useVoice } from '$lib/stores/voice.svelte';
   
   let { 
@@ -10,7 +11,11 @@
   } = $props();
   
   const client = useClients();
-  const voice = useVoice();
+  const auth = useAuth();
+  
+  // Get voice store (it will handle its own initialization)
+  const voice = mode === 'app' ? useVoice() : null;
+  
   let showQuickActions = $state(false);
   
   function navigateTo(path: string) {
@@ -46,6 +51,15 @@
     if (path.includes('/voice')) return 'voice';
     return 'my-day';
   }
+  
+  function handleVoiceClick() {
+    if (voice && auth.isAuthenticated) {
+      voice.startListening();
+    } else if (!auth.isAuthenticated) {
+      // Maybe show a message that voice requires login
+      console.log('Voice control requires authentication');
+    }
+  }
 </script>
 
 {#if mode === 'landing'}
@@ -57,7 +71,6 @@
     <!-- Navigation content -->
     <div class="relative bg-white rounded-t-[2rem] px-6 pt-1 pb-2">
       <div class="flex items-center justify-around">
-        
         <!-- Features -->
         <button 
           class="flex flex-col items-center py-1 px-3 rounded-lg transition-colors text-gray-600 hover:text-blue-600"
@@ -112,7 +125,6 @@
           </svg>
           <span class="text-xs">Sign Up</span>
         </button>
-        
       </div>
     </div>
   </nav>
@@ -172,99 +184,74 @@
         
         <!-- Voice -->
         <button 
-          class="flex flex-col items-center py-1 px-3 rounded-lg transition-colors {activeTab === 'voice' || voice.isListening ? 'text-blue-600 bg-blue-50' : 'text-gray-500'}"
-          onclick={() => voice.startListening()}
+          class="flex flex-col items-center py-1 px-3 rounded-lg transition-colors {activeTab === 'voice' || voice?.isListening ? 'text-blue-600 bg-blue-50' : 'text-gray-500'}"
+          onclick={handleVoiceClick}
         >
           <div class="relative">
-            <svg class="w-6 h-6 mb-0.5 {voice.isListening ? 'animate-pulse' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg class="w-6 h-6 mb-0.5 {voice?.isListening ? 'animate-pulse' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
             </svg>
-            {#if voice.isListening}
-              <div class="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
+            {#if voice?.isListening}
+              <div class="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
             {/if}
           </div>
-          <span class="text-xs">{voice.isListening ? 'Listening' : 'Voice'}</span>
+          <span class="text-xs">Voice</span>
         </button>
-        
       </div>
     </div>
+    
+    <!-- Voice transcript display -->
+    {#if voice?.isListening && voice?.transcript}
+      <div class="absolute bottom-full left-0 right-0 mb-2 mx-4">
+        <div class="bg-gray-900 text-white px-4 py-2 rounded-lg shadow-lg">
+          <p class="text-sm">{voice.transcript}</p>
+        </div>
+      </div>
+    {/if}
+    
+    <!-- Voice error display -->
+    {#if voice?.error}
+      <div class="absolute bottom-full left-0 right-0 mb-2 mx-4">
+        <div class="bg-red-500 text-white px-4 py-2 rounded-lg shadow-lg">
+          <p class="text-sm">{voice.error}</p>
+        </div>
+      </div>
+    {/if}
+    
+    <!-- Quick Actions Menu -->
+    {#if showQuickActions}
+      <div class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-4 w-64 bg-white rounded-2xl shadow-xl border border-gray-200 overflow-hidden">
+        <div class="p-2">
+          <button
+            onclick={() => { navigateTo('/quick-add'); showQuickActions = false; }}
+            class="w-full px-4 py-3 text-left hover:bg-gray-50 rounded-lg flex items-center space-x-3"
+          >
+            <span class="text-2xl">➕</span>
+            <span>Quick Add</span>
+          </button>
+          <button
+            onclick={() => { navigateTo('/clients'); showQuickActions = false; }}
+            class="w-full px-4 py-3 text-left hover:bg-gray-50 rounded-lg flex items-center space-x-3"
+          >
+            <span class="text-2xl">👥</span>
+            <span>Clients</span>
+          </button>
+          <button
+            onclick={() => { navigateTo('/jobs'); showQuickActions = false; }}
+            class="w-full px-4 py-3 text-left hover:bg-gray-50 rounded-lg flex items-center space-x-3"
+          >
+            <span class="text-2xl">🔧</span>
+            <span>Jobs</span>
+          </button>
+          <button
+            onclick={() => { navigateTo('/more'); showQuickActions = false; }}
+            class="w-full px-4 py-3 text-left hover:bg-gray-50 rounded-lg flex items-center space-x-3"
+          >
+            <span class="text-2xl">⚙️</span>
+            <span>More</span>
+          </button>
+        </div>
+      </div>
+    {/if}
   </nav>
-  
-  <!-- Quick Actions Popover -->
-  {#if showQuickActions}
-    <div 
-      class="fixed inset-0 bg-black/30 z-40 flex items-end justify-center pb-24"
-      onclick={() => showQuickActions = false}
-      onkeydown={(e) => e.key === 'Escape' && (showQuickActions = false)}
-      role="dialog"
-      aria-modal="true"
-      tabindex="-1"
-    >
-      <div 
-        class="bg-white rounded-t-2xl shadow-xl w-full max-w-sm mx-4 p-6"
-        onclick={(e) => e.stopPropagation()}
-        onkeydown={(e) => e.stopPropagation()}
-        role="dialog"
-        aria-label="Quick actions menu"
-        tabindex="-1"
-      >
-        <div class="text-center mb-4">
-          <div class="w-8 h-1 bg-gray-300 rounded-full mx-auto mb-3"></div>
-          <h3 class="text-lg font-semibold text-gray-900">Quick Actions</h3>
-          {#if client.selectedClient}
-            <p class="text-sm text-gray-500 mt-1">for {client.selectedClient.name}</p>
-          {/if}
-        </div>
-        
-        <div class="grid grid-cols-2 gap-3">
-          {#if client.selectedClient}
-            <!-- Client-specific actions -->
-            <button class="flex flex-col items-center p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
-              <span class="text-2xl mb-2">📝</span>
-              <span class="text-sm font-medium text-gray-900">New Job</span>
-            </button>
-            
-            <button class="flex flex-col items-center p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
-              <span class="text-2xl mb-2">💰</span>
-              <span class="text-sm font-medium text-gray-900">Create Invoice</span>
-            </button>
-            
-            <button class="flex flex-col items-center p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
-              <span class="text-2xl mb-2">📸</span>
-              <span class="text-sm font-medium text-gray-900">Take Photo</span>
-            </button>
-            
-            <button class="flex flex-col items-center p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
-              <span class="text-2xl mb-2">📋</span>
-              <span class="text-sm font-medium text-gray-900">View History</span>
-            </button>
-          {:else}
-            <!-- General actions -->
-            <button 
-              onclick={() => { showQuickActions = false; goto('/clients'); }}
-              class="flex flex-col items-center p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
-            >
-              <span class="text-2xl mb-2">👥</span>
-              <span class="text-sm font-medium text-gray-900">Select Client</span>
-            </button>
-            
-            <button class="flex flex-col items-center p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
-              <span class="text-2xl mb-2">🎤</span>
-              <span class="text-sm font-medium text-gray-900">Voice Note</span>
-            </button>
-            
-            <button class="flex flex-col items-center p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
-              <span class="text-2xl mb-2">📍</span>
-              <span class="text-sm font-medium text-gray-900">Check In</span>
-            </button>
-            
-            <button class="flex flex-col items-center p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
-              <span class="text-2xl mb-2">⚡</span>
-              <span class="text-sm font-medium text-gray-900">Quick Job</span>
-            </button>
-          {/if}
-        </div>
-      </div>
-    </div>
-  {/if}
 {/if}
