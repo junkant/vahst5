@@ -135,7 +135,7 @@
     <div class="absolute inset-x-0 bottom-0 h-16 bg-white rounded-t-[2rem] shadow-[0_-10px_40px_rgba(0,0,0,0.1)]"></div>
     
     <!-- Navigation content -->
-    <div class="relative bg-white rounded-t-[2rem] px-6 pt-1 pb-2 safe-bottom">
+    <div class="relative bg-white rounded-t-[2rem] px-6 pt-1 pb-2">
       <div class="flex items-center justify-around">
         
         <!-- My Day -->

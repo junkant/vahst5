@@ -1,58 +1,83 @@
 <!-- src/routes/(app)/voice-debug/+page.svelte -->
 <script lang="ts">
-  import { onMount } from 'svelte';
-  import { useVoice } from '$lib/stores/voice-enhanced.svelte';
-  import { VoiceCommandRegistry } from '$lib/voice/commands.registry';
-  import { testAllCommands, findMatches } from '$lib/voice/testing';
+  import { useVoice } from '$lib/stores/voice.svelte';
   
   const voice = useVoice();
-  const registry = VoiceCommandRegistry.getInstance();
   
-  let commands = $state<any[]>([]);
   let testInput = $state('');
   let testResults = $state<any[]>([]);
-  let commandsByCategory = $state<Record<string, any[]>>({});
   
-  onMount(() => {
-    loadCommands();
-  });
-  
-  function loadCommands() {
-    const allCommands = registry.getCommands();
-    commands = allCommands;
-    
-    // Group by category
-    const grouped: Record<string, any[]> = {};
-    allCommands.forEach(cmd => {
-      if (!grouped[cmd.category]) {
-        grouped[cmd.category] = [];
-      }
-      grouped[cmd.category].push(cmd);
-    });
-    commandsByCategory = grouped;
-  }
+  // Simple command list for now
+  const commands = [
+    {
+      id: 'nav.my-day',
+      patterns: ['go to my day', 'show my day', 'my day'],
+      description: 'Navigate to My Day'
+    },
+    {
+      id: 'nav.tasks',
+      patterns: ['show tasks', 'go to tasks', 'tasks'],
+      description: 'Navigate to Tasks'
+    },
+    {
+      id: 'nav.money',
+      patterns: ['show money', 'go to money', 'money', 'finances'],
+      description: 'Navigate to Money'
+    },
+    {
+      id: 'nav.clients',
+      patterns: ['show clients', 'go to clients', 'clients'],
+      description: 'Navigate to Clients'
+    },
+    {
+      id: 'client.select',
+      patterns: ['select client [name]', 'choose client [name]', 'client [name]'],
+      description: 'Select a client by name'
+    },
+    {
+      id: 'help',
+      patterns: ['help', 'what can you do', 'commands'],
+      description: 'Show available commands'
+    }
+  ];
   
   function testCommand() {
     if (!testInput) return;
     
-    const matches = findMatches(testInput);
-    const match = registry.findMatch(testInput);
+    // Simulate speaking the command
+    voice.speak(`Testing: ${testInput}`);
     
+    // Add to test history
     testResults = [{
       input: testInput,
-      matches: matches,
-      bestMatch: match?.command.id || 'No match',
-      timestamp: new Date().toLocaleTimeString()
+      timestamp: new Date().toLocaleTimeString(),
+      response: 'Command spoken'
     }, ...testResults.slice(0, 9)];
     
-    // Actually execute the command
-    voice.testCommand(testInput);
+    testInput = '';
   }
   
-  async function runAllTests() {
-    const results = await testAllCommands();
-    console.log('Test results:', results);
-    alert(`Tests complete: ${results.passed} passed, ${results.failed} failed`);
+  function testVoiceAPI() {
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      const voices = speechSynthesis.getVoices();
+      console.log('Available voices:', voices);
+      
+      const testUtterance = new SpeechSynthesisUtterance('Voice API test successful');
+      speechSynthesis.speak(testUtterance);
+    }
+  }
+  
+  function testMicrophone() {
+    if (typeof window !== 'undefined' && navigator.mediaDevices) {
+      navigator.mediaDevices.getUserMedia({ audio: true })
+        .then(stream => {
+          console.log('Microphone access granted');
+          stream.getTracks().forEach(track => track.stop());
+        })
+        .catch(err => {
+          console.error('Microphone access denied:', err);
+        });
+    }
   }
 </script>
 
@@ -76,14 +101,12 @@
         </span>
       </div>
       <div>
-        <span class="text-gray-600">Commands:</span>
-        <span class="ml-2 font-medium">{commands.length}</span>
+        <span class="text-gray-600">Browser:</span>
+        <span class="ml-2 font-medium">{typeof window !== 'undefined' && navigator.userAgent.includes('Chrome') ? 'Chrome' : 'Other'}</span>
       </div>
       <div>
-        <span class="text-gray-600">Speaking:</span>
-        <span class="ml-2 font-medium {voice.isSpeaking ? 'text-blue-600' : 'text-gray-600'}">
-          {voice.isSpeaking ? 'Yes' : 'No'}
-        </span>
+        <span class="text-gray-600">Protocol:</span>
+        <span class="ml-2 font-medium">{typeof window !== 'undefined' ? window.location.protocol : 'N/A'}</span>
       </div>
     </div>
     
@@ -102,28 +125,54 @@
     {/if}
   </div>
   
-  <!-- Test Input -->
+  <!-- Test Controls -->
   <div class="bg-white rounded-lg shadow p-4 mb-6">
-    <h2 class="text-lg font-semibold mb-2">Test Commands</h2>
+    <h2 class="text-lg font-semibold mb-4">Test Voice Functions</h2>
+    
+    <!-- Voice Control Buttons -->
+    <div class="flex gap-2 mb-4">
+      <button
+        onclick={() => voice.startListening()}
+        class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
+        disabled={!voice.isSupported || voice.isListening}
+      >
+        {voice.isListening ? 'Listening...' : 'Start Listening'}
+      </button>
+      <button
+        onclick={() => voice.stopListening()}
+        class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+        disabled={!voice.isListening}
+      >
+        Stop
+      </button>
+      <button
+        onclick={testVoiceAPI}
+        class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+      >
+        Test Speech
+      </button>
+      <button
+        onclick={testMicrophone}
+        class="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
+      >
+        Test Mic
+      </button>
+    </div>
+    
+    <!-- Test Speech Output -->
     <div class="flex gap-2">
       <input
         type="text"
         bind:value={testInput}
         onkeydown={(e) => e.key === 'Enter' && testCommand()}
-        placeholder="Type a command to test..."
+        placeholder="Type text to speak..."
         class="flex-1 px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
       />
       <button
         onclick={testCommand}
         class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
       >
-        Test
-      </button>
-      <button
-        onclick={() => voice.startListening()}
-        class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
-      >
-        {voice.isListening ? 'Stop' : 'Listen'}
+        Speak
       </button>
     </div>
     
@@ -137,73 +186,61 @@
               <span class="font-medium">{result.input}</span>
               <span class="text-gray-500 text-xs">{result.timestamp}</span>
             </div>
-            <div class="text-xs text-gray-600">
-              Match: <span class="font-medium">{result.bestMatch}</span>
-              {#if result.matches.length > 1}
-                <span class="ml-2">(+{result.matches.length - 1} others)</span>
-              {/if}
-            </div>
+            <div class="text-xs text-gray-600">{result.response}</div>
           </div>
         {/each}
       </div>
     {/if}
   </div>
   
-  <!-- Commands by Category -->
+  <!-- Available Commands -->
   <div class="bg-white rounded-lg shadow p-4">
-    <div class="flex justify-between items-center mb-4">
-      <h2 class="text-lg font-semibold">Registered Commands</h2>
-      <button
-        onclick={runAllTests}
-        class="px-3 py-1 bg-gray-600 text-white text-sm rounded hover:bg-gray-700"
-      >
-        Run All Tests
-      </button>
-    </div>
+    <h2 class="text-lg font-semibold mb-4">Available Voice Commands</h2>
     
-    {#each Object.entries(commandsByCategory) as [category, cmds]}
-      <div class="mb-6">
-        <h3 class="text-md font-medium text-gray-700 mb-2 capitalize">
-          {category} ({cmds.length})
-        </h3>
-        <div class="space-y-2">
-          {#each cmds as cmd}
-            <div class="border rounded-lg p-3">
-              <div class="flex justify-between items-start">
-                <div class="flex-1">
-                  <p class="font-medium text-sm">{cmd.id}</p>
-                  <p class="text-xs text-gray-600 mt-1">{cmd.description}</p>
-                  <div class="mt-2">
-                    <p class="text-xs font-medium text-gray-500">Examples:</p>
-                    <div class="flex flex-wrap gap-1 mt-1">
-                      {#each cmd.examples as example}
-                        <button
-                          onclick={() => { testInput = example; testCommand(); }}
-                          class="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded hover:bg-blue-200"
-                        >
-                          "{example}"
-                        </button>
-                      {/each}
-                    </div>
-                  </div>
-                </div>
-                <div class="ml-3 text-xs space-y-1">
-                  {#if cmd.availableOffline}
-                    <span class="inline-block px-2 py-0.5 bg-green-100 text-green-700 rounded">
-                      Offline
+    <div class="space-y-3">
+      {#each commands as cmd}
+        <div class="border rounded-lg p-3">
+          <div class="flex justify-between items-start">
+            <div class="flex-1">
+              <p class="font-medium text-sm">{cmd.id}</p>
+              <p class="text-xs text-gray-600 mt-1">{cmd.description}</p>
+              <div class="mt-2">
+                <p class="text-xs font-medium text-gray-500">Say:</p>
+                <div class="flex flex-wrap gap-1 mt-1">
+                  {#each cmd.patterns as pattern}
+                    <span class="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded">
+                      "{pattern}"
                     </span>
-                  {/if}
-                  {#if cmd.requiredPermissions?.length}
-                    <span class="inline-block px-2 py-0.5 bg-yellow-100 text-yellow-700 rounded">
-                      Perms
-                    </span>
-                  {/if}
+                  {/each}
                 </div>
               </div>
             </div>
-          {/each}
+          </div>
         </div>
+      {/each}
+    </div>
+  </div>
+  
+  <!-- Browser Compatibility -->
+  <div class="bg-white rounded-lg shadow p-4 mt-6">
+    <h2 class="text-lg font-semibold mb-4">Browser Compatibility</h2>
+    <div class="space-y-2 text-sm">
+      <div class="flex items-center">
+        <span class="w-24 text-gray-600">Chrome:</span>
+        <span class="text-green-600">✓ Full support</span>
       </div>
-    {/each}
+      <div class="flex items-center">
+        <span class="w-24 text-gray-600">Edge:</span>
+        <span class="text-green-600">✓ Full support</span>
+      </div>
+      <div class="flex items-center">
+        <span class="w-24 text-gray-600">Safari:</span>
+        <span class="text-yellow-600">⚠ Limited support</span>
+      </div>
+      <div class="flex items-center">
+        <span class="w-24 text-gray-600">Firefox:</span>
+        <span class="text-red-600">✗ Not supported</span>
+      </div>
+    </div>
   </div>
 </div>
