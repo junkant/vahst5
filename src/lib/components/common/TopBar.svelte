@@ -36,9 +36,12 @@
       {#if auth.isLoading || !auth.tenant?.name}
         <div class="h-7 w-32 bg-gray-200 rounded animate-pulse"></div>
       {:else}
-        <h1 class="text-lg font-semibold text-gray-900 animate-fade-in">
-          {auth.tenant.name}
-        </h1>
+        <button 
+  onclick={() => goto('/my-day')}
+  class="text-lg font-semibold text-gray-900 animate-fade-in hover:text-blue-600 transition-colors text-left"
+>
+  {auth.tenant.name}
+</button>
       {/if}
     </div>
     
