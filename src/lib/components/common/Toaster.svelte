@@ -1,11 +1,9 @@
 <!-- src/lib/components/common/Toaster.svelte -->
 <script lang="ts">
-  import { melt } from '@melt-ui/svelte';
   import { fly, fade } from 'svelte/transition';
   import { flip } from 'svelte/animate';
-  import { toasterElements, toasterStates } from '$lib/utils/toast';
+  import { toasterStates, toast } from '$lib/utils/toast';
   
-  const { toaster, toast, title, description, close } = toasterElements;
   const { toasts } = toasterStates;
   
   function getStyles(type: string) {
@@ -41,18 +39,14 @@
 </script>
 
 <!-- Toast Container -->
-<div 
-  use:melt={$toaster}
-  class="fixed top-4 right-4 z-[9999] flex flex-col gap-2 pointer-events-none"
->
+<div class="fixed top-4 right-4 z-[9999] flex flex-col gap-2">
   {#each $toasts as toastItem (toastItem.id)}
     {@const styles = getStyles(toastItem.data.type)}
     <div
-      use:melt={$toast(toastItem)}
       animate:flip={{ duration: 200 }}
       in:fly={{ x: 100, duration: 200 }}
       out:fade={{ duration: 150 }}
-      class="{styles.container} pointer-events-auto max-w-sm"
+      class="{styles.container} max-w-sm"
     >
       <!-- Icon -->
       <svg 
@@ -72,14 +66,14 @@
       
       <!-- Message -->
       <div class="flex-1 min-w-0">
-        <p use:melt={$title(toastItem)} class="text-sm font-medium break-words">
+        <p class="text-sm font-medium break-words">
           {toastItem.data.message}
         </p>
       </div>
       
       <!-- Close button -->
       <button
-        use:melt={$close(toastItem)}
+        onclick={() => toast.remove(toastItem.id)}
         class="flex-shrink-0 text-gray-400 hover:text-gray-600 transition-colors rounded p-0.5 hover:bg-black/5"
         aria-label="Dismiss notification"
       >
@@ -90,10 +84,3 @@
     </div>
   {/each}
 </div>
-
-<style>
-  /* Ensure smooth animations even with pointer-events */
-  :global(.pointer-events-none > *) {
-    pointer-events: auto;
-  }
-</style>

@@ -92,6 +92,13 @@ class OptimizedToast {
       });
     }
   }
+  
+  // Helper method to remove a specific toast
+  remove(toastId: string) {
+    if (this.isInitialized && this.toaster) {
+      this.toaster.helpers.removeToast(toastId);
+    }
+  }
 }
 
 // Export singleton instance

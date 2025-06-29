@@ -1,6 +1,7 @@
 // src/lib/stores/voice.svelte.ts
 import { goto } from '$app/navigation';
 import { useClients } from './client.svelte';
+import { toast } from '$lib/utils/toast';
 
 interface VoiceCommand {
   patterns: RegExp[];
@@ -372,7 +373,7 @@ class VoiceControlStore {
   startListening() {
     if (!this.isSupported) {
       this.error = 'Voice control is not supported in your browser';
-      alert('Voice control is not supported in your browser. Please use Chrome, Edge, or Safari.');
+      toast.warning('Voice control is not supported in your browser. Please use Chrome, Edge, or Safari.');
       return;
     }
     

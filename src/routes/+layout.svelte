@@ -12,6 +12,7 @@
   import OfflineIndicator from '$lib/components/common/OfflineIndicator.svelte';
   import PwaInstallPrompt from '$lib/components/common/PwaInstallPrompt.svelte';
   import NotificationPrompt from '$lib/components/notifications/NotificationPrompt.svelte';
+  import Toaster from '$lib/components/common/Toaster.svelte';
   
   let { children } = $props();
   
@@ -110,4 +111,5 @@
   {#if auth.isAuthenticated && !isPublicPage}
     <NotificationPrompt />
   {/if}
+  <Toaster />
 </div>
