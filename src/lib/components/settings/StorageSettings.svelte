@@ -3,7 +3,7 @@
   import { onMount } from 'svelte';
   import { storageMonitor, type StorageInfo } from '$lib/utils/storageMonitor';
   import { localCache } from '$lib/utils/localCache';
-  import { useTenant } from '$lib/stores/tenant';
+  import { useTenant } from '$lib/stores/tenant.svelte';  // Fixed import path
   
   const tenant = useTenant();
   
@@ -14,10 +14,28 @@
   let clearingStore = $state('');
   let isPersistent = $state(false);
   
+  // Message state for in-app notifications
+  let message = $state<{ text: string; type: 'success' | 'error' | 'warning' | 'info' } | null>(null);
+  let messageTimeout: number | undefined;
+  
   onMount(async () => {
     await loadStorageInfo();
     checkPersistence();
   });
+  
+  function showMessage(text: string, type: 'success' | 'error' | 'warning' | 'info' = 'info') {
+    message = { text, type };
+    
+    // Clear any existing timeout
+    if (messageTimeout) {
+      clearTimeout(messageTimeout);
+    }
+    
+    // Auto-hide after 5 seconds
+    messageTimeout = setTimeout(() => {
+      message = null;
+    }, 5000);
+  }
   
   async function loadStorageInfo() {
     isLoading = true;
@@ -37,9 +55,33 @@
   }
   
   async function requestPersistence() {
-    const granted = await storageMonitor.requestPersistentStorage();
-    if (granted) {
-      isPersistent = true;
+    try {
+      const granted = await storageMonitor.requestPersistentStorage();
+      isPersistent = granted;
+      
+      if (granted) {
+        showMessage('Persistent storage enabled! Your data is now protected.', 'success');
+      } else {
+        // Provide more helpful context about why it might have been denied
+        const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+        const isPWA = window.matchMedia('(display-mode: standalone)').matches || 
+                      (window.navigator as any).standalone === true;
+        
+        let helpText = 'Persistent storage was denied. ';
+        
+        if (isLocalhost) {
+          helpText += 'This often happens in development. Try in production with HTTPS.';
+        } else if (!isPWA) {
+          helpText += 'Try installing this app to your home screen first.';
+        } else {
+          helpText += 'Try using the app more or bookmarking it. Browsers grant persistence to frequently-used sites.';
+        }
+        
+        showMessage(helpText, 'info');
+      }
+    } catch (error) {
+      console.error('Failed to request persistence:', error);
+      showMessage('Failed to enable persistent storage. Please try again.', 'error');
     }
   }
   
@@ -50,6 +92,7 @@
     
     isClearing = true;
     clearProgress = 0;
+    clearingStore = 'old';
     
     try {
       const deleted = await localCache.cleanOldData((progress, store) => {
@@ -57,11 +100,11 @@
         clearingStore = store;
       });
       
-      alert(`Cleared ${deleted} old items from cache`);
+      showMessage(`Successfully cleared ${deleted} old items from cache`, 'success');
       await loadStorageInfo();
     } catch (error) {
       console.error('Failed to clear old data:', error);
-      alert('Failed to clear cache');
+      showMessage('Failed to clear cache. Please try again.', 'error');
     } finally {
       isClearing = false;
       clearProgress = 0;
@@ -75,199 +118,260 @@
     }
     
     isClearing = true;
+    clearProgress = 0;
     
     try {
-      await storageMonitor.clearCache('all');
-      alert('Cache cleared successfully');
+      await localCache.clearAll((progress, store) => {
+        clearProgress = progress;
+        clearingStore = store;
+      });
+      
+      showMessage('All cached data has been cleared successfully', 'success');
       await loadStorageInfo();
     } catch (error) {
       console.error('Failed to clear cache:', error);
-      alert('Failed to clear cache');
+      showMessage('Failed to clear cache. Please try again.', 'error');
     } finally {
       isClearing = false;
+      clearProgress = 0;
+      clearingStore = '';
     }
   }
   
-  function getUsageColor(percentage: number): string {
-    if (percentage < 50) return 'bg-green-500';
-    if (percentage < 80) return 'bg-yellow-500';
-    return 'bg-red-500';
+  function formatBytes(bytes: number): string {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  }
+  
+  function formatPercentage(value: number): string {
+    return (value * 100).toFixed(1) + '%';
   }
 </script>
 
+<style>
+  @keyframes slide-in-from-top-2 {
+    from {
+      transform: translateY(-0.5rem);
+    }
+    to {
+      transform: translateY(0);
+    }
+  }
+  
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+  
+  .animate-in {
+    animation-fill-mode: both;
+  }
+  
+  .slide-in-from-top-2 {
+    animation-name: slide-in-from-top-2;
+  }
+  
+  .fade-in {
+    animation-name: fade-in;
+  }
+</style>
+
 <div class="space-y-6">
-  <div class="flex items-center justify-between">
-    <div class="space-y-0.5">
-      <h2 class="text-2xl font-bold tracking-tight">Storage Management</h2>
-      <p class="text-gray-600">
-        Manage your offline data and cache storage
-      </p>
-    </div>
-    <button
-      class="btn-secondary text-sm"
-      onclick={loadStorageInfo}
-      disabled={isLoading}
-    >
-      <svg class="h-4 w-4 mr-1 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-      </svg>
-      Refresh
-    </button>
-  </div>
-
-  {#if isLoading}
-    <div class="flex items-center justify-center p-8">
-      <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
-    </div>
-  {:else if storageInfo}
-    <!-- Storage Overview -->
-    <div class="rounded-lg border p-6 space-y-4">
-      <h3 class="text-lg font-medium">Storage Usage</h3>
-      
-      <div class="space-y-2">
-        <div class="flex justify-between text-sm">
-          <span>Used</span>
-          <span class="font-medium">
-            {storageMonitor.formatBytes(storageInfo.used)} / {storageMonitor.formatBytes(storageInfo.quota)}
-          </span>
-        </div>
+  <!-- Message Display -->
+  {#if message}
+    <div class="fixed top-4 right-4 z-50 animate-in slide-in-from-top-2 fade-in duration-300">
+      <div class="px-4 py-3 rounded-lg shadow-lg flex items-center gap-3 max-w-md
+        {message.type === 'success' ? 'bg-green-50 text-green-800 border border-green-200' : ''}
+        {message.type === 'error' ? 'bg-red-50 text-red-800 border border-red-200' : ''}
+        {message.type === 'warning' ? 'bg-yellow-50 text-yellow-800 border border-yellow-200' : ''}
+        {message.type === 'info' ? 'bg-blue-50 text-blue-800 border border-blue-200' : ''}">
         
-        <div class="w-full bg-gray-200 rounded-full h-3">
-          <div 
-            class="h-3 rounded-full transition-all duration-300 {getUsageColor(storageInfo.percentage)}"
-            style="width: {Math.min(storageInfo.percentage, 100)}%"
-          ></div>
-        </div>
-        
-        <div class="flex justify-between text-xs text-gray-600">
-          <span>{storageInfo.percentage.toFixed(1)}% used</span>
-          <span>{storageMonitor.formatBytes(storageInfo.quota - storageInfo.used)} available</span>
-        </div>
-      </div>
-
-      {#if storageMonitor.isStorageLow(storageInfo)}
-        <div class="rounded-md bg-yellow-50 p-3">
-          <p class="text-sm text-yellow-800">
-            <svg class="h-4 w-4 inline mr-1" fill="currentColor" viewBox="0 0 20 20">
-              <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+        <!-- Icon -->
+        <div class="flex-shrink-0">
+          {#if message.type === 'success'}
+            <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
             </svg>
-            Storage is getting full. Consider clearing old data.
-          </p>
-        </div>
-      {/if}
-    </div>
-
-    <!-- Storage Breakdown -->
-    <div class="rounded-lg border p-6 space-y-4">
-      <h3 class="text-lg font-medium">Storage Breakdown</h3>
-      
-      <div class="space-y-3">
-        <div class="flex items-center justify-between">
-          <span class="text-sm text-gray-600">IndexedDB (Offline Data)</span>
-          <span class="text-sm font-medium">
-            {storageMonitor.formatBytes(storageInfo.breakdown.indexedDB)}
-          </span>
-        </div>
-        
-        <div class="flex items-center justify-between">
-          <span class="text-sm text-gray-600">Cache Storage</span>
-          <span class="text-sm font-medium">
-            {storageMonitor.formatBytes(storageInfo.breakdown.cache)}
-          </span>
-        </div>
-        
-        <div class="flex items-center justify-between">
-          <span class="text-sm text-gray-600">Local Storage</span>
-          <span class="text-sm font-medium">
-            {storageMonitor.formatBytes(storageInfo.breakdown.localStorage)}
-          </span>
-        </div>
-      </div>
-    </div>
-
-    <!-- Cache Settings -->
-    <div class="rounded-lg border p-6 space-y-4">
-      <h3 class="text-lg font-medium">Cache Settings</h3>
-      
-      <div class="space-y-4">
-        <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-          <div>
-            <p class="font-medium">Persistent Storage</p>
-            <p class="text-sm text-gray-600">
-              Prevents browser from automatically clearing your data
-            </p>
-          </div>
-          {#if isPersistent}
-            <span class="text-sm text-green-600 font-medium">Enabled</span>
+          {:else if message.type === 'error'}
+            <svg class="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          {:else if message.type === 'warning'}
+            <svg class="w-5 h-5 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
           {:else}
-            <button
-              class="btn-primary text-sm"
-              onclick={requestPersistence}
-            >
-              Enable
-            </button>
+            <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
           {/if}
         </div>
-
-        <div class="space-y-3">
-          <h4 class="text-sm font-medium text-gray-700">Data Retention</h4>
-          <ul class="text-sm text-gray-600 space-y-1">
-            <li>• Client data: 7 days</li>
-            <li>• Job data: 30 days</li>
-            <li>• Images: 14 days</li>
-            <li>• Other data: 7 days</li>
-          </ul>
-        </div>
+        
+        <!-- Message -->
+        <p class="text-sm font-medium">{message.text}</p>
+        
+        <!-- Close button -->
+        <button
+          onclick={() => message = null}
+          class="ml-auto flex-shrink-0 text-gray-400 hover:text-gray-600"
+          aria-label="Close message"
+        >
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
       </div>
     </div>
+  {/if}
 
-    <!-- Clear Cache Actions -->
-    <div class="rounded-lg border p-6 space-y-4">
-      <h3 class="text-lg font-medium">Clear Cache</h3>
-      
-      {#if isClearing}
-        <div class="space-y-2">
-          <p class="text-sm text-gray-600">
-            Clearing {clearingStore || 'cache'}...
-          </p>
-          <div class="w-full bg-gray-200 rounded-full h-2">
+  <div>
+    <h2 class="text-lg font-semibold mb-4">Storage Settings</h2>
+    
+    {#if isLoading}
+      <div class="animate-pulse space-y-4">
+        <div class="h-4 bg-gray-200 rounded w-1/2"></div>
+        <div class="h-8 bg-gray-200 rounded"></div>
+        <div class="h-4 bg-gray-200 rounded w-3/4"></div>
+      </div>
+    {:else if storageInfo}
+      <!-- Storage Overview -->
+      <div class="bg-gray-50 rounded-lg p-4 mb-6">
+        <h3 class="text-sm font-medium text-gray-700 mb-3">Storage Usage</h3>
+        
+        <!-- Progress Bar -->
+        <div class="mb-2">
+          <div class="w-full bg-gray-200 rounded-full h-4 overflow-hidden">
             <div 
-              class="h-2 bg-primary-600 rounded-full transition-all duration-300"
-              style="width: {clearProgress}%"
+              class="h-full bg-blue-500 transition-all duration-300"
+              style="width: {formatPercentage(storageInfo.usagePercentage)}"
             ></div>
           </div>
         </div>
-      {:else}
-        <div class="space-y-3">
-          <button
-            class="w-full btn-secondary justify-between"
-            onclick={clearOldData}
-            disabled={isClearing}
-          >
-            <span>Clear Old Data (30+ days)</span>
-            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-            </svg>
-          </button>
-          
-          <button
-            class="w-full btn-secondary justify-between text-red-600 hover:bg-red-50"
-            onclick={clearAllCache}
-            disabled={isClearing}
-          >
-            <span>Clear All Cache</span>
-            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-            </svg>
-          </button>
+        
+        <!-- Storage Stats -->
+        <div class="flex justify-between text-sm text-gray-600">
+          <span>{formatBytes(storageInfo.usage)} used</span>
+          <span>{formatBytes(storageInfo.quota)} total</span>
+        </div>
+        
+        {#if storageInfo.details}
+          <div class="mt-4 space-y-2">
+            <div class="flex justify-between text-sm">
+              <span class="text-gray-600">Cache Storage:</span>
+              <span class="font-medium">{formatBytes(storageInfo.details.caches || 0)}</span>
+            </div>
+            <div class="flex justify-between text-sm">
+              <span class="text-gray-600">IndexedDB:</span>
+              <span class="font-medium">{formatBytes(storageInfo.details.indexedDB || 0)}</span>
+            </div>
+            {#if storageInfo.details.serviceWorker}
+              <div class="flex justify-between text-sm">
+                <span class="text-gray-600">Service Worker:</span>
+                <span class="font-medium">{formatBytes(storageInfo.details.serviceWorker)}</span>
+              </div>
+            {/if}
+          </div>
+        {/if}
+      </div>
+      
+      <!-- Persistence Status -->
+      <div class="bg-gray-50 rounded-lg p-4 mb-6">
+        <div class="flex items-center justify-between">
+          <div class="flex-1">
+            <h3 class="text-sm font-medium text-gray-700">Persistent Storage</h3>
+            <p class="text-xs text-gray-500 mt-1">
+              {isPersistent ? 'Data will not be automatically cleared' : 'Data may be cleared when storage is low'}
+            </p>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="text-sm font-medium {isPersistent ? 'text-green-600' : 'text-gray-600'}">
+              {isPersistent ? 'Enabled' : 'Disabled'}
+            </span>
+            {#if !isPersistent}
+              <button
+                onclick={requestPersistence}
+                class="px-3 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
+              >
+                Enable
+              </button>
+            {/if}
+          </div>
+        </div>
+        
+        {#if !isPersistent}
+          <div class="mt-3 p-3 bg-blue-50 rounded-md">
+            <h4 class="text-xs font-medium text-blue-900 mb-1">Tips for enabling persistent storage:</h4>
+            <ul class="text-xs text-blue-700 space-y-1">
+              <li>• Install this app to your home screen</li>
+              <li>• Use the app regularly or bookmark it</li>
+              <li>• Ensure you're using HTTPS (not localhost)</li>
+              <li>• Try in a different browser (Chrome/Edge work best)</li>
+            </ul>
+          </div>
+        {/if}
+      </div>
+      
+      <!-- Tenant Storage Limit -->
+      {#if tenant.current}
+        <div class="bg-gray-50 rounded-lg p-4 mb-6">
+          <h3 class="text-sm font-medium text-gray-700 mb-2">Plan Storage Limit</h3>
+          <div class="flex justify-between items-center">
+            <span class="text-sm text-gray-600">
+              {tenant.current.plan === 'starter' ? '5 GB' : 
+               tenant.current.plan === 'professional' ? '50 GB' : 'Unlimited'}
+            </span>
+            <span class="text-xs text-gray-500">
+              {tenant.current.plan} plan
+            </span>
+          </div>
         </div>
       {/if}
-    </div>
-  {:else}
-    <div class="rounded-lg border border-red-200 bg-red-50 p-4">
-      <p class="text-sm text-red-800">
-        Unable to load storage information. This feature may not be supported in your browser.
-      </p>
-    </div>
-  {/if}
+      
+      <!-- Cache Management -->
+      <div class="space-y-3">
+        <h3 class="text-sm font-medium text-gray-700">Cache Management</h3>
+        
+        <button
+          onclick={clearOldData}
+          disabled={isClearing}
+          class="w-full px-4 py-2 text-sm bg-white border border-gray-300 rounded-lg 
+                 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed 
+                 transition-colors flex items-center justify-center gap-2"
+        >
+          {#if isClearing && clearingStore === 'old'}
+            <div class="animate-spin h-4 w-4 border-2 border-gray-300 border-t-blue-500 rounded-full"></div>
+            Clearing... {clearProgress}%
+          {:else}
+            Clear Old Data (30+ days)
+          {/if}
+        </button>
+        
+        <button
+          onclick={clearAllCache}
+          disabled={isClearing}
+          class="w-full px-4 py-2 text-sm bg-red-50 border border-red-200 text-red-700 
+                 rounded-lg hover:bg-red-100 disabled:opacity-50 disabled:cursor-not-allowed 
+                 transition-colors flex items-center justify-center gap-2"
+        >
+          {#if isClearing && clearingStore !== 'old'}
+            <div class="animate-spin h-4 w-4 border-2 border-red-300 border-t-red-500 rounded-full"></div>
+            Clearing {clearingStore}... {clearProgress}%
+          {:else}
+            Clear All Cache
+          {/if}
+        </button>
+      </div>
+    {:else}
+      <div class="text-center py-8 text-gray-500">
+        <p>Unable to load storage information</p>
+      </div>
+    {/if}
+  </div>
 </div>

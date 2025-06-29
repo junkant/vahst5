@@ -1,4 +1,4 @@
-// src/lib/stores/tenant.ts
+// src/lib/stores/tenant.svelte.ts
 import { 
   doc, 
   getDoc, 
@@ -13,7 +13,7 @@ import {
   type Unsubscribe
 } from 'firebase/firestore';
 import { db } from '$lib/firebase/config';
-import { useAuth } from './auth';
+import { useAuth } from './auth.svelte';  // Fixed import path
 import type { User as FirebaseUser } from 'firebase/auth';
 
 // Tenant types
@@ -63,7 +63,7 @@ export interface TenantInvite {
   expiresAt: Date;
 }
 
-// Svelte 5 state
+// Svelte 5 state using runes
 let currentTenant = $state<Tenant | null>(null);
 let availableTenants = $state<Tenant[]>([]);
 let userTenants = $state<Map<string, UserTenant>>(new Map());

@@ -105,5 +105,9 @@
   <!-- App-wide components -->
   <OfflineIndicator />
   <PwaInstallPrompt />
-  <NotificationPrompt />
+  
+  <!-- Only show NotificationPrompt for authenticated users -->
+  {#if auth.isAuthenticated && !isPublicPage}
+    <NotificationPrompt />
+  {/if}
 </div>

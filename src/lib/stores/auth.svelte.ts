@@ -4,7 +4,7 @@ import type { User as FirebaseUser } from 'firebase/auth';
 import { doc, getDoc, setDoc, serverTimestamp, collection } from 'firebase/firestore';
 import { auth, db } from '$lib/firebase/config';
 import { getUserTenants } from '$lib/firebase/firestore';
-import type { Tenant } from './tenant';
+import type { Tenant } from './tenant.svelte';
 
 interface AuthState {
   user: FirebaseUser | null;
