@@ -10,11 +10,14 @@
   // Get client ID from route params
   const clientId = $derived($page.params.id);
   
-  // Find the client
+  // State
   let client = $state(null);
   let isLoading = $state(true);
   let error = $state('');
   let isEditing = $state(false);
+  let isSaving = $state(false);
+  let newTag = $state('');
+  let currentClientId = $state('');
   
   // Form data for editing
   let formData = $state({
@@ -29,19 +32,29 @@
     tags: []
   });
   
-  let isSaving = $state(false);
-  let newTag = $state('');
-  
+  // Load client when component mounts
   onMount(async () => {
     await loadClient();
   });
   
+  // Watch for client ID changes
+  $effect(() => {
+    if (clientId && clientId !== currentClientId) {
+      currentClientId = clientId;
+      loadClient();
+    }
+  });
+  
   async function loadClient() {
     isLoading = true;
+    error = '';
+    
     try {
       const foundClient = clients.clients.find(c => c.id === clientId);
+      
       if (foundClient) {
         client = foundClient;
+        // Populate form with existing data
         formData = {
           name: foundClient.name || '',
           email: foundClient.email || '',
@@ -55,9 +68,11 @@
         };
       } else {
         error = 'Client not found';
+        client = null;
       }
     } catch (err) {
       error = 'Failed to load client';
+      console.error('Load error:', err);
     } finally {
       isLoading = false;
     }
@@ -92,7 +107,6 @@
       error = '';
       
       await clients.updateClient(client.id, {
-        ...formData,
         name: formData.name.trim(),
         email: formData.email.trim(),
         phone: formData.phone.trim(),
@@ -100,7 +114,8 @@
         city: formData.city.trim(),
         state: formData.state.trim(),
         zip: formData.zip.trim(),
-        notes: formData.notes.trim()
+        notes: formData.notes.trim(),
+        tags: formData.tags
       });
       
       // Update local client object
