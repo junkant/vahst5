@@ -1,9 +1,10 @@
-<!-- src/routes/+layout.svelte - Updated with Business Selection Logic -->
+<!-- src/routes/+layout.svelte -->
 <script lang="ts">
   import '../app.css';
   import { page } from '$app/stores';
   import { goto } from '$app/navigation';
   import { useAuth } from '$lib/stores/auth.svelte';
+  import { useTenant } from '$lib/stores/tenant.svelte';
   import { initializeClientStore, updateClientJobsSubscription, useClients } from '$lib/stores/client.svelte';
   import { initializeJobStore, cleanupJobStore } from '$lib/stores/jobs.svelte';
   import { useOffline } from '$lib/stores/offline.svelte';
@@ -18,6 +19,7 @@
   let { children } = $props();
   
   const auth = useAuth();
+  const tenant = useTenant();
   const clients = useClients();
   const offline = useOffline();
   
@@ -33,23 +35,39 @@
   // Check if we're on the business selection page
   const isBusinessSelectionPage = $derived($page.route.id === '/select-business');
   
-  // Check if we're on an error page (don't redirect these)
+  // Check if we're on an error page
   const isErrorPage = $derived($page.error !== null);
   
   // Determine navigation mode
   const navMode = $derived(isPublicPage ? 'landing' : 'app');
   
-  // Initialize client store when tenant changes (only for authenticated users)
+  // Initialize tenant data when auth changes
   $effect(() => {
-    if (!isPublicPage && !isBusinessSelectionPage && auth.tenant?.id) {
-      initializeClientStore(auth.tenant.id);
+    if (auth.user) {
+      tenant.initialize(auth.user);
+    } else {
+      tenant.cleanup();
+    }
+  });
+  
+  // Initialize client store when tenant changes
+  $effect(() => {
+    const currentTenantId = tenant.current?.id;
+    
+    if (currentTenantId && !isPublicPage && !isBusinessSelectionPage) {
+      // Initialize client store for current tenant
+      initializeClientStore(currentTenantId);
+      console.log(`📋 Initializing clients for tenant: ${tenant.current.name}`);
+    } else if (!currentTenantId && !isPublicPage && !isBusinessSelectionPage) {
+      // No tenant selected, cleanup clients
+      clients.cleanup();
     }
   });
   
   // Initialize job store when tenant changes
   $effect(() => {
-    if (!isPublicPage && !isBusinessSelectionPage && auth.tenant?.id) {
-      initializeJobStore(auth.tenant.id);
+    if (!isPublicPage && !isBusinessSelectionPage && tenant.current?.id) {
+      initializeJobStore(tenant.current.id);
     }
     
     // Cleanup when tenant changes or component unmounts
@@ -60,14 +78,14 @@
   
   // Update client jobs when selected client changes
   $effect(() => {
-    if (!isPublicPage && !isBusinessSelectionPage && auth.tenant?.id && clients.selectedClient?.id) {
-      updateClientJobsSubscription(auth.tenant.id, clients.selectedClient.id);
+    if (!isPublicPage && !isBusinessSelectionPage && tenant.current?.id && clients.selectedClient?.id) {
+      updateClientJobsSubscription(tenant.current.id, clients.selectedClient.id);
     }
   });
   
   // Process offline queue when user logs in
   $effect(() => {
-    if (auth.user && auth.tenant && offline.isOnline && offline.hasQueuedOperations) {
+    if (auth.user && tenant.current && offline.isOnline && offline.hasQueuedOperations) {
       setTimeout(() => {
         offline.processQueue();
       }, 1000);
@@ -79,7 +97,7 @@
     offline.saveQueueToStorage();
   });
   
-  // ENHANCED REDIRECT LOGIC - Handle business selection flow (but not error pages)
+  // Handle redirects
   $effect(() => {
     if (!auth.isLoading && !isErrorPage) {
       // Redirect unauthenticated users from protected pages
@@ -94,23 +112,21 @@
         return;
       }
       
-      // NEW: Handle business selection flow
+      // Handle business selection flow
       if (auth.isAuthenticated && !isBusinessSelectionPage && !isPublicPage) {
-        // User is authenticated and trying to access app routes
         if (auth.needsBusinessSelection()) {
-          // User needs to select a business
           goto('/select-business');
           return;
         }
       }
       
-      // NEW: Redirect from business selection if not needed
+      // Redirect from business selection if not needed
       if (isBusinessSelectionPage && auth.isAuthenticated && !auth.needsBusinessSelection()) {
         goto('/my-day');
         return;
       }
       
-      // NEW: Redirect unauthenticated users from business selection
+      // Redirect unauthenticated users from business selection
       if (isBusinessSelectionPage && !auth.isAuthenticated) {
         goto('/login');
         return;
@@ -132,7 +148,7 @@
     {@render children()}
   </main>
 
-  <!-- Bottom Navigation with dynamic mode (hide on business selection only) -->
+  <!-- Bottom Navigation (hide on business selection only) -->
   {#if !isBusinessSelectionPage}
     <BottomNav mode={navMode} />
   {/if}
@@ -142,7 +158,7 @@
   <PwaInstallPrompt />
   
   <!-- Only show NotificationPrompt for authenticated users with selected tenant -->
-  {#if auth.isAuthenticated && auth.hasTenant && !isPublicPage && !isBusinessSelectionPage}
+  {#if auth.isAuthenticated && tenant.hasTenant && !isPublicPage && !isBusinessSelectionPage}
     <NotificationPrompt />
   {/if}
   

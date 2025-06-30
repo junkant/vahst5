@@ -1,6 +1,7 @@
 <!-- src/lib/components/settings/BusinessSwitcher.svelte -->
 <script lang="ts">
   import { useAuth } from '$lib/stores/auth.svelte';
+  import { goto } from '$app/navigation';
   import CreateBusinessModal from './CreateBusinessModal.svelte';
   
   const auth = useAuth();
@@ -8,11 +9,22 @@
   let isExpanded = $state(false);
   let showLinkModal = $state(false);
   let showCreateModal = $state(false);
+  let isSwitching = $state(false);
+  let linkCode = $state('');
   
-  function switchBusiness(tenant: any) {
+  async function switchBusiness(tenant: any) {
     if (tenant && tenant.id !== auth.tenant?.id) {
-      auth.setTenant(tenant);
-      console.log('Switched to business:', tenant.name);
+      isSwitching = true;
+      try {
+        await auth.setTenant(tenant);
+        // Navigate to home page after switch
+        await goto('/my-day');
+        console.log('Switched to business:', tenant.name);
+      } catch (error) {
+        console.error('Failed to switch business:', error);
+      } finally {
+        isSwitching = false;
+      }
     }
   }
   
@@ -22,10 +34,23 @@
   
   function openLinkModal() {
     showLinkModal = true;
+    linkCode = '';
   }
   
   function openCreateModal() {
     showCreateModal = true;
+  }
+  
+  async function handleLinkAccount() {
+    // TODO: Implement account linking logic
+    console.log('Linking with code:', linkCode);
+    showLinkModal = false;
+  }
+  
+  // Helper function to get user role for a tenant
+  function getUserRole(tenant: any): string {
+    if (!auth.user || !tenant) return 'Member';
+    return tenant.ownerId === auth.user.uid ? 'Owner' : 'Member';
   }
 </script>
 
@@ -58,7 +83,10 @@
             <!-- Business Info -->
             <div class="flex-1">
               <p class="font-medium text-gray-900">{auth.tenant.name}</p>
-              <p class="text-sm text-gray-600">Full Access</p>
+              <p class="text-sm text-gray-600">
+                {getUserRole(auth.tenant)} • 
+                {auth.tenant.plan ? auth.tenant.plan.charAt(0).toUpperCase() + auth.tenant.plan.slice(1) : 'Starter'} plan
+              </p>
             </div>
             
             <!-- Current Badge -->
@@ -74,31 +102,39 @@
         <div>
           <p class="text-sm font-medium text-gray-500 mb-2">Switch to</p>
           <div class="space-y-2">
-            {#each auth.tenants as tenant}
-              {#if tenant.id !== auth.tenant?.id}
+            {#each auth.tenants as business}
+              {#if business.id !== auth.tenant?.id}
                 <button
-                  onclick={() => switchBusiness(tenant)}
+                  onclick={() => switchBusiness(business)}
+                  disabled={isSwitching}
                   class="w-full p-3 text-left bg-white border border-gray-200 rounded-lg 
                          hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 
-                         transition-colors"
+                         transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <div class="flex items-center gap-3">
                     <!-- Business Avatar -->
                     <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-gray-400 to-gray-500 
                                 flex items-center justify-center text-white font-semibold text-xs">
-                      {tenant.name.charAt(0).toUpperCase()}
+                      {business.name.charAt(0).toUpperCase()}
                     </div>
                     
                     <!-- Business Info -->
                     <div class="flex-1">
-                      <p class="font-medium text-gray-900">{tenant.name}</p>
-                      <p class="text-sm text-gray-500">Full Access</p>
+                      <p class="font-medium text-gray-900">{business.name}</p>
+                      <p class="text-sm text-gray-500">
+                        {getUserRole(business)} • 
+                        {business.plan ? business.plan.charAt(0).toUpperCase() + business.plan.slice(1) : 'Starter'} plan
+                      </p>
                     </div>
                     
-                    <!-- Switch Arrow -->
-                    <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-                    </svg>
+                    <!-- Switch Arrow or Loading -->
+                    {#if isSwitching}
+                      <div class="animate-spin h-4 w-4 border-2 border-gray-300 rounded-full border-t-blue-600"></div>
+                    {:else}
+                      <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                      </svg>
+                    {/if}
                   </div>
                 </button>
               {/if}
@@ -120,7 +156,7 @@
               <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-green-400 to-green-500 
                           flex items-center justify-center text-white">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.1a9.04 9.04 0 002.668-6.56l-3.77-3.771zm8.5-8.5a4 4 0 00-5.656 0l-1.102 1.1a9.04 9.04 0 00-2.668 6.56l3.77 3.771a4 4 0 005.656 0l4-4z" />
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
                 </svg>
               </div>
               <div class="flex-1">
@@ -173,19 +209,21 @@
   {/if}
   
   <!-- Voice Command Tip -->
-  <div class="bg-gray-50 rounded-lg p-3">
-    <div class="flex items-start gap-2">
-      <svg class="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
-      </svg>
-      <div>
-        <p class="text-sm font-medium text-gray-700">Voice Command Tip</p>
-        <p class="text-xs text-gray-600 mt-1">
-          Say "which business" to hear your current business, or "help" for all voice commands
-        </p>
+  {#if auth.tenant}
+    <div class="bg-gray-50 rounded-lg p-3">
+      <div class="flex items-start gap-2">
+        <svg class="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+        </svg>
+        <div>
+          <p class="text-sm font-medium text-gray-700">Voice Command Tip</p>
+          <p class="text-xs text-gray-600 mt-1">
+            Say "which business" to hear your current business, or "help" for all voice commands
+          </p>
+        </div>
       </div>
     </div>
-  </div>
+  {/if}
 </div>
 
 <!-- Link Account Modal -->
@@ -206,7 +244,8 @@
             <input
               id="invitation-input"
               type="text"
-              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+              bind:value={linkCode}
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               placeholder="Enter code or email..."
             />
           </div>
@@ -220,8 +259,9 @@
             Cancel
           </button>
           <button
-            onclick={() => showLinkModal = false}
-            class="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+            onclick={handleLinkAccount}
+            disabled={!linkCode.trim()}
+            class="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Link Account
           </button>
@@ -233,3 +273,15 @@
 
 <!-- Create Business Modal -->
 <CreateBusinessModal bind:open={showCreateModal} />
+
+<style>
+  @keyframes spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+  
+  .animate-spin {
+    animation: spin 1s linear infinite;
+  }
+</style>

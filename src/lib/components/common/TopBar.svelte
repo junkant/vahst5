@@ -13,10 +13,10 @@
   let showClientSelector = $state(false);
   let showUserMenu = $state(false);
   
-  // Simplified tenant switching without infinite loops
+  // Track tenant changes
   let lastTenantId = $state<string | null>(null);
   
-  // 🔐 SECURITY: Monitor tenant changes and FORCE clear client selection
+  // Monitor tenant changes and force clear client selection
   $effect(() => {
     const currentTenantId = tenant.current?.id || null;
     
@@ -24,25 +24,17 @@
       const oldTenantId = lastTenantId;
       lastTenantId = currentTenantId;
       
-      // IMMEDIATE: Force clear any selected client when tenant changes
+      // Force clear any selected client when tenant changes
       if (oldTenantId !== null && clients.selectedClient) {
         clients.selectClient(null);
       }
+      
+      // Force reload clients for new tenant
+      if (currentTenantId) {
+        clients.subscribeTenant(currentTenantId);
+      }
     }
   });
-  
-  // Handle tenant switching via tenant store only (triggered from profile)
-  // This function is called when switching happens from the profile/settings
-  // The effect above will handle clearing the selected client
-  async function handleTenantSwitch(newTenantId: string) {
-    if (newTenantId === tenant.current?.id) return;
-
-    try {
-      await tenant.switch(newTenantId);
-    } catch (error) {
-      console.error('❌ Failed to switch tenant:', error);
-    }
-  }
   
   async function handleSignOut() {
     await auth.signOut();
@@ -70,7 +62,7 @@
 <header class="bg-white border-b border-gray-200 safe-top">
   <div class="flex items-center justify-between gap-3 px-4 py-3">
     
-    <!-- Business Name Only (Left) -->
+    <!-- Business Name (Left) -->
     <div class="flex-shrink-0 min-w-[120px]">
       {#if auth.isLoading || !tenant.current?.name}
         <div class="h-7 w-32 bg-gray-200 rounded animate-pulse"></div>
@@ -93,7 +85,7 @@
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
       </svg>
       
-      <!-- Client Display with Enhanced States -->
+      <!-- Client Display -->
       {#if clients.isLoadingClients}
         <span class="text-sm text-gray-500 truncate">Loading clients...</span>
       {:else if clients.selectedClient}
@@ -102,18 +94,26 @@
             {clients.selectedClient.name}
           </span>
           <!-- Clear button -->
-          <button
+          <span
             onclick={(e) => {
               e.stopPropagation();
               handleClientClear();
             }}
-            class="text-gray-400 hover:text-gray-600 p-0.5 rounded"
-            title="Clear client selection"
+            class="text-gray-400 hover:text-gray-600 p-0.5 rounded cursor-pointer"
+            role="button"
+            tabindex="0"
+            aria-label="Clear client selection"
+            onkeydown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.stopPropagation();
+                handleClientClear();
+              }
+            }}
           >
             <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
             </svg>
-          </button>
+          </span>
         </div>
       {:else if clients.clients.length === 0 && !clients.isLoadingClients}
         <span class="text-sm text-gray-500 truncate">No clients yet</span>
@@ -127,7 +127,7 @@
       </svg>
       
       <!-- Client count indicator -->
-      {#if clients.clients.length > 0}
+      {#if clients.clients.length > 0 && !clients.isLoadingClients}
         <span class="absolute -top-1 -right-1 bg-blue-600 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
           {clients.clients.length > 99 ? '99+' : clients.clients.length}
         </span>
@@ -194,18 +194,6 @@
       {/if}
     </div>
   </div>
-  
-  <!-- Debug Info Removed - Enable only when needed -->
-  <!-- 
-  {#if import.meta.env.DEV}
-    <div class="px-4 pb-2 text-xs text-gray-400 font-mono bg-gray-50 border-t">
-      T: {tenant.current?.id?.slice(-6) || 'none'} | 
-      C: {clients.clients.length} | 
-      Sel: {clients.selectedClient?.id?.slice(-6) || 'none'} |
-      {#if clients.isLoadingClients}⏳{/if}
-    </div>
-  {/if}
-  -->
 </header>
 
 <!-- Modals -->

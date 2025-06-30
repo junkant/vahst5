@@ -4,14 +4,23 @@ import type { User as FirebaseUser } from 'firebase/auth';
 import { doc, getDoc, setDoc, serverTimestamp, collection, updateDoc } from 'firebase/firestore';
 import { auth, db } from '$lib/firebase/config';
 import { getUserTenants } from '$lib/firebase/firestore';
-import type { Tenant } from './tenant.svelte';
 
-interface AuthState {
-  user: FirebaseUser | null;
-  currentTenant: Tenant | null;
-  availableTenants: Tenant[];
-  isLoading: boolean;
-  error: string | null;
+// Import tenant type
+interface Tenant {
+  id: string;
+  name: string;
+  type?: string | null;
+  plan?: 'starter' | 'professional' | 'enterprise';
+  settings: any;
+  limits?: {
+    users: number;
+    clients: string;
+    jobs: string;
+    storage?: number;
+  };
+  createdAt: Date;
+  updatedAt?: Date;
+  ownerId: string;
 }
 
 // Svelte 5 state using runes
@@ -41,12 +50,14 @@ if (typeof window !== 'undefined') {
           currentTenant = savedTenant;
         } else if (tenants.length === 1) {
           // Only one tenant, auto-select it
-          setTenant(tenants[0]);
+          currentTenant = tenants[0];
+          localStorage.setItem('selectedTenantId', tenants[0].id);
         } else {
           // Multiple tenants, no saved selection - user needs to choose
           currentTenant = null;
         }
       } catch (err) {
+        console.error('Failed to load tenant data:', err);
         error = err instanceof Error ? err.message : 'Failed to load tenant data';
       }
     } else {
@@ -87,21 +98,29 @@ async function signUp(email: string, password: string, tenantName: string) {
       createdAt: serverTimestamp()
     });
     
-    // Create tenant and add user as owner
+    // Create tenant with default plan
     const tenantRef = doc(collection(db, 'tenants'));
     await setDoc(tenantRef, {
       name: tenantName,
       type: null,
+      plan: 'starter',
       settings: {},
+      limits: {
+        users: 10,
+        clients: 'unlimited',
+        jobs: 'unlimited',
+        storage: 5
+      },
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
       ownerId: newUser.uid
     });
     
-    // Add user to tenant
+    // Add user to tenant as owner
     await setDoc(doc(db, 'userTenants', newUser.uid), {
       tenants: {
         [tenantRef.id]: {
+          tenantId: tenantRef.id,
           role: 'owner',
           permissions: ['all'],
           joinedAt: serverTimestamp(),
@@ -122,6 +141,12 @@ async function signUp(email: string, password: string, tenantName: string) {
 async function signOut() {
   try {
     error = null;
+    
+    // Clean up client store before signing out
+    const { useClients } = await import('./client.svelte');
+    const clients = useClients();
+    clients.cleanup();
+    
     await firebaseSignOut(auth);
     currentTenant = null;
     availableTenants = [];
@@ -133,21 +158,43 @@ async function signOut() {
   }
 }
 
-function setTenant(tenant: Tenant) {
-  currentTenant = tenant;
-  if (typeof window !== 'undefined') {
+// CRITICAL: Updated setTenant that properly handles client cleanup
+async function setTenant(tenant: Tenant) {
+  // Don't do anything if it's the same tenant
+  if (currentTenant?.id === tenant.id) return;
+  
+  try {
+    // Import client store
+    const { useClients } = await import('./client.svelte');
+    const clients = useClients();
+    
+    // Clear selected client BEFORE switching tenant
+    if (clients.selectedClient) {
+      clients.selectClient(null);
+    }
+    
+    // Update current tenant
+    currentTenant = tenant;
     localStorage.setItem('selectedTenantId', tenant.id);
+    
+    // Force client store to reload for new tenant
+    clients.subscribeTenant(tenant.id);
+    
+    console.log(`✅ Switched to tenant: ${tenant.name} (${tenant.id})`);
+  } catch (error) {
+    console.error('Error during tenant switch:', error);
+    throw error;
   }
 }
 
-// NEW: Add a new tenant to the user's available tenants
+// Add a new tenant to the user's available tenants
 function addTenant(tenant: Tenant) {
   if (!availableTenants.find(t => t.id === tenant.id)) {
     availableTenants = [...availableTenants, tenant];
   }
 }
 
-// NEW: Remove a tenant from the user's available tenants
+// Remove a tenant from the user's available tenants
 function removeTenant(tenantId: string) {
   availableTenants = availableTenants.filter(t => t.id !== tenantId);
   
@@ -160,7 +207,7 @@ function removeTenant(tenantId: string) {
   }
 }
 
-// NEW: Check if user needs business selection
+// Check if user needs business selection
 function needsBusinessSelection(): boolean {
   // User must be authenticated
   if (!user) return false;
@@ -180,7 +227,7 @@ function needsBusinessSelection(): boolean {
   return false;
 }
 
-// NEW: Get the redirect path after login
+// Get the redirect path after login
 function getPostLoginRedirect(): string {
   if (!user) return '/login';
   
@@ -200,7 +247,7 @@ function getPostLoginRedirect(): string {
   return '/my-day';
 }
 
-// NEW: Create a new business for the current user
+// Create a new business for the current user
 async function createBusiness(businessName: string, businessType?: string): Promise<Tenant> {
   if (!user) {
     throw new Error('User must be authenticated to create a business');
@@ -209,12 +256,19 @@ async function createBusiness(businessName: string, businessType?: string): Prom
   try {
     error = null;
     
-    // Create new tenant
+    // Create new tenant with default plan
     const tenantRef = doc(collection(db, 'tenants'));
     const tenantData = {
       name: businessName.trim(),
       type: businessType || null,
+      plan: 'starter',
       settings: {},
+      limits: {
+        users: 10,
+        clients: 'unlimited',
+        jobs: 'unlimited',
+        storage: 5
+      },
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
       ownerId: user.uid
@@ -227,6 +281,7 @@ async function createBusiness(businessName: string, businessType?: string): Prom
     await setDoc(userTenantRef, {
       tenants: {
         [tenantRef.id]: {
+          tenantId: tenantRef.id,
           role: 'owner',
           permissions: ['all'],
           joinedAt: serverTimestamp(),
@@ -240,15 +295,22 @@ async function createBusiness(businessName: string, businessType?: string): Prom
       id: tenantRef.id,
       name: businessName.trim(),
       type: businessType || null,
+      plan: 'starter',
       settings: {},
+      limits: {
+        users: 10,
+        clients: 'unlimited',
+        jobs: 'unlimited',
+        storage: 5
+      },
       createdAt: new Date(),
       updatedAt: new Date(),
       ownerId: user.uid
     };
     
-    // Update local state
+    // Update local state and switch to new tenant
     addTenant(newTenant);
-    setTenant(newTenant);
+    await setTenant(newTenant);
     
     return newTenant;
   } catch (err) {
@@ -258,7 +320,7 @@ async function createBusiness(businessName: string, businessType?: string): Prom
   }
 }
 
-// NEW: Update tenant information
+// Update tenant information
 async function updateTenant(tenantId: string, updates: Partial<Tenant>): Promise<void> {
   if (!user) {
     throw new Error('User must be authenticated to update tenant');
@@ -290,7 +352,7 @@ async function updateTenant(tenantId: string, updates: Partial<Tenant>): Promise
   }
 }
 
-// NEW: Refresh tenant data from server
+// Refresh tenant data from server
 async function refreshTenants(): Promise<void> {
   if (!user) return;
   
@@ -354,3 +416,6 @@ export function useAuth() {
     }
   };
 }
+// Register auth store globally for tenant store to use
+import { registerAuthStore } from './tenant.svelte';
+registerAuthStore(useAuth());
