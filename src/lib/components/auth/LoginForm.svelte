@@ -1,4 +1,4 @@
-<!-- src/lib/components/auth/LoginForm.svelte -->
+<!-- src/lib/components/auth/LoginForm.svelte - UPDATED -->
 <script>
   import { goto } from '$app/navigation';
   import { useAuth } from '$lib/stores/auth.svelte';
@@ -27,9 +27,12 @@
       if (result.error) {
         error = result.error;
       } else {
-        // Success - close modal and redirect
+        // Success - close modal and redirect based on auth state
         open = false;
-        goto('/my-day');
+        
+        // Use the auth store's smart redirect logic
+        const redirectPath = auth.getPostLoginRedirect();
+        goto(redirectPath);
         
         // Reset form
         formData = {
@@ -62,7 +65,7 @@
   
   function switchToRegister() {
     open = false;
-    // Trigger register modal (you'll need to pass this as a prop or use a store)
+    // Trigger register modal using custom event
     window.dispatchEvent(new CustomEvent('openRegister'));
   }
 </script>
@@ -79,13 +82,13 @@
     tabindex="-1"
   >
     <!-- Modal -->
-    <div class="bg-white rounded-lg shadow-xl w-full max-w-md">
+    <div class="bg-white rounded-xl shadow-2xl w-full max-w-md transform transition-all">
       <!-- Header -->
       <div class="flex items-center justify-between p-6 pb-4">
         <h2 id="login-form-title" class="text-2xl font-bold text-gray-900">Welcome Back</h2>
         <button 
           onclick={closeDialog}
-          class="text-gray-400 hover:text-gray-600"
+          class="text-gray-400 hover:text-gray-600 p-1 rounded-md hover:bg-gray-100"
           aria-label="Close form"
         >
           <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -113,7 +116,8 @@
               type="email"
               bind:value={formData.email}
               required
-              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              disabled={isLoading}
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100"
               placeholder="you@company.com"
             />
           </div>
@@ -128,7 +132,8 @@
               type="password"
               bind:value={formData.password}
               required
-              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              disabled={isLoading}
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100"
               placeholder="••••••••"
             />
           </div>
@@ -136,10 +141,18 @@
           <!-- Remember me & Forgot password -->
           <div class="flex items-center justify-between">
             <label class="flex items-center">
-              <input type="checkbox" class="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50" />
+              <input 
+                type="checkbox" 
+                disabled={isLoading}
+                class="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50" 
+              />
               <span class="ml-2 text-sm text-gray-600">Remember me</span>
             </label>
-            <button type="button" class="text-sm text-blue-600 hover:text-blue-500">
+            <button 
+              type="button" 
+              disabled={isLoading}
+              class="text-sm text-blue-600 hover:text-blue-500 disabled:opacity-50"
+            >
               Forgot password?
             </button>
           </div>
@@ -149,9 +162,16 @@
         <button
           type="submit"
           disabled={isLoading}
-          class="w-full mt-6 bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          class="w-full mt-6 bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
         >
-          {isLoading ? 'Signing in...' : 'Sign In'}
+          {#if isLoading}
+            <svg class="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            Signing in...
+          {:else}
+            Sign In
+          {/if}
         </button>
         
         <!-- Switch to Register -->
@@ -160,7 +180,8 @@
           <button
             type="button"
             onclick={switchToRegister}
-            class="text-blue-600 hover:text-blue-500 font-medium"
+            disabled={isLoading}
+            class="text-blue-600 hover:text-blue-500 font-medium disabled:opacity-50"
           >
             Sign up
           </button>

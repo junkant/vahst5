@@ -33,6 +33,9 @@
   // Check if we're on the business selection page
   const isBusinessSelectionPage = $derived($page.route.id === '/select-business');
   
+  // Check if we're on an error page (don't redirect these)
+  const isErrorPage = $derived($page.error !== null);
+  
   // Determine navigation mode
   const navMode = $derived(isPublicPage ? 'landing' : 'app');
   
@@ -76,9 +79,9 @@
     offline.saveQueueToStorage();
   });
   
-  // ENHANCED REDIRECT LOGIC - Handle business selection flow
+  // ENHANCED REDIRECT LOGIC - Handle business selection flow (but not error pages)
   $effect(() => {
-    if (!auth.isLoading) {
+    if (!auth.isLoading && !isErrorPage) {
       // Redirect unauthenticated users from protected pages
       if (!auth.user && !isPublicPage && !isBusinessSelectionPage) {
         goto('/');
@@ -125,11 +128,11 @@
   {/if}
 
   <!-- Main Content -->
-  <main class="{!isPublicPage && !isBusinessSelectionPage ? 'pb-20' : ''}">
+  <main class="{!isPublicPage && !isBusinessSelectionPage ? 'pb-20' : ''}">>>
     {@render children()}
   </main>
 
-  <!-- Bottom Navigation with dynamic mode (hide on business selection) -->
+  <!-- Bottom Navigation with dynamic mode (hide on business selection only) -->
   {#if !isBusinessSelectionPage}
     <BottomNav mode={navMode} />
   {/if}

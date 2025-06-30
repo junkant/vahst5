@@ -70,6 +70,7 @@
     role="dialog"
     aria-modal="true"
     aria-labelledby="create-business-title"
+    tabindex="0"
   >
     <div class="bg-white rounded-xl shadow-2xl w-full max-w-md">
       <div class="p-6">
