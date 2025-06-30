@@ -1,0 +1,436 @@
+<!-- src/routes/(app)/clients/[id]/+page.svelte -->
+<script lang="ts">
+  import { page } from '$app/stores';
+  import { goto } from '$app/navigation';
+  import { useClients } from '$lib/stores/client.svelte';
+  import { onMount } from 'svelte';
+  
+  const clients = useClients();
+  
+  // Get client ID from route params
+  const clientId = $derived($page.params.id);
+  
+  // Find the client
+  let client = $state(null);
+  let isLoading = $state(true);
+  let error = $state('');
+  let isEditing = $state(false);
+  
+  // Form data for editing
+  let formData = $state({
+    name: '',
+    email: '',
+    phone: '',
+    address: '',
+    notes: '',
+    tags: []
+  });
+  
+  let isSaving = $state(false);
+  let newTag = $state('');
+  
+  onMount(async () => {
+    try {
+      // Find client in the store
+      const foundClient = clients.clients.find(c => c.id === clientId);
+      
+      if (foundClient) {
+        client = foundClient;
+        // Populate form with existing data
+        formData = {
+          name: foundClient.name || '',
+          email: foundClient.email || '',
+          phone: foundClient.phone || '',
+          address: foundClient.address || '',
+          notes: foundClient.notes || '',
+          tags: foundClient.tags || []
+        };
+      } else {
+        error = 'Client not found';
+      }
+    } catch (err) {
+      error = 'Failed to load client';
+      console.error(err);
+    } finally {
+      isLoading = false;
+    }
+  });
+  
+  function toggleEdit() {
+    if (isEditing) {
+      // Cancel editing - restore original values
+      formData = {
+        name: client.name || '',
+        email: client.email || '',
+        phone: client.phone || '',
+        address: client.address || '',
+        notes: client.notes || '',
+        tags: client.tags || []
+      };
+    }
+    isEditing = !isEditing;
+  }
+  
+  async function handleSave() {
+    if (!formData.name.trim()) {
+      error = 'Client name is required';
+      return;
+    }
+    
+    try {
+      isSaving = true;
+      error = '';
+      
+      await clients.updateClient(clientId, {
+        ...formData,
+        name: formData.name.trim(),
+        email: formData.email.trim(),
+        phone: formData.phone.trim(),
+        address: formData.address.trim(),
+        notes: formData.notes.trim()
+      });
+      
+      // Update local client object
+      client = {
+        ...client,
+        ...formData
+      };
+      
+      isEditing = false;
+    } catch (err) {
+      error = err.message || 'Failed to update client';
+      console.error('Update error:', err);
+    } finally {
+      isSaving = false;
+    }
+  }
+  
+  function addTag() {
+    if (newTag.trim() && !formData.tags.includes(newTag.trim())) {
+      formData.tags = [...formData.tags, newTag.trim()];
+      newTag = '';
+    }
+  }
+  
+  function removeTag(tag: string) {
+    formData.tags = formData.tags.filter(t => t !== tag);
+  }
+  
+  function goBack() {
+    goto('/clients');
+  }
+  
+  function callClient() {
+    if (client?.phone) {
+      window.location.href = `tel:${client.phone}`;
+    }
+  }
+  
+  function emailClient() {
+    if (client?.email) {
+      window.location.href = `mailto:${client.email}`;
+    }
+  }
+  
+  function getDirections() {
+    if (client?.address) {
+      window.open(`https://maps.google.com/?q=${encodeURIComponent(client.address)}`, '_blank');
+    }
+  }
+  
+  function startJob() {
+    goto(`/jobs/new?client=${clientId}`);
+  }
+</script>
+
+<div class="flex flex-col h-full bg-gray-50">
+  <!-- Header -->
+  <div class="bg-white border-b border-gray-200 p-4">
+    <div class="flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <button
+          onclick={goBack}
+          class="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+          aria-label="Go back"
+        >
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+          </svg>
+        </button>
+        <h1 class="text-xl font-semibold text-gray-900">
+          {isLoading ? 'Loading...' : client ? client.name : 'Client Details'}
+        </h1>
+      </div>
+      
+      {#if !isLoading && client}
+        <button
+          onclick={toggleEdit}
+          class="px-4 py-2 {isEditing ? 'bg-gray-200 text-gray-700' : 'bg-blue-600 text-white'} rounded-lg font-medium transition-colors hover:opacity-90"
+          disabled={isSaving}
+        >
+          {isEditing ? 'Cancel' : 'Edit'}
+        </button>
+      {/if}
+    </div>
+  </div>
+  
+  <!-- Content -->
+  <div class="flex-1 overflow-y-auto p-4">
+    {#if isLoading}
+      <div class="flex items-center justify-center py-12">
+        <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      </div>
+    {:else if error && !client}
+      <div class="bg-red-50 border border-red-200 rounded-lg p-4">
+        <p class="text-red-800">{error}</p>
+        <button 
+          onclick={goBack}
+          class="mt-2 text-sm text-red-600 hover:text-red-700 font-medium"
+        >
+          Go back to clients
+        </button>
+      </div>
+    {:else if client}
+      <div class="space-y-4">
+        <!-- Error Display -->
+        {#if error}
+          <div class="bg-red-50 border border-red-200 rounded-lg p-3">
+            <p class="text-sm text-red-800">{error}</p>
+          </div>
+        {/if}
+        
+        <!-- Quick Actions (visible when not editing) -->
+        {#if !isEditing}
+          <div class="bg-white rounded-lg p-4">
+            <h2 class="font-semibold text-gray-900 mb-3">Quick Actions</h2>
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <button
+                onclick={startJob}
+                class="p-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex flex-col items-center"
+              >
+                <svg class="w-5 h-5 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                </svg>
+                <span class="text-sm">New Job</span>
+              </button>
+              
+              <button
+                onclick={callClient}
+                class="p-3 bg-green-100 text-green-800 rounded-lg hover:bg-green-200 transition-colors flex flex-col items-center"
+                disabled={!client.phone}
+              >
+                <svg class="w-5 h-5 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                </svg>
+                <span class="text-sm">Call</span>
+              </button>
+              
+              <button
+                onclick={emailClient}
+                class="p-3 bg-blue-100 text-blue-800 rounded-lg hover:bg-blue-200 transition-colors flex flex-col items-center"
+                disabled={!client.email}
+              >
+                <svg class="w-5 h-5 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                </svg>
+                <span class="text-sm">Email</span>
+              </button>
+              
+              <button
+                onclick={getDirections}
+                class="p-3 bg-purple-100 text-purple-800 rounded-lg hover:bg-purple-200 transition-colors flex flex-col items-center"
+                disabled={!client.address}
+              >
+                <svg class="w-5 h-5 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+                <span class="text-sm">Directions</span>
+              </button>
+            </div>
+          </div>
+        {/if}
+        
+        <!-- Client Information -->
+        <div class="bg-white rounded-lg p-4 space-y-4">
+          <h2 class="font-semibold text-gray-900">Client Information</h2>
+          
+          {#if isEditing}
+            <!-- Edit Mode -->
+            <div class="space-y-4">
+              <!-- Name -->
+              <div>
+                <label for="client-name" class="block text-sm font-medium text-gray-700 mb-1">
+                  Name <span class="text-red-500">*</span>
+                </label>
+                <input
+                  id="client-name"
+                  type="text"
+                  bind:value={formData.name}
+                  class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  required
+                  disabled={isSaving}
+                />
+              </div>
+              
+              <!-- Email -->
+              <div>
+                <label for="client-email" class="block text-sm font-medium text-gray-700 mb-1">
+                  Email
+                </label>
+                <input
+                  id="client-email"
+                  type="email"
+                  bind:value={formData.email}
+                  class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  disabled={isSaving}
+                />
+              </div>
+              
+              <!-- Phone -->
+              <div>
+                <label for="client-phone" class="block text-sm font-medium text-gray-700 mb-1">
+                  Phone
+                </label>
+                <input
+                  id="client-phone"
+                  type="tel"
+                  bind:value={formData.phone}
+                  class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  disabled={isSaving}
+                />
+              </div>
+              
+              <!-- Address -->
+              <div>
+                <label for="client-address" class="block text-sm font-medium text-gray-700 mb-1">
+                  Address
+                </label>
+                <input
+                  id="client-address"
+                  type="text"
+                  bind:value={formData.address}
+                  class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  disabled={isSaving}
+                />
+              </div>
+              
+              <!-- Tags -->
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">
+                  Tags
+                </label>
+                {#if formData.tags.length > 0}
+                  <div class="flex flex-wrap gap-2 mb-2">
+                    {#each formData.tags as tag}
+                      <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                        {tag}
+                        <button
+                          type="button"
+                          onclick={() => removeTag(tag)}
+                          class="ml-1 hover:text-blue-600"
+                          disabled={isSaving}
+                        >
+                          ×
+                        </button>
+                      </span>
+                    {/each}
+                  </div>
+                {/if}
+                <div class="flex gap-2">
+                  <input
+                    type="text"
+                    bind:value={newTag}
+                    onkeydown={(e) => e.key === 'Enter' && (e.preventDefault(), addTag())}
+                    class="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Add a tag"
+                    disabled={isSaving}
+                  />
+                  <button
+                    type="button"
+                    onclick={addTag}
+                    class="px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200"
+                    disabled={isSaving}
+                  >
+                    Add
+                  </button>
+                </div>
+              </div>
+              
+              <!-- Notes -->
+              <div>
+                <label for="client-notes" class="block text-sm font-medium text-gray-700 mb-1">
+                  Notes
+                </label>
+                <textarea
+                  id="client-notes"
+                  bind:value={formData.notes}
+                  rows="4"
+                  class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  disabled={isSaving}
+                ></textarea>
+              </div>
+              
+              <!-- Save Button -->
+              <div class="pt-4">
+                <button
+                  onclick={handleSave}
+                  class="w-full py-3 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={isSaving}
+                >
+                  {isSaving ? 'Saving...' : 'Save Changes'}
+                </button>
+              </div>
+            </div>
+          {:else}
+            <!-- View Mode -->
+            <div class="space-y-3">
+              <div>
+                <p class="text-sm text-gray-500">Email</p>
+                <p class="font-medium text-gray-900">{client.email || 'Not provided'}</p>
+              </div>
+              
+              <div>
+                <p class="text-sm text-gray-500">Phone</p>
+                <p class="font-medium text-gray-900">{client.phone || 'Not provided'}</p>
+              </div>
+              
+              <div>
+                <p class="text-sm text-gray-500">Address</p>
+                <p class="font-medium text-gray-900">{client.address || 'Not provided'}</p>
+              </div>
+              
+              {#if client.tags && client.tags.length > 0}
+                <div>
+                  <p class="text-sm text-gray-500 mb-2">Tags</p>
+                  <div class="flex flex-wrap gap-2">
+                    {#each client.tags as tag}
+                      <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                        {tag}
+                      </span>
+                    {/each}
+                  </div>
+                </div>
+              {/if}
+              
+              {#if client.notes}
+                <div>
+                  <p class="text-sm text-gray-500">Notes</p>
+                  <p class="font-medium text-gray-900 whitespace-pre-wrap">{client.notes}</p>
+                </div>
+              {/if}
+            </div>
+          {/if}
+        </div>
+        
+        <!-- Job History -->
+        {#if !isEditing}
+          <div class="bg-white rounded-lg p-4">
+            <h2 class="font-semibold text-gray-900 mb-3">Recent Jobs</h2>
+            <p class="text-sm text-gray-500">No jobs yet</p>
+          </div>
+        {/if}
+      </div>
+    {/if}
+  </div>
+</div>

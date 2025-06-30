@@ -5,6 +5,7 @@
   import NewClientForm from '$lib/components/client/NewClientForm.svelte';
   import { useClients } from '$lib/stores/client.svelte';
   import { useTenant } from '$lib/stores/tenant.svelte';
+  import { goto } from '$app/navigation';
   
   const clients = useClients();
   const tenant = useTenant();
@@ -21,36 +22,15 @@
     if (tenant.current?.id) {
       clients.subscribeTenant(tenant.current.id);
     }
-    
-    // Restore previous client selection if any
-    clients.restoreSelection();
   });
 
-  // Watch for tenant changes - prevent infinite loops AND clear invalid selections
+  // Watch for tenant changes
   let lastTenantId = $state<string | null>(null);
   $effect(() => {
     if (tenant.current?.id && tenant.current.id !== lastTenantId) {
-      const oldTenantId = lastTenantId;
       lastTenantId = tenant.current.id;
-      
-      // Clear selected client immediately on tenant change
-      if (oldTenantId !== null && clients.selectedClient) {
-        clients.selectClient(null);
-      }
-      
       clients.subscribeTenant(tenant.current.id);
     }
-  });
-  
-  // Validate selected client belongs to current tenant
-  const validSelectedClient = $derived(() => {
-    if (!clients.selectedClient || !tenant.current?.id) {
-      return null;
-    }
-    
-    // Ensure selected client exists in current tenant's client list
-    const isValid = clients.clients.some(c => c.id === clients.selectedClient?.id);
-    return isValid ? clients.selectedClient : null;
   });
 
   // Derived state for filtered clients
@@ -67,7 +47,7 @@
       const query = searchQuery.toLowerCase().trim();
       result = result.filter(client => 
         client.name.toLowerCase().includes(query) ||
-        client.address.toLowerCase().includes(query) ||
+        client.address?.toLowerCase().includes(query) ||
         client.phone?.includes(query) ||
         client.email?.toLowerCase().includes(query)
       );
@@ -80,6 +60,10 @@
   function selectClient(client: any) {
     clients.selectClient(client);
     showClientDetail = true;
+  }
+
+  function editClient(client: any) {
+    goto(`/clients/${client.id}`);
   }
 
   function closeClientDetail() {
@@ -108,24 +92,21 @@
   }
 </script>
 
-<div class="h-full bg-gray-50">
-  <!-- Enhanced Header with Add Client Button -->
+<div class="h-full bg-gray-50 flex flex-col">
+  <!-- Header -->
   <div class="bg-white border-b border-gray-200 p-4">
     <div class="flex items-center justify-between mb-3">
       <h1 class="text-xl font-semibold text-gray-900">Clients</h1>
       <div class="flex space-x-2">
         <button 
           onclick={openNewClientForm}
-          class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors"
+          class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center space-x-2"
         >
-          Add Client
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+          </svg>
+          <span>Add Client</span>
         </button>
-        <a 
-          href="/clients/new"
-          class="bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-2 rounded-lg text-sm font-medium transition-colors"
-        >
-          Full Form
-        </a>
       </div>
     </div>
     
@@ -174,30 +155,10 @@
         Inactive ({clients.clients.filter(c => c.status === 'inactive').length})
       </button>
     </div>
-    
-    <!-- Selected Client Info -->
-    {#if validSelectedClient}
-      <div class="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-        <div class="flex items-center justify-between">
-          <div>
-            <p class="text-sm font-medium text-blue-900">
-              Selected: {validSelectedClient.name}
-            </p>
-            <p class="text-xs text-blue-700">{validSelectedClient.address}</p>
-          </div>
-          <button 
-            onclick={() => clients.selectClient(null)}
-            class="text-blue-600 hover:text-blue-800 text-sm"
-          >
-            Clear
-          </button>
-        </div>
-      </div>
-    {/if}
   </div>
 
   <!-- Client List -->
-  <div class="flex-1 overflow-y-auto p-4 pb-24">
+  <div class="flex-1 overflow-y-auto p-4">
     {#if clients.isLoadingClients}
       <div class="flex items-center justify-center py-12">
         <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
@@ -211,7 +172,7 @@
           <p class="text-sm text-red-800">{clients.error}</p>
         </div>
       </div>
-    {:else if filteredClients.length === 0}
+    {:else if filteredClients().length === 0}
       <div class="text-center py-12">
         <div class="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center mx-auto mb-4">
           <svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -237,11 +198,8 @@
       </div>
     {:else}
       <div class="space-y-3">
-        {#each filteredClients as client (client.id)}
-          <button
-            onclick={() => selectClient(client)}
-            class="w-full bg-white rounded-lg shadow-sm border border-gray-200 p-4 hover:shadow-md transition-shadow text-left"
-          >
+        {#each filteredClients() as client (client.id)}
+          <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 hover:shadow-md transition-shadow">
             <div class="flex items-start justify-between">
               <div class="flex-1">
                 <div class="flex items-center space-x-2 mb-1">
@@ -249,25 +207,30 @@
                   <span class="px-2 py-1 rounded-full text-xs {getStatusColor(client.status)}">
                     {client.status}
                   </span>
-                  {#if clients.isOffline}
-                    <span class="px-2 py-1 rounded-full text-xs bg-orange-100 text-orange-800">
-                      Offline
+                </div>
+                <p class="text-sm text-gray-600 mb-1">{client.address || 'No address'}</p>
+                <div class="flex flex-wrap gap-3 text-sm text-gray-500">
+                  {#if client.phone}
+                    <span class="flex items-center gap-1">
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                      </svg>
+                      {client.phone}
+                    </span>
+                  {/if}
+                  {#if client.email}
+                    <span class="flex items-center gap-1">
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                      </svg>
+                      {client.email}
                     </span>
                   {/if}
                 </div>
-                <p class="text-sm text-gray-600 mb-1">{client.address}</p>
-                {#if client.phone}
-                  <p class="text-sm text-gray-500">{client.phone}</p>
-                {/if}
-                {#if client.email}
-                  <p class="text-sm text-gray-500">{client.email}</p>
-                {/if}
                 {#if client.lastServiceDate}
-                  <p class="text-xs text-gray-400 mt-1">
+                  <p class="text-xs text-gray-400 mt-2">
                     Last service: {formatDate(client.lastServiceDate)}
                   </p>
-                {:else}
-                  <p class="text-xs text-gray-400 mt-1">No previous service</p>
                 {/if}
                 
                 <!-- Tags -->
@@ -286,8 +249,30 @@
                   </div>
                 {/if}
               </div>
-              <div class="text-right">
-                <div class="w-2 h-2 {client.status === 'active' ? 'bg-green-400' : 'bg-gray-400'} rounded-full"></div>
+              
+              <!-- Action Buttons -->
+              <div class="flex items-center space-x-2 ml-4">
+                <button
+                  onclick={() => selectClient(client)}
+                  class="p-2 text-gray-400 hover:text-gray-600 rounded hover:bg-gray-100 transition-colors"
+                  aria-label="Select {client.name}"
+                  title="Select client"
+                >
+                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                  </svg>
+                </button>
+                <button
+                  onclick={() => editClient(client)}
+                  class="p-2 text-gray-400 hover:text-gray-600 rounded hover:bg-gray-100 transition-colors"
+                  aria-label="Edit {client.name}"
+                  title="Edit client"
+                >
+                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                  </svg>
+                </button>
               </div>
             </div>
             
@@ -296,7 +281,7 @@
                 <p class="text-xs text-yellow-800">📝 {client.notes}</p>
               </div>
             {/if}
-          </button>
+          </div>
         {/each}
       </div>
     {/if}

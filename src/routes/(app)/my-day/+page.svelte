@@ -40,8 +40,14 @@
     goto('/clients');
   }
   
+  // Updated to just select the client, not navigate
   function selectClient(client: any) {
     clients.selectClient(client);
+  }
+  
+  // New function to edit client
+  function editClient(client: any, event: Event) {
+    event.stopPropagation(); // Prevent client selection
     goto(`/clients/${client.id}`);
   }
   
@@ -81,7 +87,7 @@
         {#if tenant.current}
           <p class="text-sm font-medium text-gray-900">{tenant.current.name}</p>
           <p class="text-xs text-gray-500">
-            {tenant.userRole ? tenant.userRole.charAt(0).toUpperCase() + tenant.userRole.slice(1) : 'User'}
+            {tenant.userRole ? tenant.userRole.charAt(0).toUpperCase() + tenant.userRole.slice(1) : ''}
           </p>
         {/if}
       </div>
@@ -91,40 +97,37 @@
   <!-- Content -->
   <div class="flex-1 overflow-y-auto p-4 space-y-4">
     
-    <!-- Quick Actions -->
-    <div class="bg-white rounded-lg p-4">
-      <h2 class="font-semibold text-gray-900 mb-3">Quick Actions</h2>
-      <div class="grid grid-cols-2 gap-3">
-        <button 
-          onclick={createNewJob}
-          class="flex items-center justify-center p-3 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors"
-        >
-          <svg class="w-5 h-5 text-blue-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-          </svg>
-          <span class="text-sm font-medium text-blue-700">New Job</span>
-        </button>
-        <button 
-          onclick={() => goto('/clients/new')}
-          class="flex items-center justify-center p-3 bg-green-50 border border-green-200 rounded-lg hover:bg-green-100 transition-colors"
-        >
-          <svg class="w-5 h-5 text-green-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-          </svg>
-          <span class="text-sm font-medium text-green-700">New Client</span>
-        </button>
+    <!-- Current Client Selection (if any) -->
+    {#if clients.selectedClient}
+      <div class="bg-blue-50 border border-blue-200 rounded-lg p-3">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center space-x-2">
+            <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+            </svg>
+            <span class="text-sm text-blue-800">
+              Working with: <span class="font-medium">{clients.selectedClient.name}</span>
+            </span>
+          </div>
+          <button
+            onclick={() => clients.selectClient(null)}
+            class="text-sm text-blue-600 hover:text-blue-700 font-medium"
+          >
+            Change
+          </button>
+        </div>
       </div>
-    </div>
+    {/if}
     
     <!-- Overdue Jobs Alert -->
     {#if overdueJobs.length > 0}
-      <div class="bg-red-50 border border-red-200 rounded-lg p-4">
-        <div class="flex items-center">
-          <svg class="w-5 h-5 text-red-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16c-.77.833.192 2.5 1.732 2.5z" />
+      <div class="bg-red-50 border border-red-200 rounded-lg p-3">
+        <div class="flex items-center space-x-2">
+          <svg class="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
           </svg>
-          <span class="text-sm font-medium text-red-800">
-            {overdueJobs.length} overdue job{overdueJobs.length === 1 ? '' : 's'} need attention
+          <span class="text-sm text-red-800 font-medium">
+            {overdueJobs.length} overdue job{overdueJobs.length > 1 ? 's' : ''} need attention
           </span>
         </div>
       </div>
@@ -165,27 +168,18 @@
           {#each todayJobs as job (job.id)}
             <div class="border border-gray-200 rounded-lg p-3 hover:bg-gray-50 transition-colors">
               <div class="flex items-start justify-between">
-                <div class="flex-1">
-                  <div class="flex items-center space-x-2 mb-1">
-                    <h3 class="font-medium text-gray-900">{job.title}</h3>
-                    <span class="px-2 py-1 rounded-full text-xs {getJobStatusColor(job.status)}">
-                      {job.status.replace('_', ' ')}
-                    </span>
-                  </div>
-                  <p class="text-sm text-gray-600 mb-1">
-                    {job.client?.name || 'Unknown Client'}
-                  </p>
+                <div>
+                  <h4 class="font-medium text-gray-900">{job.title}</h4>
+                  <p class="text-sm text-gray-600 mt-1">{job.client?.name || 'No client assigned'}</p>
                   {#if job.scheduledDate}
-                    <p class="text-xs text-gray-500">
+                    <p class="text-xs text-gray-500 mt-1">
                       {formatTime(new Date(job.scheduledDate))}
                     </p>
                   {/if}
                 </div>
-                <button class="text-gray-400 hover:text-gray-600">
-                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-                  </svg>
-                </button>
+                <span class="px-2 py-1 rounded-full text-xs {getJobStatusColor(job.status)}">
+                  {job.status}
+                </span>
               </div>
             </div>
           {/each}
@@ -193,18 +187,10 @@
       {/if}
     </div>
     
-    <!-- Upcoming Jobs Preview -->
+    <!-- Upcoming Jobs -->
     {#if upcomingJobs.length > 0}
       <div class="bg-white rounded-lg p-4">
-        <div class="flex items-center justify-between mb-3">
-          <h2 class="font-semibold text-gray-900">Coming Up</h2>
-          <button 
-            onclick={viewAllJobs}
-            class="text-sm text-blue-600 hover:text-blue-700"
-          >
-            View All
-          </button>
-        </div>
+        <h2 class="font-semibold text-gray-900 mb-3">Upcoming Jobs</h2>
         
         <div class="space-y-2">
           {#each upcomingJobs as job (job.id)}
@@ -227,7 +213,7 @@
       </div>
     {/if}
     
-    <!-- Recent Clients -->
+    <!-- Recent Clients - FIXED -->
     <div class="bg-white rounded-lg p-4">
       <div class="flex items-center justify-between mb-3">
         <h2 class="font-semibold text-gray-900">Recent Clients</h2>
@@ -259,18 +245,44 @@
       {:else}
         <div class="space-y-2">
           {#each recentClients as client (client.id)}
-            <button
+            <!-- Changed from button to div to fix nested button issue -->
+            <div
               onclick={() => selectClient(client)}
-              class="w-full flex items-center justify-between p-2 hover:bg-gray-50 rounded text-left"
+              onkeydown={(e) => e.key === 'Enter' && selectClient(client)}
+              class="w-full flex items-center justify-between p-2 hover:bg-gray-50 rounded cursor-pointer group
+                     {clients.selectedClient?.id === client.id ? 'bg-blue-50 border-blue-200 border' : ''}"
+              role="button"
+              tabindex="0"
+              aria-label="Select client {client.name}"
             >
               <div class="flex-1">
                 <p class="font-medium text-gray-900 text-sm">{client.name}</p>
                 <p class="text-xs text-gray-500">{client.address}</p>
               </div>
-              <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-              </svg>
-            </button>
+              <div class="flex items-center space-x-2">
+                <!-- Edit Button -->
+                <button
+                  onclick={(e) => editClient(client, e)}
+                  class="p-1 text-gray-400 hover:text-gray-600 rounded hover:bg-gray-100 transition-colors"
+                  aria-label="Edit {client.name}"
+                  title="Edit client"
+                >
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                  </svg>
+                </button>
+                <!-- Selection Indicator -->
+                {#if clients.selectedClient?.id === client.id}
+                  <svg class="w-4 h-4 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+                  </svg>
+                {:else}
+                  <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                  </svg>
+                {/if}
+              </div>
+            </div>
           {/each}
         </div>
       {/if}

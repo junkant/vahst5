@@ -1,66 +1,88 @@
 <!-- src/lib/components/client/ClientSelector.svelte -->
-<script>
+<script lang="ts">
   import { useClients } from '$lib/stores/client.svelte';
   import { goto } from '$app/navigation';
   
   let { open = $bindable(false) } = $props();
   
   const client = useClients();
+  
   let searchQuery = $state('');
   
-  let filteredClients = $derived(
-    searchQuery 
-      ? client.searchClients(searchQuery)
-      : client.clients
-  );
+  // Filter clients based on search
+  const filteredClients = $derived(() => {
+    if (!searchQuery.trim()) return client.clients;
+    
+    const query = searchQuery.toLowerCase();
+    return client.clients.filter(c => 
+      c.name.toLowerCase().includes(query) ||
+      c.address?.toLowerCase().includes(query) ||
+      c.phone?.includes(query) ||
+      c.email?.toLowerCase().includes(query)
+    );
+  });
   
-  function selectClientAndClose(selectedClient) {
+  function selectClientAndClose(selectedClient: any) {
     client.selectClient(selectedClient);
     open = false;
     searchQuery = '';
   }
   
-  function addNewClient() {
+  function editClient(clientToEdit: any, event: Event) {
+    event.stopPropagation(); // Prevent client selection
+    open = false; // Close modal
+    searchQuery = '';
+    goto(`/clients/${clientToEdit.id}`);
+  }
+  
+  function closeModal() {
     open = false;
-    goto('/clients/new');
+    searchQuery = '';
+  }
+  
+  function handleKeyDown(event: KeyboardEvent) {
+    if (event.key === 'Escape') {
+      closeModal();
+    }
+  }
+  
+  function handleOverlayClick(event: MouseEvent) {
+    if (event.target === event.currentTarget) {
+      closeModal();
+    }
   }
 </script>
 
 {#if open}
   <div 
-    class="fixed inset-0 bg-black/30 z-50 flex items-end sm:items-center justify-center"
-    onclick={() => open = false}
-    onkeydown={(e) => e.key === 'Escape' && (open = false)}
+    class="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
+    onclick={handleOverlayClick}
+    onkeydown={handleKeyDown}
     role="dialog"
     aria-modal="true"
-    tabindex="-1"
+    aria-labelledby="client-selector-title"
   >
-    <div 
-      class="bg-white rounded-t-2xl sm:rounded-2xl shadow-xl w-full max-w-md mx-4 max-h-[80vh] flex flex-col animate-slide-in"
-      onclick={(e) => e.stopPropagation()}
-      onkeydown={(e) => e.stopPropagation()}
-      role="dialog"
-      aria-label="Select a client"
-      tabindex="-1"
-    >
+    <div class="bg-white w-full sm:max-w-md sm:rounded-xl rounded-t-xl max-h-[80vh] flex flex-col animate-slide-up sm:animate-fade-in">
       <!-- Header -->
-      <div class="p-4 border-b border-gray-200">
-        <div class="flex items-center justify-between mb-3">
-          <h2 class="text-lg font-semibold text-gray-900">Select Client</h2>
-          <button
-            onclick={() => open = false}
-            class="p-1 rounded-lg hover:bg-gray-100"
-            aria-label="Close dialog"
-          >
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
-        
-        <!-- Search -->
+      <div class="flex items-center justify-between p-4 border-b border-gray-200">
+        <h2 id="client-selector-title" class="text-lg font-semibold text-gray-900">
+          Select Client
+        </h2>
+        <button 
+          onclick={closeModal}
+          class="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+          aria-label="Close"
+        >
+          <svg class="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+      
+      <!-- Search -->
+      <div class="p-4 border-b border-gray-100">
         <div class="relative">
-          <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg class="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
           </svg>
           <input
@@ -78,9 +100,13 @@
           <div class="p-2">
             <p class="text-xs font-medium text-gray-500 uppercase px-2 py-1">Recent</p>
             {#each client.recentClients as recentClient}
-              <button
+              <!-- Changed from button to div to avoid nested buttons -->
+              <div
                 onclick={() => selectClientAndClose(recentClient)}
-                class="w-full p-3 text-left hover:bg-gray-50 rounded-lg transition-colors flex items-center gap-3"
+                onkeydown={(e) => e.key === 'Enter' && selectClientAndClose(recentClient)}
+                class="w-full p-3 text-left hover:bg-gray-50 rounded-lg transition-colors flex items-center gap-3 cursor-pointer group"
+                role="button"
+                tabindex="0"
               >
                 <div class="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
                   <span class="text-blue-600 font-medium">
@@ -91,12 +117,24 @@
                   <p class="font-medium text-gray-900 truncate">{recentClient.name}</p>
                   <p class="text-sm text-gray-500 truncate">{recentClient.address}</p>
                 </div>
-                {#if client.selectedClient?.id === recentClient.id}
-                  <svg class="w-5 h-5 text-blue-600 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                    <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
-                  </svg>
-                {/if}
-              </button>
+                <div class="flex items-center space-x-2">
+                  <!-- Edit Button -->
+                  <button
+                    onclick={(e) => editClient(recentClient, e)}
+                    class="p-1.5 text-gray-400 hover:text-gray-600 rounded hover:bg-gray-100 transition-colors"
+                    aria-label="Edit {recentClient.name}"
+                  >
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                    </svg>
+                  </button>
+                  {#if client.selectedClient?.id === recentClient.id}
+                    <svg class="w-5 h-5 text-blue-600 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                      <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+                    </svg>
+                  {/if}
+                </div>
+              </div>
             {/each}
           </div>
         {/if}
@@ -105,10 +143,14 @@
           {#if !searchQuery && client.recentClients.length > 0}
             <p class="text-xs font-medium text-gray-500 uppercase px-2 py-1">All Clients</p>
           {/if}
-          {#each filteredClients as clientItem}
-            <button
+          {#each filteredClients() as clientItem (clientItem.id)}
+            <!-- Changed from button to div to avoid nested buttons -->
+            <div
               onclick={() => selectClientAndClose(clientItem)}
-              class="w-full p-3 text-left hover:bg-gray-50 rounded-lg transition-colors flex items-center gap-3"
+              onkeydown={(e) => e.key === 'Enter' && selectClientAndClose(clientItem)}
+              class="w-full p-3 text-left hover:bg-gray-50 rounded-lg transition-colors flex items-center gap-3 cursor-pointer group"
+              role="button"
+              tabindex="0"
             >
               <div class="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center flex-shrink-0">
                 <span class="text-gray-600 font-medium">
@@ -119,17 +161,48 @@
                 <p class="font-medium text-gray-900 truncate">{clientItem.name}</p>
                 <p class="text-sm text-gray-500 truncate">{clientItem.address}</p>
               </div>
-              {#if client.selectedClient?.id === clientItem.id}
-                <svg class="w-5 h-5 text-blue-600 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                  <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
-                </svg>
-              {/if}
-            </button>
+              <div class="flex items-center space-x-2">
+                <!-- Edit Button -->
+                <button
+                  onclick={(e) => editClient(clientItem, e)}
+                  class="p-1.5 text-gray-400 hover:text-gray-600 rounded hover:bg-gray-100 transition-colors"
+                  aria-label="Edit {clientItem.name}"
+                >
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                  </svg>
+                </button>
+                {#if client.selectedClient?.id === clientItem.id}
+                  <svg class="w-5 h-5 text-blue-600 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+                  </svg>
+                {/if}
+              </div>
+            </div>
           {/each}
           
-          {#if filteredClients.length === 0}
+          {#if filteredClients().length === 0}
             <div class="text-center py-8">
-              <p class="text-gray-500">No clients found</p>
+              <svg class="w-12 h-12 text-gray-400 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+              </svg>
+              <h3 class="text-lg font-medium text-gray-900 mb-1">
+                {searchQuery ? 'No clients found' : 'No clients yet'}
+              </h3>
+              <p class="text-gray-500 mb-4">
+                {searchQuery ? 'Try a different search' : 'Add your first client to get started'}
+              </p>
+              {#if !searchQuery}
+                <button 
+                  onclick={() => {
+                    closeModal();
+                    goto('/clients/new');
+                  }}
+                  class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+                >
+                  Add Client
+                </button>
+              {/if}
             </div>
           {/if}
         </div>
@@ -137,16 +210,46 @@
       
       <!-- Footer -->
       <div class="p-4 border-t border-gray-200">
-        <button
-          onclick={addNewClient}
-          class="w-full py-2 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
+        <button 
+          onclick={() => {
+            closeModal();
+            goto('/clients/new');
+          }}
+          class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg font-medium transition-colors"
         >
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-          </svg>
           Add New Client
         </button>
       </div>
     </div>
   </div>
 {/if}
+
+<style>
+  @keyframes slide-up {
+    from {
+      transform: translateY(100%);
+    }
+    to {
+      transform: translateY(0);
+    }
+  }
+  
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+      transform: scale(0.95);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+  
+  .animate-slide-up {
+    animation: slide-up 0.3s ease-out;
+  }
+  
+  .animate-fade-in {
+    animation: fade-in 0.2s ease-out;
+  }
+</style>
