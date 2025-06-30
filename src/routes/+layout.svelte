@@ -128,7 +128,7 @@
   {/if}
 
   <!-- Main Content -->
-  <main class="{!isPublicPage && !isBusinessSelectionPage ? 'pb-20' : ''}">>>
+  <main class="{!isPublicPage && !isBusinessSelectionPage ? 'pb-20' : ''}">
     {@render children()}
   </main>
 
