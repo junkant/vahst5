@@ -3,13 +3,46 @@
   import { goto } from '$app/navigation';
   import { useAuth } from '$lib/stores/auth.svelte';
   import { useClients } from '$lib/stores/client.svelte';
+  import { useTenant } from '$lib/stores/tenant.svelte';
   import ClientSelector from '$lib/components/client/ClientSelector.svelte';
   
   const auth = useAuth();
   const clients = useClients();
+  const tenant = useTenant();
   
   let showClientSelector = $state(false);
   let showUserMenu = $state(false);
+  
+  // Simplified tenant switching without infinite loops
+  let lastTenantId = $state<string | null>(null);
+  
+  // 🔐 SECURITY: Monitor tenant changes and FORCE clear client selection
+  $effect(() => {
+    const currentTenantId = tenant.current?.id || null;
+    
+    if (currentTenantId !== lastTenantId) {
+      const oldTenantId = lastTenantId;
+      lastTenantId = currentTenantId;
+      
+      // IMMEDIATE: Force clear any selected client when tenant changes
+      if (oldTenantId !== null && clients.selectedClient) {
+        clients.selectClient(null);
+      }
+    }
+  });
+  
+  // Handle tenant switching via tenant store only (triggered from profile)
+  // This function is called when switching happens from the profile/settings
+  // The effect above will handle clearing the selected client
+  async function handleTenantSwitch(newTenantId: string) {
+    if (newTenantId === tenant.current?.id) return;
+
+    try {
+      await tenant.switch(newTenantId);
+    } catch (error) {
+      console.error('❌ Failed to switch tenant:', error);
+    }
+  }
   
   async function handleSignOut() {
     await auth.signOut();
@@ -20,41 +53,88 @@
     showUserMenu = false;
     goto('/settings');
   }
+  
+  function handleClientClear() {
+    clients.selectClient(null);
+  }
+  
+  function openClientSelector() {
+    showClientSelector = true;
+  }
+  
+  function closeAllDropdowns() {
+    showUserMenu = false;
+  }
 </script>
 
 <header class="bg-white border-b border-gray-200 safe-top">
   <div class="flex items-center justify-between gap-3 px-4 py-3">
-    <!-- Business Name (Left) -->
+    
+    <!-- Business Name Only (Left) -->
     <div class="flex-shrink-0 min-w-[120px]">
-      {#if auth.isLoading || !auth.tenant?.name}
+      {#if auth.isLoading || !tenant.current?.name}
         <div class="h-7 w-32 bg-gray-200 rounded animate-pulse"></div>
       {:else}
         <button 
           onclick={() => goto('/my-day')}
           class="text-lg font-semibold text-gray-900 animate-fade-in hover:text-blue-600 transition-colors text-left"
         >
-          {auth.tenant.name}
+          {tenant.current.name}
         </button>
       {/if}
     </div>
     
     <!-- Client Selector (Center) -->
     <button 
-      class="flex items-center gap-2 px-3 py-1.5 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors flex-1 max-w-xs"
-      onclick={() => showClientSelector = true}
+      class="flex items-center gap-2 px-3 py-1.5 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors flex-1 max-w-xs relative"
+      onclick={openClientSelector}
     >
       <svg class="w-4 h-4 text-gray-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
       </svg>
-      <span class="text-sm text-gray-700 truncate">
-        {clients.selectedClient?.name || 'Select Client'}
-      </span>
+      
+      <!-- Client Display with Enhanced States -->
+      {#if clients.isLoadingClients}
+        <span class="text-sm text-gray-500 truncate">Loading clients...</span>
+      {:else if clients.selectedClient}
+        <div class="flex items-center space-x-2 flex-1 min-w-0">
+          <span class="text-sm text-gray-700 truncate font-medium">
+            {clients.selectedClient.name}
+          </span>
+          <!-- Clear button -->
+          <button
+            onclick={(e) => {
+              e.stopPropagation();
+              handleClientClear();
+            }}
+            class="text-gray-400 hover:text-gray-600 p-0.5 rounded"
+            title="Clear client selection"
+          >
+            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+      {:else if clients.clients.length === 0 && !clients.isLoadingClients}
+        <span class="text-sm text-gray-500 truncate">No clients yet</span>
+      {:else}
+        <span class="text-sm text-gray-700 truncate">Select Client</span>
+      {/if}
+      
+      <!-- Dropdown Arrow -->
       <svg class="w-4 h-4 text-gray-400 flex-shrink-0 ml-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
       </svg>
+      
+      <!-- Client count indicator -->
+      {#if clients.clients.length > 0}
+        <span class="absolute -top-1 -right-1 bg-blue-600 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+          {clients.clients.length > 99 ? '99+' : clients.clients.length}
+        </span>
+      {/if}
     </button>
     
-    <!-- User Menu -->
+    <!-- User Menu (Right) -->
     <div class="relative">
       <button 
         onclick={() => showUserMenu = !showUserMenu}
@@ -69,18 +149,25 @@
       </button>
       
       {#if showUserMenu}
-        <div 
-          class="absolute right-0 mt-2 bg-white rounded-lg shadow-lg border border-gray-200 p-2 min-w-[200px] z-50"
-        >
+        <div class="absolute right-0 mt-2 bg-white rounded-lg shadow-lg border border-gray-200 p-2 min-w-[200px] z-50">
+          <!-- User Info -->
           <div class="px-3 py-2 border-b border-gray-100 mb-2">
             <p class="text-sm font-medium text-gray-900">
               {auth.user?.email}
             </p>
-            <p class="text-xs text-gray-500">
-              {auth.tenant?.name}
-            </p>
+            <div class="flex items-center justify-between mt-1">
+              <p class="text-xs text-gray-500">
+                {tenant.current?.name || 'No Business'}
+              </p>
+              {#if tenant.userRole}
+                <span class="text-xs px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded">
+                  {tenant.userRole.charAt(0).toUpperCase() + tenant.userRole.slice(1)}
+                </span>
+              {/if}
+            </div>
           </div>
           
+          <!-- Menu Items -->
           <button 
             onclick={navigateToSettings}
             class="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded transition-colors flex items-center"
@@ -89,7 +176,7 @@
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
             </svg>
-            Settings & Account
+            Settings & Switch Business
           </button>
           
           <hr class="my-2 border-gray-100" />
@@ -107,16 +194,28 @@
       {/if}
     </div>
   </div>
+  
+  <!-- Debug Info Removed - Enable only when needed -->
+  <!-- 
+  {#if import.meta.env.DEV}
+    <div class="px-4 pb-2 text-xs text-gray-400 font-mono bg-gray-50 border-t">
+      T: {tenant.current?.id?.slice(-6) || 'none'} | 
+      C: {clients.clients.length} | 
+      Sel: {clients.selectedClient?.id?.slice(-6) || 'none'} |
+      {#if clients.isLoadingClients}⏳{/if}
+    </div>
+  {/if}
+  -->
 </header>
 
 <!-- Modals -->
 <ClientSelector bind:open={showClientSelector} />
 
-<!-- Click outside to close user menu -->
+<!-- Click outside to close dropdowns -->
 {#if showUserMenu}
   <button 
     class="fixed inset-0 z-40" 
-    onclick={() => showUserMenu = false}
+    onclick={closeAllDropdowns}
     aria-label="Close menu"
   ></button>
 {/if}

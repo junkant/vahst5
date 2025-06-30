@@ -219,27 +219,111 @@ class LocalCache {
     });
   }
 
-  // Convenience methods for specific collections
+  // ✅ ENHANCED: Client-specific methods with proper Date handling and deep serialization
   async setClient(client: Client, tenantId: string): Promise<void> {
-    return this.set('clients', client.id, client, tenantId);
+    try {
+      // Create a deeply serializable version of the client for IndexedDB
+      const serializableClient = this.makeSerializable({
+        ...client,
+        createdAt: client.createdAt instanceof Date ? client.createdAt.toISOString() : client.createdAt,
+        updatedAt: client.updatedAt instanceof Date ? client.updatedAt.toISOString() : client.updatedAt,
+        lastServiceDate: client.lastServiceDate 
+          ? (client.lastServiceDate instanceof Date ? client.lastServiceDate.toISOString() : client.lastServiceDate)
+          : null,
+        // Ensure tags is a simple array of strings
+        tags: Array.isArray(client.tags) ? client.tags.filter(tag => typeof tag === 'string') : [],
+        // Ensure customFields is a plain object
+        customFields: client.customFields ? JSON.parse(JSON.stringify(client.customFields)) : {}
+      });
+      
+      return this.set('clients', client.id, serializableClient, tenantId);
+    } catch (error) {
+      console.warn('Failed to cache client:', error);
+      throw error;
+    }
   }
 
   async getClient(id: string): Promise<Client | null> {
-    return this.get<Client>('clients', id);
+    const client = await this.get<any>('clients', id);
+    if (!client) return null;
+
+    // Convert back to proper Client object with Date instances
+    return {
+      ...client,
+      createdAt: typeof client.createdAt === 'string' ? new Date(client.createdAt) : client.createdAt,
+      updatedAt: typeof client.updatedAt === 'string' ? new Date(client.updatedAt) : client.updatedAt,
+      lastServiceDate: client.lastServiceDate 
+        ? (typeof client.lastServiceDate === 'string' ? new Date(client.lastServiceDate) : client.lastServiceDate)
+        : null
+    } as Client;
   }
 
   async getAllClients(tenantId: string): Promise<Client[]> {
-    return this.getAll<Client>('clients', tenantId);
+    try {
+      const cachedClients = await this.getAll<any>('clients', tenantId);
+      
+      // Convert back to proper Client objects with Date instances
+      return cachedClients.map(client => ({
+        ...client,
+        createdAt: typeof client.createdAt === 'string' ? new Date(client.createdAt) : client.createdAt,
+        updatedAt: typeof client.updatedAt === 'string' ? new Date(client.updatedAt) : client.updatedAt,
+        lastServiceDate: client.lastServiceDate 
+          ? (typeof client.lastServiceDate === 'string' ? new Date(client.lastServiceDate) : client.lastServiceDate)
+          : null
+      })) as Client[];
+    } catch (error) {
+      console.warn('Failed to load cached clients:', error);
+      return [];
+    }
   }
 
-  // Job-specific methods with 30-day limit
+  // ✅ ENHANCED: Job-specific methods with 30-day limit and Date handling
   async setJob(job: Job, tenantId: string): Promise<void> {
-    return this.set('jobs', job.id, job, tenantId);
+    try {
+      // Create a serializable version of the job
+      const serializableJob = this.makeSerializable({
+        ...job,
+        scheduledDate: job.scheduledDate instanceof Date ? job.scheduledDate.toISOString() : job.scheduledDate,
+        completedDate: job.completedDate instanceof Date ? job.completedDate.toISOString() : job.completedDate
+      });
+      
+      return this.set('jobs', job.id, serializableJob, tenantId);
+    } catch (error) {
+      console.warn('Failed to cache job:', error);
+      throw error;
+    }
   }
 
   async getRecentJobs(tenantId: string, days: number = 30): Promise<Job[]> {
-    const maxAge = days * 24 * 60 * 60 * 1000;
-    return this.getAll<Job>('jobs', tenantId, { maxAge });
+    try {
+      const maxAge = days * 24 * 60 * 60 * 1000;
+      const cachedJobs = await this.getAll<any>('jobs', tenantId, { maxAge });
+      
+      // Convert back to proper Job objects with Date instances
+      return cachedJobs.map(job => ({
+        ...job,
+        scheduledDate: job.scheduledDate ? new Date(job.scheduledDate) : undefined,
+        completedDate: job.completedDate ? new Date(job.completedDate) : undefined
+      })) as Job[];
+    } catch (error) {
+      console.warn('Failed to load cached jobs:', error);
+      return [];
+    }
+  }
+
+  // ✅ NEW: Generic cacheData method for backward compatibility
+  async cacheData<T>(
+    collection: string, 
+    id: string, 
+    data: T, 
+    tenantId: string
+  ): Promise<void> {
+    return this.set(collection, id, data, tenantId);
+  }
+
+  // ✅ NEW: Remove data method for cleanup
+  async removeData(collection: string, id: string, tenantId: string): Promise<void> {
+    return this.delete(collection, id);
   }
 
   // Image caching with compression
@@ -393,6 +477,37 @@ class LocalCache {
         await this.clearTenantStore(db, storeName, tenantId);
       }
     }
+  }
+
+  // ✅ NEW: Deep serialization helper to handle complex objects
+  private makeSerializable(obj: any): any {
+    if (obj === null || obj === undefined) {
+      return obj;
+    }
+    
+    if (obj instanceof Date) {
+      return obj.toISOString();
+    }
+    
+    if (Array.isArray(obj)) {
+      return obj.map(item => this.makeSerializable(item));
+    }
+    
+    if (typeof obj === 'object') {
+      // Handle plain objects only
+      if (obj.constructor === Object || obj.constructor === undefined) {
+        const result: any = {};
+        for (const [key, value] of Object.entries(obj)) {
+          result[key] = this.makeSerializable(value);
+        }
+        return result;
+      }
+      // For non-plain objects, try to convert to string or return null
+      return obj.toString ? obj.toString() : null;
+    }
+    
+    // Primitive values (string, number, boolean)
+    return obj;
   }
 
   private async clearTenantStore(
