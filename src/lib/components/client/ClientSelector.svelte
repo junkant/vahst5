@@ -61,6 +61,7 @@
     role="dialog"
     aria-modal="true"
     aria-labelledby="client-selector-title"
+    tabindex="-1"
   >
     <div class="bg-white w-full sm:max-w-md sm:rounded-xl rounded-t-xl max-h-[80vh] flex flex-col animate-slide-up sm:animate-fade-in">
       <!-- Header -->
@@ -234,22 +235,24 @@
     }
   }
   
-  @keyframes fade-in {
-    from {
-      opacity: 0;
-      transform: scale(0.95);
-    }
-    to {
-      opacity: 1;
-      transform: scale(1);
-    }
-  }
-  
   .animate-slide-up {
     animation: slide-up 0.3s ease-out;
   }
   
-  .animate-fade-in {
-    animation: fade-in 0.2s ease-out;
+  @media (min-width: 640px) {
+    @keyframes fade-in {
+      from {
+        opacity: 0;
+        transform: scale(0.95);
+      }
+      to {
+        opacity: 1;
+        transform: scale(1);
+      }
+    }
+    
+    .sm\:animate-fade-in {
+      animation: fade-in 0.2s ease-out;
+    }
   }
 </style>

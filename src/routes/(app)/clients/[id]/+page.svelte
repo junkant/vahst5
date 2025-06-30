@@ -22,6 +22,9 @@
     email: '',
     phone: '',
     address: '',
+    city: '',
+    state: '',
+    zip: '',
     notes: '',
     tags: []
   });
@@ -30,18 +33,23 @@
   let newTag = $state('');
   
   onMount(async () => {
+    await loadClient();
+  });
+  
+  async function loadClient() {
+    isLoading = true;
     try {
-      // Find client in the store
       const foundClient = clients.clients.find(c => c.id === clientId);
-      
       if (foundClient) {
         client = foundClient;
-        // Populate form with existing data
         formData = {
           name: foundClient.name || '',
           email: foundClient.email || '',
           phone: foundClient.phone || '',
           address: foundClient.address || '',
+          city: foundClient.city || '',
+          state: foundClient.state || '',
+          zip: foundClient.zip || '',
           notes: foundClient.notes || '',
           tags: foundClient.tags || []
         };
@@ -50,11 +58,10 @@
       }
     } catch (err) {
       error = 'Failed to load client';
-      console.error(err);
     } finally {
       isLoading = false;
     }
-  });
+  }
   
   function toggleEdit() {
     if (isEditing) {
@@ -64,6 +71,9 @@
         email: client.email || '',
         phone: client.phone || '',
         address: client.address || '',
+        city: client.city || '',
+        state: client.state || '',
+        zip: client.zip || '',
         notes: client.notes || '',
         tags: client.tags || []
       };
@@ -81,12 +91,15 @@
       isSaving = true;
       error = '';
       
-      await clients.updateClient(clientId, {
+      await clients.updateClient(client.id, {
         ...formData,
         name: formData.name.trim(),
         email: formData.email.trim(),
         phone: formData.phone.trim(),
         address: formData.address.trim(),
+        city: formData.city.trim(),
+        state: formData.state.trim(),
+        zip: formData.zip.trim(),
         notes: formData.notes.trim()
       });
       
@@ -134,12 +147,20 @@
   
   function getDirections() {
     if (client?.address) {
-      window.open(`https://maps.google.com/?q=${encodeURIComponent(client.address)}`, '_blank');
+      // Build full address string
+      const fullAddress = [
+        client.address,
+        client.city,
+        client.state,
+        client.zip
+      ].filter(Boolean).join(', ');
+      
+      window.open(`https://maps.google.com/?q=${encodeURIComponent(fullAddress)}`, '_blank');
     }
   }
   
   function startJob() {
-    goto(`/jobs/new?client=${clientId}`);
+    goto(`/jobs/new?client=${client.id}`);
   }
 </script>
 
@@ -315,6 +336,53 @@
                 />
               </div>
               
+              <!-- City, State, Zip Row -->
+              <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <!-- City -->
+                <div>
+                  <label for="client-city" class="block text-sm font-medium text-gray-700 mb-1">
+                    City
+                  </label>
+                  <input
+                    id="client-city"
+                    type="text"
+                    bind:value={formData.city}
+                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    disabled={isSaving}
+                  />
+                </div>
+                
+                <!-- State -->
+                <div>
+                  <label for="client-state" class="block text-sm font-medium text-gray-700 mb-1">
+                    State
+                  </label>
+                  <input
+                    id="client-state"
+                    type="text"
+                    bind:value={formData.state}
+                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="NC"
+                    disabled={isSaving}
+                  />
+                </div>
+                
+                <!-- Zip -->
+                <div>
+                  <label for="client-zip" class="block text-sm font-medium text-gray-700 mb-1">
+                    Zip Code
+                  </label>
+                  <input
+                    id="client-zip"
+                    type="text"
+                    bind:value={formData.zip}
+                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="12345"
+                    disabled={isSaving}
+                  />
+                </div>
+              </div>
+              
               <!-- Tags -->
               <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">
@@ -397,7 +465,16 @@
               
               <div>
                 <p class="text-sm text-gray-500">Address</p>
-                <p class="font-medium text-gray-900">{client.address || 'Not provided'}</p>
+                <p class="font-medium text-gray-900">
+                  {#if client.address}
+                    {client.address}<br>
+                    {#if client.city || client.state || client.zip}
+                      {[client.city, client.state, client.zip].filter(Boolean).join(', ')}
+                    {/if}
+                  {:else}
+                    Not provided
+                  {/if}
+                </p>
               </div>
               
               {#if client.tags && client.tags.length > 0}

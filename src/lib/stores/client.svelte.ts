@@ -12,7 +12,6 @@ import {
   serverTimestamp,
   setDoc,
   limit,
-  startAfter,
   type Unsubscribe
 } from 'firebase/firestore';
 import { db } from '$lib/firebase/config';
@@ -394,6 +393,58 @@ class ClientStore {
     }
   }
 
+  // Subscribe to client jobs
+  subscribeToClientJobs(clientId: string) {
+    // Unsubscribe from previous jobs subscription
+    if (this.unsubscribeJobs) {
+      this.unsubscribeJobs();
+      this.unsubscribeJobs = null;
+    }
+    
+    if (!this.currentTenantId || !clientId) {
+      this.clientJobs = [];
+      return;
+    }
+    
+    this.isLoadingJobs = true;
+    
+    try {
+      const jobsRef = collection(db, `tenants/${this.currentTenantId}/jobs`);
+      const jobsQuery = query(
+        jobsRef,
+        where('clientId', '==', clientId),
+        orderBy('scheduledDate', 'desc'),
+        limit(50)
+      );
+      
+      this.unsubscribeJobs = onSnapshot(
+        jobsQuery,
+        (snapshot) => {
+          const jobs: Job[] = [];
+          snapshot.forEach((doc) => {
+            const data = doc.data();
+            jobs.push({
+              id: doc.id,
+              ...data,
+              scheduledDate: data.scheduledDate?.toDate(),
+              completedDate: data.completedDate?.toDate()
+            } as Job);
+          });
+          
+          this.clientJobs = jobs;
+          this.isLoadingJobs = false;
+        },
+        (error) => {
+          console.error('Error fetching jobs:', error);
+          this.isLoadingJobs = false;
+        }
+      );
+    } catch (error) {
+      console.error('Error setting up jobs subscription:', error);
+      this.isLoadingJobs = false;
+    }
+  }
+
   // Restore client selection for a specific business
   private restoreBusinessClientSelection(tenantId: string) {
     const previousClientId = this.businessClientMap.get(tenantId);
@@ -451,6 +502,9 @@ class ClientStore {
         localStorage.setItem('selectedClientId', client.id);
         localStorage.setItem('selectedClientTenant', this.currentTenantId);
       }
+      
+      // Subscribe to client's jobs
+      this.subscribeToClientJobs(client.id);
     }
   }
 
