@@ -1,0 +1,186 @@
+// firestore.rules
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function getUserTenant(userId) {
+      return get(/databases/$(database)/documents/userTenants/$(userId));
+    }
+    
+    function userBelongsToTenant(userId, tenantId) {
+      let userTenant = getUserTenant(userId);
+      return userTenant != null && tenantId in userTenant.data.tenants;
+    }
+    
+    function hasRole(userId, tenantId, allowedRoles) {
+      let userTenant = getUserTenant(userId);
+      return userTenant != null && 
+             tenantId in userTenant.data.tenants &&
+             userTenant.data.tenants[tenantId].role in allowedRoles;
+    }
+    
+    function canManageTenant(userId, tenantId) {
+      return hasRole(userId, tenantId, ['owner', 'admin']);
+    }
+    
+    function canEditData(userId, tenantId) {
+      return hasRole(userId, tenantId, ['owner', 'admin', 'manager']);
+    }
+    
+    function isOwner(userId, tenantId) {
+      return hasRole(userId, tenantId, ['owner']);
+    }
+    
+    // Validate plan limits
+    function withinPlanLimits(tenantId, resource) {
+      let tenant = get(/databases/$(database)/documents/tenants/$(tenantId));
+      let limits = tenant.data.limits;
+      
+      // For starter plan, check user limits
+      if (tenant.data.plan == 'starter' && resource == 'users') {
+        let currentUsers = get(/databases/$(database)/documents/userTenants)
+          .data.where('tenants.' + tenantId + '.status', '==', 'active').size();
+        return currentUsers < limits.users;
+      }
+      
+      // Unlimited resources
+      if (limits[resource] == 'unlimited') {
+        return true;
+      }
+      
+      return true; // For now, allow other resources
+    }
+    
+    // Users collection - publicly readable for user profiles
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    // User-Tenant relationships
+    match /userTenants/{userId} {
+      allow read: if isAuthenticated() && 
+        (request.auth.uid == userId || 
+         // Allow tenant members to see other members
+         resource.data.tenants.keys().hasAny(
+           getUserTenant(request.auth.uid).data.tenants.keys()
+         ));
+      allow create: if isAuthenticated() && request.auth.uid == userId;
+      allow update: if isAuthenticated() && 
+        (request.auth.uid == userId ||
+         // Allow tenant admins to update user roles
+         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['tenants']) &&
+         canManageTenant(request.auth.uid, request.resource.data.tenants.keys()[0]));
+    }
+    
+    // Tenants collection
+    match /tenants/{tenantId} {
+      allow read: if isAuthenticated() && userBelongsToTenant(request.auth.uid, tenantId);
+      allow create: if isAuthenticated() && 
+        request.resource.data.ownerId == request.auth.uid &&
+        request.resource.data.plan in ['starter', 'professional', 'enterprise'];
+      allow update: if isAuthenticated() && canManageTenant(request.auth.uid, tenantId);
+      allow delete: if isAuthenticated() && isOwner(request.auth.uid, tenantId);
+    }
+    
+    // Tenant-scoped collections
+    match /tenants/{tenantId}/{collection}/{document} {
+      // General read permission for tenant members
+      allow read: if isAuthenticated() && userBelongsToTenant(request.auth.uid, tenantId);
+      
+      // Clients collection
+      allow create: if isAuthenticated() && 
+        userBelongsToTenant(request.auth.uid, tenantId) &&
+        collection == 'clients' &&
+        request.resource.data.tenantId == tenantId;
+      
+      allow update: if isAuthenticated() && 
+        userBelongsToTenant(request.auth.uid, tenantId) &&
+        collection == 'clients' &&
+        resource.data.tenantId == tenantId && // Can't change tenant
+        request.resource.data.tenantId == tenantId;
+      
+      allow delete: if isAuthenticated() && 
+        canEditData(request.auth.uid, tenantId) &&
+        collection == 'clients';
+      
+      // Jobs collection
+      allow create: if isAuthenticated() && 
+        userBelongsToTenant(request.auth.uid, tenantId) &&
+        collection == 'jobs' &&
+        request.resource.data.tenantId == tenantId;
+      
+      allow update: if isAuthenticated() && 
+        userBelongsToTenant(request.auth.uid, tenantId) &&
+        collection == 'jobs' &&
+        resource.data.tenantId == tenantId &&
+        request.resource.data.tenantId == tenantId;
+      
+      allow delete: if isAuthenticated() && 
+        canEditData(request.auth.uid, tenantId) &&
+        collection == 'jobs';
+      
+      // Invoices collection - stricter permissions
+      allow create: if isAuthenticated() && 
+        canEditData(request.auth.uid, tenantId) &&
+        collection == 'invoices' &&
+        request.resource.data.tenantId == tenantId;
+      
+      allow update: if isAuthenticated() && 
+        canManageTenant(request.auth.uid, tenantId) &&
+        collection == 'invoices' &&
+        resource.data.tenantId == tenantId &&
+        request.resource.data.tenantId == tenantId;
+      
+      allow delete: if isAuthenticated() && 
+        isOwner(request.auth.uid, tenantId) &&
+        collection == 'invoices';
+    }
+    
+    // Tenant invitations
+    match /tenantInvites/{inviteId} {
+      // Anyone with the invite ID can read it (for accepting invites)
+      allow read: if true;
+      
+      // Only tenant admins can create invites
+      allow create: if isAuthenticated() && 
+        canManageTenant(request.auth.uid, request.resource.data.tenantId) &&
+        request.resource.data.invitedBy == request.auth.uid &&
+        request.resource.data.status == 'pending' &&
+        request.resource.data.expiresAt > request.time;
+      
+      // Only the invitee can update (accept/reject)
+      allow update: if isAuthenticated() && 
+        request.auth.token.email == resource.data.email &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'acceptedAt']);
+      
+      // Admins can delete invites
+      allow delete: if isAuthenticated() && 
+        canManageTenant(request.auth.uid, resource.data.tenantId);
+    }
+    
+    // Activity logs (audit trail)
+    match /tenants/{tenantId}/activityLogs/{logId} {
+      // Read-only for tenant members
+      allow read: if isAuthenticated() && userBelongsToTenant(request.auth.uid, tenantId);
+      // System-generated only (via Cloud Functions)
+      allow write: if false;
+    }
+    
+    // File attachments
+    match /tenants/{tenantId}/files/{fileId} {
+      allow read: if isAuthenticated() && userBelongsToTenant(request.auth.uid, tenantId);
+      allow create: if isAuthenticated() && 
+        userBelongsToTenant(request.auth.uid, tenantId) &&
+        request.resource.size < 10 * 1024 * 1024; // 10MB limit
+      allow delete: if isAuthenticated() && 
+        (resource.data.uploadedBy == request.auth.uid || 
+         canManageTenant(request.auth.uid, tenantId));
+    }
+  }
+}

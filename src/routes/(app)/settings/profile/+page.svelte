@@ -1,6 +1,7 @@
 <!-- src/routes/(app)/settings/profile/+page.svelte -->
 <script lang="ts">
   import { useAuth } from '$lib/stores/auth.svelte';
+  import BusinessSwitcher from '$lib/components/settings/BusinessSwitcher.svelte';
   
   const auth = useAuth();
 </script>
@@ -14,7 +15,7 @@
   </div>
 
   {#if auth.user}
-    <div class="space-y-4">
+    <div class="space-y-6">
       <!-- User Info -->
       <div class="rounded-lg border p-6 space-y-4">
         <h3 class="text-lg font-medium">Account Information</h3>
@@ -41,41 +42,20 @@
         </div>
       </div>
 
-      <!-- Tenant Info -->
-      {#if auth.tenant}
-        <div class="rounded-lg border p-6 space-y-4">
-          <h3 class="text-lg font-medium">Organization</h3>
-          
-          <div class="space-y-3">
-            <div>
-              <p class="text-sm font-medium text-gray-500">Company Name</p>
-              <p class="text-gray-900">{auth.tenant.name}</p>
-            </div>
-            
-            <div>
-              <p class="text-sm font-medium text-gray-500">Plan</p>
-              <p class="text-gray-900 capitalize">{auth.tenant.plan}</p>
-            </div>
-            
-            <div>
-              <p class="text-sm font-medium text-gray-500">Role</p>
-              <p class="text-gray-900 capitalize">{auth.userRole || 'Member'}</p>
-            </div>
-          </div>
-        </div>
-      {/if}
+      <!-- Business Switcher Component -->
+      <BusinessSwitcher />
 
       <!-- Actions -->
-      <div class="space-y-3">
+      <div class="space-y-3 pt-4">
         <button
-          class="w-full btn-secondary"
+          class="w-full px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
           onclick={() => console.log('Edit profile')}
         >
           Edit Profile
         </button>
         
         <button
-          class="w-full btn-secondary text-red-600 hover:bg-red-50"
+          class="w-full px-4 py-2 border border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition-colors"
           onclick={() => auth.signOut()}
         >
           Sign Out

@@ -1,28 +1,50 @@
 // src/lib/stores/client.svelte.ts
-import { type Unsubscribe } from 'firebase/firestore';
-import { subscribeToClients, subscribeToClientJobs, type Client, type Job } from '$lib/firebase/firestore';
+import { 
+  collection,
+  doc,
+  onSnapshot,
+  addDoc,
+  updateDoc,
+  deleteDoc,
+  query,
+  where,
+  orderBy,
+  serverTimestamp,
+  type Unsubscribe
+} from 'firebase/firestore';
+import { db } from '$lib/firebase/config';
 import { localCache } from '$lib/utils/localCache';
 import { browser } from '$app/environment';
 
-interface ClientStore {
-  clients: Client[];
-  selectedClient: Client | null;
-  clientJobs: Job[];
-  isLoading: boolean;
-  isLoadingJobs: boolean;
-  error: string | null;
-  hasClients: boolean;
-  recentClients: Client[];
-  isOffline: boolean;
-  selectClient: (client: Client | null) => void;
-  clearSelection: () => void;
-  restoreSelection: () => void;
-  searchClients: (query: string) => Client[];
-  getRecentClients: (count?: number) => Client[];
-  getById: (id: string) => Client | undefined;
+export interface Client {
+  id: string;
+  name: string;
+  email?: string;
+  phone?: string;
+  address: string;
+  city?: string;
+  state?: string;
+  zip?: string;
+  notes?: string;
+  tags?: string[];
+  status: 'active' | 'inactive';
+  createdAt: Date;
+  updatedAt: Date;
+  lastServiceDate?: Date;
+  preferredTechnician?: string;
+  customFields?: Record<string, any>;
 }
 
-class ClientStoreImpl {
+export interface Job {
+  id: string;
+  clientId: string;
+  title: string;
+  status: string;
+  scheduledDate?: Date;
+  completedDate?: Date;
+}
+
+class ClientStore {
   // State
   clients = $state<Client[]>([]);
   selectedClient = $state<Client | null>(null);
@@ -33,6 +55,9 @@ class ClientStoreImpl {
   recentClientIds = $state<string[]>([]);
   isOffline = $state(false);
   
+  // Tenant context
+  private currentTenantId = $state<string | null>(null);
+  
   // Cache state
   private cachedClients = $state<Client[]>([]);
   private lastSync = $state<number>(0);
@@ -41,7 +66,6 @@ class ClientStoreImpl {
   // Subscriptions
   private unsubscribeClients: Unsubscribe | null = null;
   private unsubscribeJobs: Unsubscribe | null = null;
-  private currentTenantId: string | undefined = undefined;
 
   constructor() {
     this.loadRecentClientIds();
@@ -57,17 +81,15 @@ class ClientStoreImpl {
     
     window.addEventListener('online', () => {
       this.isOffline = false;
-      // Sync when back online
       if (this.currentTenantId) {
-        this.syncWithServer(this.currentTenantId);
+        this.syncWithServer();
       }
     });
     
     window.addEventListener('offline', () => {
       this.isOffline = true;
-      // Load from cache when offline
       if (this.currentTenantId) {
-        this.loadFromCache(this.currentTenantId);
+        this.loadFromCache();
       }
     });
   }
@@ -84,7 +106,7 @@ class ClientStoreImpl {
   // Load recent client IDs from localStorage
   private loadRecentClientIds() {
     if (typeof window !== 'undefined') {
-      const stored = localStorage.getItem('recentClientIds');
+      const stored = localStorage.getItem(`recentClientIds_${this.currentTenantId}`);
       if (stored) {
         try {
           this.recentClientIds = JSON.parse(stored);
@@ -97,22 +119,26 @@ class ClientStoreImpl {
 
   // Save recent client IDs to localStorage
   private saveRecentClientIds() {
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('recentClientIds', JSON.stringify(this.recentClientIds));
+    if (typeof window !== 'undefined' && this.currentTenantId) {
+      localStorage.setItem(
+        `recentClientIds_${this.currentTenantId}`, 
+        JSON.stringify(this.recentClientIds)
+      );
     }
   }
 
   // Load clients from IndexedDB cache
-  private async loadFromCache(tenantId: string) {
+  private async loadFromCache() {
+    if (!this.currentTenantId) return;
+    
     try {
       this.isLoadingClients = true;
-      const cachedClients = await localCache.getAllClients(tenantId);
+      const cachedClients = await localCache.getAllClients(this.currentTenantId);
       
       if (cachedClients.length > 0) {
         this.cachedClients = cachedClients;
         this.clients = cachedClients;
         
-        // Only log cache loads in development
         if (import.meta.env.DEV) {
           console.log(`Loaded ${cachedClients.length} clients from cache`);
         }
@@ -125,17 +151,15 @@ class ClientStoreImpl {
   }
 
   // Sync clients with server and update cache
-  private async syncWithServer(tenantId: string) {
-    if (this.isOffline) return;
+  private async syncWithServer() {
+    if (this.isOffline || !this.currentTenantId) return;
     
     try {
-      // Update cache with current clients
       for (const client of this.clients) {
-        await localCache.setClient(client, tenantId);
+        await localCache.setClient(client, this.currentTenantId);
       }
       this.lastSync = Date.now();
       
-      // Only log successful syncs in development
       if (import.meta.env.DEV) {
         console.log('Synced clients to cache');
       }
@@ -145,261 +169,304 @@ class ClientStoreImpl {
   }
 
   // Initialize tenant subscription
-  subscribeTenant(tenantId: string | undefined) {
-    if (tenantId) {
-      this.currentTenantId = tenantId;
-      this.isLoadingClients = true;
-      this.error = null;
-      
-      // Cleanup previous subscription
-      if (this.unsubscribeClients) {
-        this.unsubscribeClients();
-      }
-      
-      // Load from cache first (immediate response)
-      this.loadFromCache(tenantId);
-      
-      // Then subscribe to real-time updates if online
-      if (!this.isOffline) {
-        this.unsubscribeClients = subscribeToClients(
-          tenantId,
-          async (updatedClients) => {
-            this.clients = updatedClients;
-            this.isLoadingClients = false;
-            
-            // Update cache in background
-            this.syncWithServer(tenantId);
-            
-            // Check if selected client still exists
-            if (this.selectedClient && !updatedClients.find(c => c.id === this.selectedClient!.id)) {
-              this.selectedClient = null;
-              this.saveSelectedClientId(null);
-            }
-          },
-          (error) => {
-            // Only log errors if we're online (offline errors are expected)
-            if (!this.isOffline) {
-              console.error('Error subscribing to clients:', error);
-              this.error = error.message;
-            }
-            this.isLoadingClients = false;
-            
-            // Fall back to cache on error
-            this.loadFromCache(tenantId);
-          }
-        );
-      }
-    } else {
-      // Clear state when no tenant
+  subscribeTenant(tenantId: string | null) {
+    // Clean up previous subscriptions
+    this.cleanup();
+    
+    if (!tenantId) {
       this.clients = [];
       this.selectedClient = null;
       this.clientJobs = [];
+      this.currentTenantId = null;
+      return;
+    }
+    
+    this.currentTenantId = tenantId;
+    this.isLoadingClients = true;
+    this.error = null;
+    
+    // Load recent client IDs for this tenant
+    this.loadRecentClientIds();
+    
+    // Load from cache first (immediate response)
+    this.loadFromCache();
+    
+    // Then subscribe to real-time updates
+    try {
+      const clientsRef = collection(db, `tenants/${tenantId}/clients`);
+      const clientsQuery = query(
+        clientsRef,
+        where('status', '==', 'active'),
+        orderBy('name')
+      );
+      
+      this.unsubscribeClients = onSnapshot(
+        clientsQuery,
+        (snapshot) => {
+          const clients: Client[] = [];
+          snapshot.forEach((doc) => {
+            clients.push({
+              id: doc.id,
+              ...doc.data(),
+              createdAt: doc.data().createdAt?.toDate() || new Date(),
+              updatedAt: doc.data().updatedAt?.toDate() || new Date(),
+              lastServiceDate: doc.data().lastServiceDate?.toDate()
+            } as Client);
+          });
+          
+          this.clients = clients;
+          this.isLoadingClients = false;
+          
+          // Sync to cache in background
+          this.syncWithServer();
+        },
+        (error) => {
+          console.error('Error fetching clients:', error);
+          this.error = error.message;
+          this.isLoadingClients = false;
+          
+          // Fall back to cache on error
+          if (this.clients.length === 0) {
+            this.clients = this.cachedClients;
+          }
+        }
+      );
+    } catch (error) {
+      console.error('Error setting up client subscription:', error);
+      this.error = error instanceof Error ? error.message : 'Failed to load clients';
       this.isLoadingClients = false;
-      this.isLoadingJobs = false;
-      this.error = null;
     }
   }
 
   // Subscribe to jobs for selected client
-  subscribeClientJobs(tenantId: string | undefined, clientId: string | undefined) {
-    // Cleanup previous subscription
+  subscribeToClientJobs(clientId: string) {
+    if (!this.currentTenantId) return;
+    
+    // Clean up previous job subscription
     if (this.unsubscribeJobs) {
       this.unsubscribeJobs();
       this.unsubscribeJobs = null;
     }
     
-    if (tenantId && clientId && !this.isOffline) {
-      this.isLoadingJobs = true;
+    if (!clientId) {
+      this.clientJobs = [];
+      return;
+    }
+    
+    this.isLoadingJobs = true;
+    
+    try {
+      const jobsRef = collection(db, `tenants/${this.currentTenantId}/jobs`);
+      const jobsQuery = query(
+        jobsRef,
+        where('clientId', '==', clientId),
+        orderBy('scheduledDate', 'desc')
+      );
       
-      this.unsubscribeJobs = subscribeToClientJobs(
-        tenantId,
-        clientId,
-        (jobs) => {
+      this.unsubscribeJobs = onSnapshot(
+        jobsQuery,
+        (snapshot) => {
+          const jobs: Job[] = [];
+          snapshot.forEach((doc) => {
+            jobs.push({
+              id: doc.id,
+              ...doc.data(),
+              scheduledDate: doc.data().scheduledDate?.toDate(),
+              completedDate: doc.data().completedDate?.toDate()
+            } as Job);
+          });
+          
           this.clientJobs = jobs;
           this.isLoadingJobs = false;
-          
-          // TODO: Cache jobs in IndexedDB
         },
         (error) => {
-          // Only log errors if we're online (offline errors are expected)
-          if (!this.isOffline) {
-            console.error('Error subscribing to client jobs:', error);
-          }
+          console.error('Error fetching client jobs:', error);
           this.isLoadingJobs = false;
-          
-          // TODO: Load jobs from cache on error
         }
       );
-    } else {
-      this.clientJobs = [];
+    } catch (error) {
+      console.error('Error setting up jobs subscription:', error);
       this.isLoadingJobs = false;
     }
   }
 
   // Select a client
-  selectClient = (client: Client | null) => {
+  selectClient(client: Client | null) {
     this.selectedClient = client;
-    this.saveSelectedClientId(client?.id || null);
     
-    // Update recent clients
     if (client) {
+      // Update recent clients
       this.recentClientIds = [
         client.id,
         ...this.recentClientIds.filter(id => id !== client.id)
-      ].slice(0, 10);
+      ].slice(0, 10); // Keep last 10
+      
       this.saveRecentClientIds();
-    }
-  }
-
-  // Clear client selection
-  clearSelection = () => {
-    this.selectedClient = null;
-    this.clientJobs = [];
-    this.saveSelectedClientId(null);
-  }
-
-  // Restore previous selection
-  restoreSelection = () => {
-    const savedId = this.getSelectedClientId();
-    if (savedId) {
-      const client = this.clients.find(c => c.id === savedId);
-      if (client) {
-        this.selectClient(client);
+      
+      // Subscribe to client's jobs
+      this.subscribeToClientJobs(client.id);
+      
+      // Save to localStorage for persistence
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('selectedClientId', client.id);
+      }
+    } else {
+      // Clear selection
+      this.clientJobs = [];
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('selectedClientId');
       }
     }
   }
 
-  // Save selected client ID to sessionStorage
-  private saveSelectedClientId(id: string | null) {
-    if (typeof window !== 'undefined') {
-      if (id) {
-        sessionStorage.setItem('selectedClientId', id);
-      } else {
-        sessionStorage.removeItem('selectedClientId');
+  // Clear selection
+  clearSelection() {
+    this.selectClient(null);
+  }
+
+  // Restore selection from localStorage
+  restoreSelection() {
+    if (typeof window !== 'undefined' && this.clients.length > 0) {
+      const savedId = localStorage.getItem('selectedClientId');
+      if (savedId) {
+        const client = this.clients.find(c => c.id === savedId);
+        if (client) {
+          this.selectClient(client);
+        }
       }
     }
   }
 
-  // Get selected client ID from sessionStorage
-  private getSelectedClientId(): string | null {
-    if (typeof window !== 'undefined') {
-      return sessionStorage.getItem('selectedClientId');
-    }
-    return null;
-  }
-
-  // Search clients by name
-  searchClients = (query: string): Client[] => {
-    const searchTerm = query.toLowerCase().trim();
-    if (!searchTerm) return this.clients;
-    
-    // Search in both online and cached clients when offline
-    const clientsToSearch = this.isOffline && this.cachedClients.length > 0 
-      ? this.cachedClients 
-      : this.clients;
-    
-    return clientsToSearch.filter(client => 
+  // Search clients
+  searchClients(query: string): Client[] {
+    const searchTerm = query.toLowerCase();
+    return this.clients.filter(client =>
       client.name.toLowerCase().includes(searchTerm) ||
       client.email?.toLowerCase().includes(searchTerm) ||
-      client.phone?.includes(searchTerm)
+      client.phone?.includes(searchTerm) ||
+      client.address?.toLowerCase().includes(searchTerm)
     );
   }
 
   // Get recent clients
-  getRecentClients = (count: number = 5): Client[] => {
-    const recentClients: Client[] = [];
-    const clientsToSearch = this.isOffline && this.cachedClients.length > 0 
-      ? this.cachedClients 
-      : this.clients;
-    
-    for (const id of this.recentClientIds) {
-      const client = clientsToSearch.find(c => c.id === id);
-      if (client) {
-        recentClients.push(client);
-        if (recentClients.length >= count) break;
-      }
-    }
-    
-    return recentClients;
+  get recentClients(): Client[] {
+    return this.recentClientIds
+      .map(id => this.clients.find(c => c.id === id))
+      .filter(Boolean) as Client[];
   }
 
   // Get client by ID
-  getById = (id: string): Client | undefined => {
-    const clientsToSearch = this.isOffline && this.cachedClients.length > 0 
-      ? this.cachedClients 
-      : this.clients;
-    
-    return clientsToSearch.find(c => c.id === id);
+  getById(id: string): Client | undefined {
+    return this.clients.find(c => c.id === id);
   }
 
-  // Cleanup on destroy
-  destroy() {
+  // CRUD Operations with tenant context
+  async createClient(data: Omit<Client, 'id' | 'createdAt' | 'updatedAt'>) {
+    if (!this.currentTenantId) {
+      throw new Error('No tenant selected');
+    }
+    
+    try {
+      const docRef = await addDoc(
+        collection(db, `tenants/${this.currentTenantId}/clients`),
+        {
+          ...data,
+          tenantId: this.currentTenantId,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp()
+        }
+      );
+      
+      return docRef.id;
+    } catch (error) {
+      console.error('Error creating client:', error);
+      throw error;
+    }
+  }
+
+  async updateClient(id: string, data: Partial<Client>) {
+    if (!this.currentTenantId) {
+      throw new Error('No tenant selected');
+    }
+    
+    try {
+      const docRef = doc(db, `tenants/${this.currentTenantId}/clients`, id);
+      await updateDoc(docRef, {
+        ...data,
+        updatedAt: serverTimestamp()
+      });
+    } catch (error) {
+      console.error('Error updating client:', error);
+      throw error;
+    }
+  }
+
+  async deleteClient(id: string) {
+    if (!this.currentTenantId) {
+      throw new Error('No tenant selected');
+    }
+    
+    try {
+      await deleteDoc(doc(db, `tenants/${this.currentTenantId}/clients`, id));
+      
+      // Clear selection if deleting selected client
+      if (this.selectedClient?.id === id) {
+        this.clearSelection();
+      }
+    } catch (error) {
+      console.error('Error deleting client:', error);
+      throw error;
+    }
+  }
+
+  // Cleanup subscriptions
+  cleanup() {
     if (this.unsubscribeClients) {
       this.unsubscribeClients();
+      this.unsubscribeClients = null;
     }
+    
     if (this.unsubscribeJobs) {
       this.unsubscribeJobs();
+      this.unsubscribeJobs = null;
     }
+    
     if (this.syncInterval) {
       clearInterval(this.syncInterval);
+      this.syncInterval = null;
     }
+  }
+
+  // Computed properties
+  get hasClients() {
+    return this.clients.length > 0;
+  }
+
+  get isLoading() {
+    return this.isLoadingClients;
   }
 }
 
 // Create singleton instance
-let clientStore: ClientStoreImpl | null = null;
+let clientStore: ClientStore | null = null;
 
-// Export the store hook
-export function useClients(): ClientStore {
+export function useClients() {
   if (!clientStore) {
-    clientStore = new ClientStoreImpl();
+    clientStore = new ClientStore();
   }
-
-  return {
-    // State getters
-    get clients() { return clientStore.clients; },
-    get selectedClient() { return clientStore.selectedClient; },
-    get clientJobs() { return clientStore.clientJobs; },
-    get isLoading() { return clientStore.isLoadingClients; },
-    get isLoadingJobs() { return clientStore.isLoadingJobs; },
-    get error() { return clientStore.error; },
-    get isOffline() { return clientStore.isOffline; },
-    
-    // Computed values
-    get hasClients() { return clientStore.clients.length > 0 || (clientStore.isOffline && clientStore.cachedClients.length > 0); },
-    get recentClients() { return clientStore.getRecentClients(); },
-    
-    // Actions
-    selectClient: clientStore.selectClient,
-    clearSelection: clientStore.clearSelection,
-    restoreSelection: clientStore.restoreSelection,
-    searchClients: clientStore.searchClients,
-    getRecentClients: clientStore.getRecentClients,
-    getById: clientStore.getById
-  };
+  return clientStore;
 }
 
-// Function to initialize subscriptions (call from component)
-export function initializeClientStore(tenantId: string | undefined) {
-  if (clientStore) {
-    clientStore.subscribeTenant(tenantId);
-  }
+// Initialize client store with tenant
+export function initializeClientStore(tenantId: string) {
+  const store = useClients();
+  store.subscribeTenant(tenantId);
 }
 
-// Function to update client jobs subscription
-export function updateClientJobsSubscription(tenantId: string | undefined, clientId: string | undefined) {
-  if (clientStore) {
-    clientStore.subscribeClientJobs(tenantId, clientId);
+// Update client jobs subscription
+export function updateClientJobsSubscription(tenantId: string, clientId: string) {
+  const store = useClients();
+  if (store.currentTenantId === tenantId) {
+    store.subscribeToClientJobs(clientId);
   }
 }
-
-// Cleanup function
-export function cleanupClientStore() {
-  if (clientStore) {
-    clientStore.destroy();
-    clientStore = null;
-  }
-}
-
-// For backward compatibility with components expecting useClient
-export const useClient = useClients;
