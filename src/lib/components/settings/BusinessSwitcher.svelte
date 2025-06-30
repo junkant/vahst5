@@ -1,158 +1,234 @@
 <!-- src/lib/components/settings/BusinessSwitcher.svelte -->
 <script lang="ts">
   import { useAuth } from '$lib/stores/auth.svelte';
-  import { goto } from '$app/navigation';
-  import { toast } from '$lib/utils/toast';
+  import CreateBusinessModal from './CreateBusinessModal.svelte';
   
   const auth = useAuth();
   
-  let isLoading = $state(false);
-  let showConfirmDialog = $state(false);
-  let selectedBusiness = $state<any>(null);
+  let isExpanded = $state(false);
+  let showLinkModal = $state(false);
+  let showCreateModal = $state(false);
   
-  // Get user's role for each business
-  function getUserRole(tenantId: string): string {
-    // This will come from the userTenants data
-    const roles: Record<string, string> = {
-      'owner': 'Owner',
-      'admin': 'Administrator', 
-      'manager': 'Manager',
-      'technician': 'Technician'
-    };
-    
-    // For now, return from available data
-    return roles[auth.tenants.find(t => t.id === tenantId)?.userRole || 'technician'] || 'Team Member';
-  }
-  
-  function handleBusinessSelect(business: any) {
-    if (business.id === auth.tenant?.id) return;
-    
-    selectedBusiness = business;
-    showConfirmDialog = true;
-  }
-  
-  async function confirmSwitch() {
-    if (!selectedBusiness) return;
-    
-    isLoading = true;
-    try {
-      auth.setTenant(selectedBusiness);
-      toast.success(`Switched to ${selectedBusiness.name}`);
-      
-      // Reload the current page to refresh data
-      window.location.reload();
-    } catch (error) {
-      toast.error('Failed to switch business');
-      console.error('Business switch error:', error);
-    } finally {
-      isLoading = false;
-      showConfirmDialog = false;
+  function switchBusiness(tenant: any) {
+    if (tenant && tenant.id !== auth.tenant?.id) {
+      auth.setTenant(tenant);
+      console.log('Switched to business:', tenant.name);
     }
   }
   
-  function cancelSwitch() {
-    showConfirmDialog = false;
-    selectedBusiness = null;
+  function toggleExpanded() {
+    isExpanded = !isExpanded;
+  }
+  
+  function openLinkModal() {
+    showLinkModal = true;
+  }
+  
+  function openCreateModal() {
+    showCreateModal = true;
   }
 </script>
 
-<div class="bg-white rounded-lg shadow-sm border border-gray-200">
-  <div class="p-6">
-    <h3 class="text-lg font-medium text-gray-900 mb-1">Business Account</h3>
-    <p class="text-sm text-gray-600 mb-6">
-      Manage your business accounts and switch between them
-    </p>
-    
+<div class="rounded-lg border p-6 space-y-4">
+  <div class="flex items-center justify-between">
+    <h3 class="text-lg font-medium">Business Access</h3>
+    {#if auth.tenants && auth.tenants.length > 1}
+      <button
+        onclick={toggleExpanded}
+        class="text-sm text-blue-600 hover:text-blue-700"
+      >
+        {isExpanded ? 'Show Less' : 'Show All'}
+      </button>
+    {/if}
+  </div>
+  
+  <!-- Current Business -->
+  {#if auth.tenant}
     <div class="space-y-3">
-      {#each auth.tenants as business}
-        <div 
-          class="relative border rounded-lg p-4 transition-all
-                 {business.id === auth.tenant?.id 
-                   ? 'border-blue-500 bg-blue-50' 
-                   : 'border-gray-200 hover:border-gray-300 cursor-pointer'}"
-          onclick={() => handleBusinessSelect(business)}
-          role="button"
-          tabindex="0"
-          onkeydown={(e) => e.key === 'Enter' && handleBusinessSelect(business)}
-        >
-          <!-- Current Business Indicator -->
-          {#if business.id === auth.tenant?.id}
-            <div class="absolute top-2 right-2">
-              <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                Current
-              </span>
+      <div>
+        <p class="text-sm font-medium text-gray-500">Current Business</p>
+        <div class="mt-1 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+          <div class="flex items-center gap-3">
+            <!-- Business Avatar -->
+            <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 
+                        flex items-center justify-center text-white font-semibold text-sm">
+              {auth.tenant.name.charAt(0).toUpperCase()}
             </div>
-          {/if}
-          
-          <div class="pr-20">
-            <h4 class="font-medium text-gray-900">{business.name}</h4>
-            <p class="text-sm text-gray-600 mt-1">
-              {getUserRole(business.id)} • {business.plan} plan
-            </p>
+            
+            <!-- Business Info -->
+            <div class="flex-1">
+              <p class="font-medium text-gray-900">{auth.tenant.name}</p>
+              <p class="text-sm text-gray-600">Full Access</p>
+            </div>
+            
+            <!-- Current Badge -->
+            <div class="px-2 py-1 bg-blue-600 text-white text-xs rounded-full font-medium">
+              Current
+            </div>
           </div>
-          
-          {#if business.id !== auth.tenant?.id}
-            <div class="absolute right-4 top-1/2 -translate-y-1/2">
-              <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        </div>
+      </div>
+      
+      <!-- Other Businesses (when expanded) -->
+      {#if isExpanded && auth.tenants && auth.tenants.length > 1}
+        <div>
+          <p class="text-sm font-medium text-gray-500 mb-2">Switch to</p>
+          <div class="space-y-2">
+            {#each auth.tenants as tenant}
+              {#if tenant.id !== auth.tenant?.id}
+                <button
+                  onclick={() => switchBusiness(tenant)}
+                  class="w-full p-3 text-left bg-white border border-gray-200 rounded-lg 
+                         hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 
+                         transition-colors"
+                >
+                  <div class="flex items-center gap-3">
+                    <!-- Business Avatar -->
+                    <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-gray-400 to-gray-500 
+                                flex items-center justify-center text-white font-semibold text-xs">
+                      {tenant.name.charAt(0).toUpperCase()}
+                    </div>
+                    
+                    <!-- Business Info -->
+                    <div class="flex-1">
+                      <p class="font-medium text-gray-900">{tenant.name}</p>
+                      <p class="text-sm text-gray-500">Full Access</p>
+                    </div>
+                    
+                    <!-- Switch Arrow -->
+                    <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                    </svg>
+                  </div>
+                </button>
+              {/if}
+            {/each}
+          </div>
+        </div>
+      {/if}
+      
+      <!-- Business Actions -->
+      <div class="pt-4 border-t border-gray-100">
+        <div class="space-y-3">
+          <button
+            class="w-full p-3 text-left bg-gray-50 border border-gray-200 rounded-lg 
+                   hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 
+                   transition-colors"
+            onclick={openLinkModal}
+          >
+            <div class="flex items-center gap-3">
+              <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-green-400 to-green-500 
+                          flex items-center justify-center text-white">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.1a9.04 9.04 0 002.668-6.56l-3.77-3.771zm8.5-8.5a4 4 0 00-5.656 0l-1.102 1.1a9.04 9.04 0 00-2.668 6.56l3.77 3.771a4 4 0 005.656 0l4-4z" />
+                </svg>
+              </div>
+              <div class="flex-1">
+                <p class="font-medium text-gray-900">Link Another Account</p>
+                <p class="text-sm text-gray-500">Connect to an existing business</p>
+              </div>
+              <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
               </svg>
             </div>
-          {/if}
+          </button>
+          
+          <button
+            class="w-full p-3 text-left bg-blue-50 border border-blue-200 rounded-lg 
+                   hover:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-blue-500 
+                   transition-colors"
+            onclick={openCreateModal}
+          >
+            <div class="flex items-center gap-3">
+              <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-400 to-blue-500 
+                          flex items-center justify-center text-white">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                </svg>
+              </div>
+              <div class="flex-1">
+                <p class="font-medium text-gray-900">Create New Business</p>
+                <p class="text-sm text-gray-500">Set up a new business account</p>
+              </div>
+              <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+              </svg>
+            </div>
+          </button>
         </div>
-      {/each}
+      </div>
     </div>
-    
-    <!-- Add New Business -->
-    <div class="mt-6 pt-6 border-t border-gray-200">
-      <button
-        onclick={() => goto('/onboarding/new-business')}
-        class="text-sm text-blue-600 hover:text-blue-700 font-medium flex items-center"
-      >
-        <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+  {:else}
+    <!-- No Business Selected -->
+    <div class="text-center py-6">
+      <div class="w-12 h-12 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
+        <svg class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
         </svg>
-        Create New Business
-      </button>
+      </div>
+      <p class="text-gray-500 font-medium">No business selected</p>
+      <p class="text-sm text-gray-400 mt-1">Please contact your administrator to get access</p>
+    </div>
+  {/if}
+  
+  <!-- Voice Command Tip -->
+  <div class="bg-gray-50 rounded-lg p-3">
+    <div class="flex items-start gap-2">
+      <svg class="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+      </svg>
+      <div>
+        <p class="text-sm font-medium text-gray-700">Voice Command Tip</p>
+        <p class="text-xs text-gray-600 mt-1">
+          Say "which business" to hear your current business, or "help" for all voice commands
+        </p>
+      </div>
     </div>
   </div>
 </div>
 
-<!-- Confirmation Dialog -->
-{#if showConfirmDialog && selectedBusiness}
+<!-- Link Account Modal -->
+{#if showLinkModal}
   <div class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-    <div class="bg-white rounded-lg shadow-xl max-w-md w-full">
+    <div class="bg-white rounded-xl shadow-2xl w-full max-w-md">
       <div class="p-6">
-        <h3 class="text-lg font-medium text-gray-900 mb-2">
-          Switch Business Account?
-        </h3>
-        <p class="text-sm text-gray-600 mb-6">
-          You're about to switch from <strong>{auth.tenant?.name}</strong> to <strong>{selectedBusiness.name}</strong>. 
-          This will reload the page with the new business data.
+        <h3 class="text-lg font-semibold mb-4">Link Another Account</h3>
+        <p class="text-gray-600 mb-4">
+          Enter an invitation code or email to connect to an existing business.
         </p>
         
-        <div class="flex gap-3 justify-end">
+        <div class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">
+              Invitation Code or Email
+            </label>
+            <input
+              type="text"
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+              placeholder="Enter code or email..."
+            />
+          </div>
+        </div>
+        
+        <div class="flex gap-3 mt-6">
           <button
-            onclick={cancelSwitch}
-            disabled={isLoading}
-            class="px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+            onclick={() => showLinkModal = false}
+            class="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
           >
             Cancel
           </button>
           <button
-            onclick={confirmSwitch}
-            disabled={isLoading}
-            class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center"
+            onclick={() => showLinkModal = false}
+            class="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
           >
-            {#if isLoading}
-              <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
-                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-              </svg>
-            {/if}
-            Switch Business
+            Link Account
           </button>
         </div>
       </div>
     </div>
   </div>
 {/if}
+
+<!-- Create Business Modal -->
+<CreateBusinessModal bind:open={showCreateModal} />

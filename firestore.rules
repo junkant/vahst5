@@ -1,0 +1,90 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function getUserTenant(userId) {
+      return get(/databases/$(database)/documents/userTenants/$(userId));
+    }
+    
+    function userBelongsToTenant(userId, tenantId) {
+      let userTenant = getUserTenant(userId);
+      return userTenant != null && 
+             userTenant.data != null &&
+             tenantId in userTenant.data.tenants;
+    }
+    
+    function hasRole(userId, tenantId, allowedRoles) {
+      let userTenant = getUserTenant(userId);
+      return userTenant != null && 
+             userTenant.data != null &&
+             tenantId in userTenant.data.tenants &&
+             userTenant.data.tenants[tenantId].role in allowedRoles;
+    }
+    
+    function canManageTenant(userId, tenantId) {
+      return hasRole(userId, tenantId, ['owner', 'admin']);
+    }
+    
+    function canEditData(userId, tenantId) {
+      return hasRole(userId, tenantId, ['owner', 'admin', 'manager']);
+    }
+    
+    function isOwner(userId, tenantId) {
+      return hasRole(userId, tenantId, ['owner']);
+    }
+    
+    // Users collection - users can manage their own profile
+    match /users/{userId} {
+      allow read, write: if isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    // UserTenants collection - users can manage their own tenant relationships
+    match /userTenants/{userId} {
+      allow read, write: if isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    // Tenants collection - tenant members can read, owners/admins can write
+    match /tenants/{tenantId} {
+      allow read: if isAuthenticated() && userBelongsToTenant(request.auth.uid, tenantId);
+      allow create: if isAuthenticated(); // Anyone can create a tenant
+      allow update: if isAuthenticated() && canManageTenant(request.auth.uid, tenantId);
+      allow delete: if isAuthenticated() && isOwner(request.auth.uid, tenantId);
+    }
+    
+    // Tenant-scoped data - all collections within a tenant
+    match /tenants/{tenantId}/{collection}/{document} {
+      allow read: if isAuthenticated() && userBelongsToTenant(request.auth.uid, tenantId);
+      allow create, update: if isAuthenticated() && canEditData(request.auth.uid, tenantId);
+      allow delete: if isAuthenticated() && canManageTenant(request.auth.uid, tenantId);
+      
+      // Nested collections (e.g., client jobs, job photos)
+      match /{subcollection}/{subdocument=**} {
+        allow read: if isAuthenticated() && userBelongsToTenant(request.auth.uid, tenantId);
+        allow create, update: if isAuthenticated() && canEditData(request.auth.uid, tenantId);
+        allow delete: if isAuthenticated() && canManageTenant(request.auth.uid, tenantId);
+      }
+    }
+    
+    // Tenant invites - can be read by invited user, managed by tenant admins
+    match /tenantInvites/{inviteId} {
+      allow read: if isAuthenticated() && 
+                     (request.auth.token.email == resource.data.email ||
+                      canManageTenant(request.auth.uid, resource.data.tenantId));
+      allow create: if isAuthenticated() && 
+                       canManageTenant(request.auth.uid, request.resource.data.tenantId);
+      allow update: if isAuthenticated() && 
+                       (request.auth.token.email == resource.data.email ||
+                        canManageTenant(request.auth.uid, resource.data.tenantId));
+    }
+    
+    // Voice command logs (optional - for debugging voice commands)
+    match /voiceLogs/{tenantId}/{logId} {
+      allow read, write: if isAuthenticated() && userBelongsToTenant(request.auth.uid, tenantId);
+    }
+  }
+}

@@ -1,6 +1,7 @@
 // src/lib/stores/voice-simple.svelte.ts
 import { goto } from '$app/navigation';
 import { useClients } from './client.svelte';
+import { useAuth } from './auth.svelte';  // ADD THIS IMPORT
 import { toast } from '$lib/utils/toast';
 
 interface VoiceCommand {
@@ -18,6 +19,7 @@ class VoiceControlStore {
   private recognition: SpeechRecognition | null = null;
   private synthesis = typeof window !== 'undefined' ? window.speechSynthesis : null;
   private clients = useClients();
+  private auth = useAuth();  // ADD THIS LINE
   private audioContext: AudioContext | null = null;
   
   constructor() {
@@ -87,64 +89,117 @@ class VoiceControlStore {
     };
   }
   
+  // HELPER METHOD: Check if user has selected a tenant
+  private checkTenantContext(): boolean {
+    if (!this.auth.tenant) {
+      this.speak('Please select a business first from your profile settings');
+      return false;
+    }
+    return true;
+  }
+  
+  // HELPER METHOD: Get current tenant name for feedback
+  private getTenantName(): string {
+    return this.auth.tenant?.name || 'current business';
+  }
+  
   private commands: VoiceCommand[] = [
     // Navigation commands
     {
       patterns: [/go to my day|show my day|my day/i],
       action: () => {
+        if (!this.checkTenantContext()) return;
         goto('/my-day');
-        this.speak('Going to My Day');
+        this.speak(`Going to My Day for ${this.getTenantName()}`);
       },
       description: 'Navigate to My Day'
     },
     {
       patterns: [/show tasks|go to tasks|tasks/i],
       action: () => {
+        if (!this.checkTenantContext()) return;
         goto('/tasks');
-        this.speak('Showing tasks');
+        this.speak(`Showing tasks for ${this.getTenantName()}`);
       },
       description: 'Navigate to Tasks'
     },
     {
       patterns: [/show money|go to money|money|finances/i],
       action: () => {
+        if (!this.checkTenantContext()) return;
         goto('/money');
-        this.speak('Opening financial section');
+        this.speak(`Opening finances for ${this.getTenantName()}`);
       },
       description: 'Navigate to Money'
     },
     {
       patterns: [/show clients|go to clients|clients/i],
       action: () => {
+        if (!this.checkTenantContext()) return;
         goto('/clients');
-        this.speak('Showing clients');
+        this.speak(`Showing clients for ${this.getTenantName()}`);
       },
       description: 'Navigate to Clients'
     },
     
-    // Client selection
+    // Client selection (tenant-aware)
     {
       patterns: [/select client (.+)|choose client (.+)|client (.+)/i],
       action: (matches) => {
+        if (!this.checkTenantContext()) return;
+        
         const clientName = matches?.[1] || matches?.[2] || matches?.[3];
         if (clientName) {
           const client = this.findClientByName(clientName);
           if (client) {
             this.clients.selectClient(client);
-            this.speak(`Selected ${client.name}`);
+            this.speak(`Selected ${client.name} in ${this.getTenantName()}`);
           } else {
-            this.speak(`Could not find client ${clientName}`);
+            this.speak(`Could not find client ${clientName} in ${this.getTenantName()}`);
           }
         }
       },
       description: 'Select a client by name'
     },
     
-    // Help
+    // NEW: Business context commands
+    {
+      patterns: [/which business|what business|current business|which tenant|what tenant/i],
+      action: () => {
+        if (!this.auth.tenant) {
+          this.speak('No business is currently selected. Please go to your profile to select a business.');
+          return;
+        }
+        this.speak(`You are currently working with ${this.auth.tenant.name}`);
+      },
+      description: 'Get current business name'
+    },
+    
+    // NEW: Find client command (tenant-scoped)
+    {
+      patterns: [/find client (.+)|search for client (.+)|look for client (.+)/i],
+      action: (matches) => {
+        if (!this.checkTenantContext()) return;
+        
+        const clientName = matches?.[1];
+        if (clientName) {
+          // Navigate to clients page with search query
+          goto(`/clients?search=${encodeURIComponent(clientName)}`);
+          this.speak(`Searching for ${clientName} in ${this.getTenantName()}`);
+        }
+      },
+      description: 'Search for a client by name'
+    },
+    
+    // Help (updated with tenant context)
     {
       patterns: [/help|what can you do|commands/i],
       action: () => {
-        this.speak('I can help you navigate. Try saying: go to my day, show tasks, show clients, or select a client by name.');
+        const businessContext = this.auth.tenant 
+          ? ` for ${this.auth.tenant.name}` 
+          : '. Please select a business first from your profile for full functionality';
+        
+        this.speak(`I can help you navigate${businessContext}. Try saying: go to my day, show tasks, show clients, or select a client by name.`);
       },
       description: 'Show help'
     }
@@ -152,7 +207,13 @@ class VoiceControlStore {
   
   private findClientByName(name: string): any {
     const searchTerm = name.toLowerCase();
-    return this.clients.clients.find(client => 
+    
+    // UPDATED: Only search within current tenant's clients
+    const tenantClients = this.clients.clients.filter(client => 
+      client.tenantId === this.auth.tenant?.id
+    );
+    
+    return tenantClients.find(client => 
       client.name.toLowerCase().includes(searchTerm)
     );
   }
@@ -170,51 +231,34 @@ class VoiceControlStore {
       }
     }
     
-    // No command matched
-    this.speak("I didn't catch that. Try saying help for available commands.");
-  }
-  
-  speak(text: string) {
-    if (!this.synthesis) return;
+    // No command matched - provide context-aware error message
+    const helpMessage = this.auth.tenant 
+      ? `I didn't catch that. Try saying help for available commands in ${this.auth.tenant.name}.`
+      : "I didn't catch that. Please select a business first from your profile, then try saying help for available commands.";
     
-    this.synthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.rate = 1.0;
-    utterance.pitch = 1.0;
-    utterance.volume = 0.8;
-    this.synthesis.speak(utterance);
+    this.speak(helpMessage);
   }
   
-  async startListening() {
+  startListening() {
     if (!this.isSupported) {
-      this.error = 'Voice control is not supported in your browser';
-      toast.warning('Voice control requires Chrome, Edge, or Safari');
+      this.error = 'Voice recognition not supported';
+      return;
+    }
+    
+    if (!this.recognition) {
+      this.error = 'Voice recognition not initialized';
       return;
     }
     
     if (this.isListening) {
-      this.stopListening();
       return;
     }
     
     try {
-      // Request microphone permission
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        audio: {
-          echoCancellation: false,
-          noiseSuppression: false,
-          autoGainControl: true
-        }
-      });
-      
-      // Stop the stream immediately, we just needed permission
-      stream.getTracks().forEach(track => track.stop());
-      
-      // Start recognition
-      this.recognition?.start();
+      this.recognition.start();
     } catch (error) {
-      console.error('Microphone permission denied:', error);
-      this.error = 'Microphone permission denied';
+      console.error('Failed to start voice recognition:', error);
+      this.error = 'Failed to start voice recognition';
     }
   }
   
@@ -224,38 +268,49 @@ class VoiceControlStore {
     }
   }
   
+  speak(text: string) {
+    if (!this.synthesis || !text) return;
+    
+    // Cancel any ongoing speech
+    this.synthesis.cancel();
+    
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.rate = 0.9;
+    utterance.pitch = 1;
+    utterance.volume = 1;
+    
+    this.synthesis.speak(utterance);
+  }
+  
   private playActivationSound() {
-    try {
-      if (!this.audioContext) {
-        this.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+    if (!this.audioContext) {
+      try {
+        this.audioContext = new AudioContext();
+      } catch (e) {
+        console.warn('AudioContext not supported');
+        return;
       }
-      
-      const ctx = this.audioContext;
-      const now = ctx.currentTime;
-      
-      const osc = ctx.createOscillator();
-      const gainNode = ctx.createGain();
-      
-      osc.connect(gainNode);
-      gainNode.connect(ctx.destination);
-      
-      osc.frequency.setValueAtTime(523.25, now);
-      gainNode.gain.setValueAtTime(0, now);
-      gainNode.gain.linearRampToValueAtTime(0.2, now + 0.02);
-      gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
-      
-      osc.type = 'sine';
-      osc.start(now);
-      osc.stop(now + 0.15);
-      
-    } catch (error) {
-      console.error('Could not play activation sound:', error);
     }
+    
+    const oscillator = this.audioContext.createOscillator();
+    const gainNode = this.audioContext.createGain();
+    
+    oscillator.connect(gainNode);
+    gainNode.connect(this.audioContext.destination);
+    
+    oscillator.frequency.setValueAtTime(800, this.audioContext.currentTime);
+    oscillator.frequency.exponentialRampToValueAtTime(1200, this.audioContext.currentTime + 0.1);
+    
+    gainNode.gain.setValueAtTime(0.1, this.audioContext.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.01, this.audioContext.currentTime + 0.1);
+    
+    oscillator.start(this.audioContext.currentTime);
+    oscillator.stop(this.audioContext.currentTime + 0.1);
   }
   
   private getErrorMessage(error: string): string {
     const errorMessages: Record<string, string> = {
-      'not-allowed': 'Microphone access denied. Please allow microphone access.',
+      'not-allowed': 'Voice access denied. Please allow microphone access.',
       'network': 'Network error. Please check your connection.',
       'audio-capture': 'No microphone found. Please check your microphone.',
       'aborted': 'Voice recognition stopped.',
