@@ -37,17 +37,6 @@
     }
   });
   
-  // Validate selected client belongs to current tenant
-  const validSelectedClient = $derived(() => {
-    if (!clients.selectedClient || !tenant.current?.id) {
-      return null;
-    }
-    
-    // Ensure selected client exists in current tenant's client list
-    const isValid = clients.clients.some(c => c.id === clients.selectedClient?.id);
-    return isValid ? clients.selectedClient : null;
-  });
-  
   // Use real jobs from the store
   const allJobs = $derived(jobs.jobs || []);
   
@@ -55,9 +44,9 @@
   const filteredJobs = $derived(() => {
     let result = [...allJobs];
     
-    // Filter by client if one is VALIDLY selected
-    if (validSelectedClient) {
-      result = result.filter(job => job.clientId === validSelectedClient.id);
+    // Filter by client if one is selected
+    if (clients.selectedClient) {
+      result = result.filter(job => job.clientId === clients.selectedClient.id);
     }
     
     // Filter by status
@@ -194,16 +183,22 @@
       </button>
     </div>
     
-    <!-- Selected Client Info -->
-    {#if validSelectedClient}
-      <div class="flex items-center space-x-2 mb-3">
-        <span class="text-sm text-gray-500">Showing jobs for:</span>
-        <span class="text-sm font-medium text-gray-900">{validSelectedClient.name}</span>
+    <!-- Selected Client Info - FIXED -->
+    {#if clients.selectedClient}
+      <div class="flex items-center justify-between bg-blue-50 border border-blue-200 rounded-lg px-3 py-2 mb-3">
+        <div class="flex items-center space-x-2">
+          <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <span class="text-sm text-blue-800">
+            Showing jobs for: <span class="font-medium">{clients.selectedClient.name}</span>
+          </span>
+        </div>
         <button 
           onclick={() => clients.selectClient(null)}
-          class="text-xs text-blue-600 hover:text-blue-700"
+          class="text-sm text-blue-600 hover:text-blue-700 font-medium"
         >
-          Show All
+          Clear Filter
         </button>
       </div>
     {/if}
@@ -240,28 +235,26 @@
     </div>
   </div>
   
-  <!-- Content -->
+  <!-- Jobs List -->
   <div class="flex-1 overflow-y-auto p-4">
     {#if jobs.isLoading}
-      <div class="flex items-center justify-center py-12">
+      <div class="flex items-center justify-center py-8">
         <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-      </div>
-    {:else if jobs.error}
-      <div class="bg-red-50 border border-red-200 rounded-lg p-4">
-        <p class="text-sm text-red-800">{jobs.error}</p>
       </div>
     {:else if filteredJobs.length === 0}
       <div class="text-center py-12">
-        <svg class="w-16 h-16 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg class="w-12 h-12 text-gray-400 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
         </svg>
         <h3 class="text-lg font-medium text-gray-900 mb-1">
-          {searchQuery ? 'No jobs found' : 'No jobs yet'}
+          {searchQuery || clients.selectedClient ? 'No jobs found' : 'No jobs yet'}
         </h3>
         <p class="text-gray-500 mb-4">
           {searchQuery 
-            ? 'Try adjusting your search or filters' 
-            : 'Create your first job to get started'}
+            ? 'Try adjusting your search' 
+            : clients.selectedClient
+              ? `No jobs for ${clients.selectedClient.name}`
+              : 'Create your first job to get started'}
         </p>
         {#if !searchQuery}
           <button 

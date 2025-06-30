@@ -126,12 +126,7 @@
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
       </svg>
       
-      <!-- Client count indicator -->
-      {#if clients.clients.length > 0 && !clients.isLoadingClients}
-        <span class="absolute -top-1 -right-1 bg-blue-600 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
-          {clients.clients.length > 99 ? '99+' : clients.clients.length}
-        </span>
-      {/if}
+      <!-- Removed client count indicator from here -->
     </button>
     
     <!-- User Menu (Right) -->
