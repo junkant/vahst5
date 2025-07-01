@@ -5,6 +5,7 @@
   import { useClients } from '$lib/stores/client.svelte';
   import { useAuth } from '$lib/stores/auth.svelte';
   import { useVoice } from '$lib/stores/voice.svelte';
+  import { useNetworkStatus } from '$lib/stores/network.svelte';
   
   let { 
     mode = 'app'
@@ -12,6 +13,7 @@
   
   const client = useClients();
   const auth = useAuth();
+  const network = useNetworkStatus();
   
   // Get voice store (it will handle its own initialization)
   const voice = mode === 'app' ? useVoice() : null;
@@ -48,7 +50,6 @@
     if (path.includes('/my-day')) return 'my-day';
     if (path.includes('/tasks')) return 'tasks';
     if (path.includes('/money')) return 'money';
-    if (path.includes('/voice')) return 'voice';
     return 'my-day';
   }
   
@@ -59,6 +60,13 @@
       // Maybe show a message that voice requires login
       console.log('Voice control requires authentication');
     }
+  }
+  
+  // Get lightning bolt color based on connection status
+  function getLightningColor() {
+    if (!network.isOnline) return 'text-red-500';
+    if (network.isSlowConnection) return 'text-yellow-500';
+    return 'text-white'; // Default white for good connection
   }
 </script>
 
@@ -160,13 +168,13 @@
           <span class="text-xs">Tasks</span>
         </button>
         
-        <!-- Center Action Button - Quick Actions -->
+        <!-- Center Action Button - Quick Actions with Dynamic Lightning Color -->
         <button 
           class="flex items-center justify-center w-14 h-14 -mt-4 bg-blue-600 rounded-full shadow-lg hover:bg-blue-700 transition-all transform hover:scale-105"
           onclick={toggleQuickActions}
           aria-label="Quick actions menu"
         >
-          <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg class="w-8 h-8 transition-colors duration-300 {getLightningColor()}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
           </svg>
         </button>
@@ -184,7 +192,7 @@
         
         <!-- Voice -->
         <button 
-          class="flex flex-col items-center py-1 px-3 rounded-lg transition-colors {activeTab === 'voice' || voice?.isListening ? 'text-blue-600 bg-blue-50' : 'text-gray-500'}"
+          class="flex flex-col items-center py-1 px-3 rounded-lg transition-colors {voice?.isListening ? 'text-blue-600 bg-blue-50' : 'text-gray-500'}"
           onclick={handleVoiceClick}
         >
           <div class="relative">
