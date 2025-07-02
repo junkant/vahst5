@@ -228,9 +228,7 @@
           onclick={() => handleVoiceClick()}
         >
           <div class="relative">
-            <svg class="w-6 h-6 mb-0.5 {voice?.isListening ? 'animate-pulse' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
-            </svg>
+            <Icon name="microphone" class="w-6 h-6 mb-0.5 {voice?.isListening ? 'animate-pulse' : ''}" />
             {#if voice?.isListening}
               <div class="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
             {/if}

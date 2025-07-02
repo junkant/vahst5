@@ -109,9 +109,7 @@
         <!-- Voice Control -->
         <div class="bg-white p-8 rounded-xl shadow-lg hover:shadow-xl transition-shadow">
           <div class="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mb-6">
-            <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
-            </svg>
+            <Icon name="microphone" class="w-6 h-6 text-blue-600" />
           </div>
           <h3 class="text-xl font-semibold text-gray-900 mb-3">Voice-First Design</h3>
           <p class="text-gray-600">
@@ -133,9 +131,7 @@
         <!-- Offline Mode -->
         <div class="bg-white p-8 rounded-xl shadow-lg hover:shadow-xl transition-shadow">
           <div class="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center mb-6">
-            <svg class="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
-            </svg>
+            <Icon name="inbox" class="w-6 h-6 text-purple-600" />
           </div>
           <h3 class="text-xl font-semibold text-gray-900 mb-3">Works Anywhere</h3>
           <p class="text-gray-600">
@@ -157,9 +153,7 @@
         <!-- Multi-Business -->
         <div class="bg-white p-8 rounded-xl shadow-lg hover:shadow-xl transition-shadow">
           <div class="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center mb-6">
-            <svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-            </svg>
+            <Icon name="building" class="w-6 h-6 text-red-600" />
           </div>
           <h3 class="text-xl font-semibold text-gray-900 mb-3">Multi-Business Support</h3>
           <p class="text-gray-600">
@@ -292,9 +286,7 @@
         <div class="bg-white p-6 rounded-lg shadow-sm">
           <div class="flex mb-4">
             {#each Array(5) as _}
-              <svg class="w-5 h-5 text-yellow-400 fill-current" viewBox="0 0 20 20">
-                <path d="M10 15l-5.878 3.09 1.123-6.545L.489 6.91l6.572-.955L10 0l2.939 5.955 6.572.955-4.756 4.635 1.123 6.545z"/>
-              </svg>
+              <Icon name="star" class="w-5 h-5 text-yellow-400 fill-current" />
             {/each}
           </div>
           <p class="text-gray-700 mb-4">
@@ -307,9 +299,7 @@
         <div class="bg-white p-6 rounded-lg shadow-sm">
           <div class="flex mb-4">
             {#each Array(5) as _}
-              <svg class="w-5 h-5 text-yellow-400 fill-current" viewBox="0 0 20 20">
-                <path d="M10 15l-5.878 3.09 1.123-6.545L.489 6.91l6.572-.955L10 0l2.939 5.955 6.572.955-4.756 4.635 1.123 6.545z"/>
-              </svg>
+              <Icon name="star" class="w-5 h-5 text-yellow-400 fill-current" />
             {/each}
           </div>
           <p class="text-gray-700 mb-4">
@@ -322,9 +312,7 @@
         <div class="bg-white p-6 rounded-lg shadow-sm">
           <div class="flex mb-4">
             {#each Array(5) as _}
-              <svg class="w-5 h-5 text-yellow-400 fill-current" viewBox="0 0 20 20">
-                <path d="M10 15l-5.878 3.09 1.123-6.545L.489 6.91l6.572-.955L10 0l2.939 5.955 6.572.955-4.756 4.635 1.123 6.545z"/>
-              </svg>
+              <Icon name="star" class="w-5 h-5 text-yellow-400 fill-current" />
             {/each}
           </div>
           <p class="text-gray-700 mb-4">

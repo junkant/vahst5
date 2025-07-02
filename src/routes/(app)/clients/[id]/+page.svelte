@@ -190,9 +190,7 @@
           class="p-2 hover:bg-gray-100 rounded-lg transition-colors"
           aria-label="Go back"
         >
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-          </svg>
+          <Icon name="chevronLeft" class="w-5 h-5" />
         </button>
         <h1 class="text-xl font-semibold text-gray-900">
           {isLoading ? 'Loading...' : client ? client.name : 'Client Details'}
@@ -245,9 +243,7 @@
                 onclick={startJob}
                 class="p-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex flex-col items-center"
               >
-                <svg class="w-5 h-5 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                </svg>
+                <Icon name="plus" class="w-5 h-5 mb-1" />
                 <span class="text-sm">New Job</span>
               </button>
               

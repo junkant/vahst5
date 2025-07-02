@@ -103,9 +103,7 @@
           onclick={openNewClientForm}
           class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center space-x-2"
         >
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-          </svg>
+          <Icon name="plus" class="w-4 h-4" />
           <span>Add Client</span>
         </button>
       </div>
@@ -165,9 +163,7 @@
     {:else if clients.error}
       <div class="bg-red-50 border border-red-200 rounded-lg p-4">
         <div class="flex items-center">
-          <svg class="w-5 h-5 text-red-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16c-.77.833.192 2.5 1.732 2.5z" />
-          </svg>
+          <Icon name="warning" class="w-5 h-5 text-red-600 mr-2" />
           <p class="text-sm text-red-800">{clients.error}</p>
         </div>
       </div>

@@ -154,9 +154,7 @@
             <div class="flex items-center gap-3">
               <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-green-400 to-green-500 
                           flex items-center justify-center text-white">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-                </svg>
+                <Icon name="link" class="w-4 h-4" />
               </div>
               <div class="flex-1">
                 <p class="font-medium text-gray-900">Link Another Account</p>
@@ -191,10 +189,7 @@
     <!-- No Business Selected -->
     <div class="text-center py-6">
       <div class="w-12 h-12 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
-        <svg class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
-                d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-        </svg>
+        <Icon name="building" class="w-6 h-6 text-gray-400" />
       </div>
       <p class="text-gray-500 font-medium">No business selected</p>
       <p class="text-sm text-gray-400 mt-1">Please contact your administrator to get access</p>
@@ -205,9 +200,7 @@
   {#if auth.tenant}
     <div class="bg-gray-50 rounded-lg p-3">
       <div class="flex items-start gap-2">
-        <svg class="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
-        </svg>
+        <Icon name="microphone" class="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
         <div>
           <p class="text-sm font-medium text-gray-700">Voice Command Tip</p>
           <p class="text-xs text-gray-600 mt-1">
