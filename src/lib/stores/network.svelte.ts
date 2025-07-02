@@ -1,102 +1,81 @@
 // src/lib/stores/network.svelte.ts
 import { browser } from '$app/environment';
 
-interface NetworkStatus {
+interface NetworkState {
   isOnline: boolean;
   isSlowConnection: boolean;
-  connectionType: string | null;
-  lastChecked: Date;
+  effectiveType?: 'slow-2g' | '2g' | '3g' | '4g';
 }
 
-let isOnline = $state(browser ? navigator.onLine : true);
-let isSlowConnection = $state(false);
-let connectionType = $state<string | null>(null);
-let lastChecked = $state(new Date());
+class NetworkStore {
+  // Use $state for reactive properties
+  #isOnline = $state<boolean>(browser ? navigator.onLine : true);
+  #isSlowConnection = $state<boolean>(false);
+  #effectiveType = $state<'slow-2g' | '2g' | '3g' | '4g' | undefined>(undefined);
 
-// Connection speed threshold (in Mbps)
-const SLOW_CONNECTION_THRESHOLD = 1;
+  constructor() {
+    if (browser) {
+      this.initializeListeners();
+      this.checkConnectionSpeed();
+    }
+  }
 
-export function useNetworkStatus() {
-  if (browser) {
-    // Monitor online/offline status
+  private initializeListeners() {
+    // Online/offline detection
     window.addEventListener('online', () => {
-      isOnline = true;
-      lastChecked = new Date();
+      this.#isOnline = true;
     });
-    
+
     window.addEventListener('offline', () => {
-      isOnline = false;
-      isSlowConnection = false; // If offline, connection speed doesn't matter
-      lastChecked = new Date();
+      this.#isOnline = false;
     });
-    
-    // Check connection quality (if supported)
+
+    // Connection change detection
     if ('connection' in navigator) {
       const connection = (navigator as any).connection;
-      
-      function updateConnectionInfo() {
-        connectionType = connection.effectiveType || null;
-        
-        // Determine if connection is slow
-        if (connection.downlink) {
-          isSlowConnection = connection.downlink < SLOW_CONNECTION_THRESHOLD;
-        } else if (connection.effectiveType) {
-          isSlowConnection = ['slow-2g', '2g'].includes(connection.effectiveType);
-        }
-        
-        lastChecked = new Date();
-      }
-      
-      updateConnectionInfo();
-      connection.addEventListener('change', updateConnectionInfo);
-    }
-    
-    // Periodic connectivity check (every 30 seconds)
-    setInterval(() => {
-      if (isOnline) {
-        // Simple connectivity check using a lightweight endpoint
-        fetch('/api/ping', { method: 'HEAD' })
-          .then(() => {
-            isOnline = true;
-          })
-          .catch(() => {
-            isOnline = false;
-          })
-          .finally(() => {
-            lastChecked = new Date();
-          });
-      }
-    }, 30000);
-  }
-  
-  return {
-    get isOnline() { return isOnline; },
-    get isSlowConnection() { return isSlowConnection; },
-    get connectionType() { return connectionType; },
-    get lastChecked() { return lastChecked; },
-    
-    // Computed status
-    get status(): 'online' | 'slow' | 'offline' {
-      if (!isOnline) return 'offline';
-      if (isSlowConnection) return 'slow';
-      return 'online';
-    },
-    
-    // Force a connectivity check
-    checkConnectivity() {
-      if (!browser) return Promise.resolve(true);
-      
-      return fetch('/api/ping', { method: 'HEAD' })
-        .then(() => {
-          isOnline = true;
-          lastChecked = new Date();
-          return true;
-        })
-        .catch(() => {
-          isOnline = false;
-          lastChecked = new Date();
-          return false;
+      if (connection) {
+        connection.addEventListener('change', () => {
+          this.checkConnectionSpeed();
         });
+      }
     }
-  };
+  }
+
+  private checkConnectionSpeed() {
+    if (!browser) return;
+
+    if ('connection' in navigator) {
+      const connection = (navigator as any).connection;
+      if (connection) {
+        this.#effectiveType = connection.effectiveType;
+        this.#isSlowConnection = 
+          connection.effectiveType === 'slow-2g' || 
+          connection.effectiveType === '2g' ||
+          connection.saveData === true;
+      }
+    }
+  }
+
+  // Public getters using proper Svelte 5 syntax
+  get isOnline(): boolean {
+    return this.#isOnline;
+  }
+
+  get isSlowConnection(): boolean {
+    return this.#isSlowConnection;
+  }
+
+  get effectiveType(): string | undefined {
+    return this.#effectiveType;
+  }
+}
+
+// Create and export singleton instance
+let instance: NetworkStore;
+
+export function useNetwork(): NetworkStore {
+  if (!instance) {
+    instance = new NetworkStore();
+  }
+  return instance;
 }

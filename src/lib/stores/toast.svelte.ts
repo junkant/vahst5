@@ -1,69 +1,69 @@
 // src/lib/stores/toast.svelte.ts
-import { createToaster } from '@melt-ui/svelte';
+import { createToaster, type ToastT } from '@melt-ui/svelte';
 
-export type ToastType = 'success' | 'error' | 'info' | 'warning';
+const MAX_TOASTS = 5;
+const TOAST_DURATION = 5000;
 
-export interface ToastData {
+type ToastData = {
   title: string;
   description?: string;
-  type: ToastType;
-}
-
-// Create the Melt UI toaster
-const {
-  elements,
-  helpers,
-  states,
-  actions
-} = createToaster<ToastData>();
-
-// Helper functions with proper auto-dismiss
-export const toast = {
-  success(title: string, description?: string) {
-    helpers.addToast({
-      data: {
-        title,
-        description,
-        type: 'success'
-      },
-      closeDelay: 5000 // Auto-dismiss after 5 seconds
-    });
-  },
-  
-  error(title: string, description?: string) {
-    helpers.addToast({
-      data: {
-        title,
-        description,
-        type: 'error'
-      },
-      closeDelay: 7000 // Errors stay longer
-    });
-  },
-  
-  info(title: string, description?: string) {
-    helpers.addToast({
-      data: {
-        title,
-        description,
-        type: 'info'
-      },
-      closeDelay: 5000
-    });
-  },
-  
-  warning(title: string, description?: string) {
-    helpers.addToast({
-      data: {
-        title,
-        description,
-        type: 'warning'
-      },
-      closeDelay: 6000
-    });
-  }
+  type: 'success' | 'error' | 'info' | 'warning';
 };
 
-// Export Melt UI elements and states for the component
-export const toaster = elements.toaster;
-export const toasts = states.toasts;
+class ToastStore {
+  private toaster = createToaster<ToastData>();
+  
+  get states() {
+    return this.toaster.states;
+  }
+  
+  get helpers() {
+    return this.toaster.helpers;
+  }
+  
+  private show(type: ToastData['type'], message: string, description?: string) {
+    // Limit toast queue to prevent memory issues
+    const currentToasts = get(this.toaster.states.toasts);
+    if (currentToasts.length >= MAX_TOASTS) {
+      // Remove oldest toast
+      this.toaster.helpers.removeToast(currentToasts[0].id);
+    }
+    
+    this.toaster.helpers.addToast({
+      data: {
+        title: message,
+        description,
+        type
+      },
+      duration: TOAST_DURATION
+    });
+  }
+  
+  success(message: string, description?: string) {
+    this.show('success', message, description);
+  }
+  
+  error(message: string, description?: string) {
+    this.show('error', message, description);
+  }
+  
+  info(message: string, description?: string) {
+    this.show('info', message, description);
+  }
+  
+  warning(message: string, description?: string) {
+    this.show('warning', message, description);
+  }
+  
+  // Clear all toasts
+  clearAll() {
+    const currentToasts = get(this.toaster.states.toasts);
+    currentToasts.forEach(toast => {
+      this.toaster.helpers.removeToast(toast.id);
+    });
+  }
+}
+
+// Export singleton instance
+export const toastStore = new ToastStore();
+export const useToast = () => toastStore;

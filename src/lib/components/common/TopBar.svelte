@@ -1,10 +1,14 @@
-<!-- src/lib/components/common/TopBar.svelte -->
+<!--
+  @component TopBar
+  @description Top navigation bar with business name and client selector
+  @usage <TopBar />
+-->
 <script lang="ts">
   import { goto } from '$app/navigation';
   import { useAuth } from '$lib/stores/auth.svelte';
   import { useClients } from '$lib/stores/client.svelte';
   import { useTenant } from '$lib/stores/tenant.svelte';
-  import ClientSelector from '$lib/components/client/ClientSelector.svelte';
+  import { debounce } from '$lib/utils/debounce';
   
   const auth = useAuth();
   const clients = useClients();
@@ -12,9 +16,19 @@
   
   let showClientSelector = $state(false);
   let showUserMenu = $state(false);
+  let ClientSelector = $state<any>(null); // Fixed: Use $state for reactive updates
   
-  // Track tenant changes
+  // Track tenant changes for cleanup
   let lastTenantId = $state<string | null>(null);
+  
+  // Performance: Lazy load ClientSelector on first use
+  async function openClientSelector() {
+    if (!ClientSelector) {
+      const module = await import('$lib/components/client/ClientSelector.svelte');
+      ClientSelector = module.default;
+    }
+    showClientSelector = true;
+  }
   
   // Monitor tenant changes and force clear client selection
   $effect(() => {
@@ -36,6 +50,11 @@
     }
   });
   
+  // Performance: Debounced search (if implementing inline search)
+  const debouncedSearch = debounce((term: string) => {
+    clients.searchClients(term);
+  }, 300);
+  
   async function handleSignOut() {
     await auth.signOut();
     goto('/');
@@ -50,12 +69,23 @@
     clients.selectClient(null);
   }
   
-  function openClientSelector() {
-    showClientSelector = true;
-  }
-  
   function closeAllDropdowns() {
     showUserMenu = false;
+  }
+  
+  // Cleanup on unmount
+  $effect(() => {
+    return () => {
+      closeAllDropdowns();
+    };
+  });
+
+  // Performance monitoring in dev
+  if (import.meta.env.DEV) {
+    const start = performance.now();
+    $effect(() => {
+      console.log(`TopBar rendered in ${performance.now() - start}ms`);
+    });
   }
 </script>
 
@@ -125,8 +155,6 @@
       <svg class="w-4 h-4 text-gray-400 flex-shrink-0 ml-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
       </svg>
-      
-      <!-- Removed client count indicator from here -->
     </button>
     
     <!-- User Menu (Right) -->
@@ -165,23 +193,21 @@
           <!-- Menu Items -->
           <button 
             onclick={navigateToSettings}
-            class="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded transition-colors flex items-center"
+            class="w-full flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded"
           >
-            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
             </svg>
-            Settings & Switch Business
+            Settings
           </button>
-          
-          <hr class="my-2 border-gray-100" />
           
           <button 
             onclick={handleSignOut}
-            class="w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded transition-colors flex items-center"
+            class="w-full flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded"
           >
-            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l-4-4m0 0l4-4m-4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+            <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
             </svg>
             Sign Out
           </button>
@@ -189,33 +215,9 @@
       {/if}
     </div>
   </div>
-</header>
-
-<!-- Modals -->
-<ClientSelector bind:open={showClientSelector} />
-
-<!-- Click outside to close dropdowns -->
-{#if showUserMenu}
-  <button 
-    class="fixed inset-0 z-40" 
-    onclick={closeAllDropdowns}
-    aria-label="Close menu"
-  ></button>
-{/if}
-
-<style>
-  @keyframes fade-in {
-    from {
-      opacity: 0;
-      transform: translateY(-4px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
   
-  .animate-fade-in {
-    animation: fade-in 0.3s ease-out;
-  }
-</style>
+  <!-- Lazy loaded client selector -->
+  {#if showClientSelector && ClientSelector}
+    <ClientSelector bind:open={showClientSelector} />
+  {/if}
+</header>

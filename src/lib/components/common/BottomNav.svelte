@@ -1,24 +1,49 @@
-<!-- src/lib/components/common/BottomNav.svelte -->
+<!--
+  @component BottomNav
+  @description Bottom navigation bar for app navigation with voice control and quick actions
+  @usage <BottomNav mode="app" />
+-->
 <script lang="ts">
   import { goto } from '$app/navigation';
   import { page } from '$app/stores';
   import { useClients } from '$lib/stores/client.svelte';
   import { useAuth } from '$lib/stores/auth.svelte';
   import { useVoice } from '$lib/stores/voice.svelte';
-  import { useNetworkStatus } from '$lib/stores/network.svelte';
+  import { useNetwork } from '$lib/stores/network.svelte.ts';
   
-  let { 
-    mode = 'app'
-  } = $props();
+  interface Props {
+    mode?: 'app' | 'landing';
+  }
+  
+  let { mode = 'app' }: Props = $props();
   
   const client = useClients();
   const auth = useAuth();
-  const network = useNetworkStatus();
+  const network = useNetwork();
   
   // Get voice store (it will handle its own initialization)
   const voice = mode === 'app' ? useVoice() : null;
   
   let showQuickActions = $state(false);
+  
+  // Performance: Memoize route derivations
+  const activeTab = $derived.by(() => {
+    const route = $page.route.id;
+    if (!route) return '';
+    
+    if (route.includes('my-day')) return 'my-day';
+    if (route.includes('tasks')) return 'tasks';
+    if (route.includes('money')) return 'money';
+    if (route.includes('clients')) return 'clients';
+    return '';
+  });
+
+  // Performance: Memoize lightning color calculation
+  const lightningColor = $derived.by(() => {
+    if (!network.isOnline) return 'text-red-500';
+    if (network.isSlowConnection) return 'text-yellow-500';
+    return 'text-white';
+  });
   
   function navigateTo(path: string) {
     goto(path);
@@ -41,18 +66,6 @@
     window.dispatchEvent(new Event('openRegisterModal'));
   }
   
-  // Determine active tab based on current path
-  let currentPath = $derived($page.url.pathname);
-  let activeTab = $derived(getActiveTab(currentPath));
-  
-  function getActiveTab(path: string) {
-    if (path === '/') return 'home';
-    if (path.includes('/my-day')) return 'my-day';
-    if (path.includes('/tasks')) return 'tasks';
-    if (path.includes('/money')) return 'money';
-    return 'my-day';
-  }
-  
   function handleVoiceClick() {
     if (voice && auth.isAuthenticated) {
       voice.startListening();
@@ -62,11 +75,24 @@
     }
   }
   
-  // Get lightning bolt color based on connection status
-  function getLightningColor() {
-    if (!network.isOnline) return 'text-red-500';
-    if (network.isSlowConnection) return 'text-yellow-500';
-    return 'text-white'; // Default white for good connection
+  // Cleanup on unmount
+  $effect(() => {
+    return () => {
+      if (voice?.isListening) {
+        voice.stopListening();
+      }
+      if (showQuickActions) {
+        showQuickActions = false;
+      }
+    };
+  });
+
+  // Performance monitoring in dev
+  if (import.meta.env.DEV) {
+    const start = performance.now();
+    $effect(() => {
+      console.log(`BottomNav rendered in ${performance.now() - start}ms`);
+    });
   }
 </script>
 
@@ -174,7 +200,7 @@
           onclick={toggleQuickActions}
           aria-label="Quick actions menu"
         >
-          <svg class="w-8 h-8 transition-colors duration-300 {getLightningColor()}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg class="w-8 h-8 transition-colors duration-300 {lightningColor}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
           </svg>
         </button>
@@ -207,24 +233,6 @@
         </button>
       </div>
     </div>
-    
-    <!-- Voice transcript display -->
-    {#if voice?.isListening && voice?.transcript}
-      <div class="absolute bottom-full left-0 right-0 mb-2 mx-4">
-        <div class="bg-gray-900 text-white px-4 py-2 rounded-lg shadow-lg">
-          <p class="text-sm">{voice.transcript}</p>
-        </div>
-      </div>
-    {/if}
-    
-    <!-- Voice error display -->
-    {#if voice?.error}
-      <div class="absolute bottom-full left-0 right-0 mb-2 mx-4">
-        <div class="bg-red-500 text-white px-4 py-2 rounded-lg shadow-lg">
-          <p class="text-sm">{voice.error}</p>
-        </div>
-      </div>
-    {/if}
     
     <!-- Quick Actions Menu -->
     {#if showQuickActions}
