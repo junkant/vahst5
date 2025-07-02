@@ -120,15 +120,11 @@
             <span class="font-medium text-gray-900 dark:text-gray-100">Offline Mode</span>
           {:else if offline.isSyncing || syncStatus === 'syncing'}
             <!-- Refresh Icon (animated) -->
-            <svg class="w-5 h-5 text-blue-500 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-            </svg>
+            <Icon name="refresh" class="w-5 h-5 text-blue-500 animate-spin" />
             <span class="font-medium text-gray-900 dark:text-gray-100">Syncing changes...</span>
           {:else if syncStatus === 'success'}
             <!-- Success Icon -->
-            <svg class="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 20 20">
-              <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
-            </svg>
+            <Icon name="checkCircleFilled" class="w-5 h-5 text-green-500" />
             <span class="font-medium text-green-600 dark:text-green-400">All changes synced</span>
           {:else if syncStatus === 'error' || offline.hasSyncErrors}
             <!-- Error Icon -->
@@ -138,9 +134,7 @@
             <span class="font-medium text-red-600 dark:text-red-400">Sync errors</span>
           {:else if offline.hasQueuedOperations}
             <!-- Alert Icon -->
-            <svg class="w-5 h-5 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-            </svg>
+            <Icon name="warning" class="w-5 h-5 text-yellow-500" />
             <span class="font-medium text-gray-900 dark:text-gray-100">
               {offline.queueLength} pending {offline.queueLength === 1 ? 'change' : 'changes'}
             </span>
@@ -148,15 +142,7 @@
         </div>
         
         <!-- Chevron Icon -->
-        <svg
-          class="w-5 h-5 text-gray-400 transition-transform"
-          class:rotate-180={showDetails}
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-        </svg>
+        <Icon name="chevronDown" class="w-5 h-5 text-gray-400 transition-transform" />
       </button>
       
       <!-- Details Panel -->
@@ -222,9 +208,7 @@
           
           {#if offline.backgroundSyncSupported}
             <p class="text-xs text-gray-500 dark:text-gray-400 mt-1 flex items-center gap-1">
-              <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
-              </svg>
+              <Icon name="checkCircleFilled" class="w-3 h-3" />
               Background sync enabled
             </p>
           {/if}

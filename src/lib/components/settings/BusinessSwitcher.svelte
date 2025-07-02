@@ -132,9 +132,7 @@
                     {#if isSwitching}
                       <div class="animate-spin h-4 w-4 border-2 border-gray-300 rounded-full border-t-blue-600"></div>
                     {:else}
-                      <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-                      </svg>
+                      <Icon name="chevronRight" class="w-4 h-4 text-gray-400" />
                     {/if}
                   </div>
                 </button>
@@ -164,9 +162,7 @@
                 <p class="font-medium text-gray-900">Link Another Account</p>
                 <p class="text-sm text-gray-500">Connect to an existing business</p>
               </div>
-              <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-              </svg>
+              <Icon name="chevronRight" class="w-4 h-4 text-gray-400" />
             </div>
           </button>
           
@@ -179,17 +175,13 @@
             <div class="flex items-center gap-3">
               <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-400 to-blue-500 
                           flex items-center justify-center text-white">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-                </svg>
+                <Icon name="plus" class="w-4 h-4" />
               </div>
               <div class="flex-1">
                 <p class="font-medium text-gray-900">Create New Business</p>
                 <p class="text-sm text-gray-500">Set up a new business account</p>
               </div>
-              <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-              </svg>
+              <Icon name="chevronRight" class="w-4 h-4 text-gray-400" />
             </div>
           </button>
         </div>

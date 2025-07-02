@@ -188,9 +188,7 @@
     {#if clients.selectedClient}
       <div class="flex items-center justify-between bg-blue-50 border border-blue-200 rounded-lg px-3 py-2 mb-3">
         <div class="flex items-center space-x-2">
-          <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
+          <Icon name="info" class="w-4 h-4 text-blue-600" />
           <span class="text-sm text-blue-800">
             Showing jobs for: <span class="font-medium">{clients.selectedClient.name}</span>
           </span>
@@ -244,9 +242,7 @@
       </div>
     {:else if filteredJobs.length === 0}
       <div class="text-center py-12">
-        <svg class="w-12 h-12 text-gray-400 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-        </svg>
+        <Icon name="clipboard" class="w-12 h-12 text-gray-400 mx-auto mb-3" />
         <h3 class="text-lg font-medium text-gray-900 mb-1">
           {searchQuery || clients.selectedClient ? 'No jobs found' : 'No jobs yet'}
         </h3>
@@ -306,9 +302,7 @@
               </div>
               
               <div class="text-right ml-4">
-                <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-                </svg>
+                <Icon name="chevronRight" class="w-5 h-5 text-gray-400" />
               </div>
             </div>
           </button>

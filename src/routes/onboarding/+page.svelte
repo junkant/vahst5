@@ -207,9 +207,7 @@
                                 ? 'border-blue-600 bg-blue-600' 
                                 : 'border-gray-300'}">
                     {#if onboardingData.services.includes(service)}
-                      <svg class="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" />
-                      </svg>
+                      <Icon name="check" class="w-3 h-3 text-white" />
                     {/if}
                   </div>
                   {service}
@@ -241,27 +239,19 @@
           </div>
           <div class="grid grid-cols-2 gap-2 text-sm text-gray-600">
             <div class="flex items-center">
-              <svg class="w-4 h-4 text-green-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-              </svg>
+              <Icon name="check" class="w-4 h-4 text-green-500 mr-2" />
               Unlimited clients & jobs
             </div>
             <div class="flex items-center">
-              <svg class="w-4 h-4 text-green-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-              </svg>
+              <Icon name="check" class="w-4 h-4 text-green-500 mr-2" />
               Voice-powered workflows
             </div>
             <div class="flex items-center">
-              <svg class="w-4 h-4 text-green-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-              </svg>
+              <Icon name="check" class="w-4 h-4 text-green-500 mr-2" />
               Scheduling & dispatch
             </div>
             <div class="flex items-center">
-              <svg class="w-4 h-4 text-green-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-              </svg>
+              <Icon name="check" class="w-4 h-4 text-green-500 mr-2" />
               Invoicing & payments
             </div>
           </div>
@@ -295,9 +285,7 @@
                                   ? 'border-blue-600 bg-blue-600' 
                                   : 'border-gray-300'}">
                       {#if onboardingData.modules.includes(module.value)}
-                        <svg class="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" />
-                        </svg>
+                        <Icon name="check" class="w-3 h-3 text-white" />
                       {/if}
                     </div>
                   </div>

@@ -67,10 +67,7 @@
 <div>
   {#if activeJobs().length === 0}
     <div class="text-center py-8">
-      <svg class="w-12 h-12 text-gray-400 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
-              d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-      </svg>
+      <Icon name="clipboard" class="w-12 h-12 text-gray-400 mx-auto mb-3" />
       <p class="text-gray-500 mb-4">No active jobs</p>
       <button
         onclick={createNewJob}
@@ -104,10 +101,7 @@
               {/if}
               {#if job.assignedTo?.length > 0}
                 <div class="flex items-center gap-2 mt-2">
-                  <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
-                          d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                  </svg>
+                  <Icon name="user" class="w-4 h-4 text-gray-400" />
                   <span class="text-xs text-gray-500">
                     {job.assignedTo.join(', ')}
                   </span>
@@ -118,9 +112,7 @@
               <span class="px-2 py-1 text-xs font-medium rounded-full {getStatusColor(job.status)}">
                 {job.status.replace('_', ' ')}
               </span>
-              <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-              </svg>
+              <Icon name="chevronRight" class="w-5 h-5 text-gray-400" />
             </div>
           </div>
         </div>
@@ -132,9 +124,7 @@
                hover:border-gray-400 hover:text-gray-700 transition-colors flex items-center 
                justify-center gap-2"
       >
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-        </svg>
+        <Icon name="plus" class="w-5 h-5" />
         Add New Job
       </button>
     </div>

@@ -125,9 +125,7 @@
           class="flex flex-col items-center py-1 px-3 rounded-lg transition-colors text-gray-600 hover:text-blue-600 cursor-pointer"
           onclick={() => scrollToSection('features')}
         >
-          <svg class="w-6 h-6 mb-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-          </svg>
+          <Icon name="clipboard" class="w-6 h-6 mb-0.5" />
           <span class="text-xs">Features</span>
         </button>
         
@@ -137,9 +135,7 @@
           class="flex flex-col items-center py-1 px-3 rounded-lg transition-colors text-gray-600 hover:text-blue-600 cursor-pointer"
           onclick={() => scrollToSection('pricing')}
         >
-          <svg class="w-6 h-6 mb-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
+          <Icon name="dollar" class="w-6 h-6 mb-0.5" />
           <span class="text-xs">Pricing</span>
         </button>
         
@@ -150,9 +146,7 @@
           onclick={() => openRegister()}
           aria-label="Start free trial"
         >
-          <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
-          </svg>
+          <Icon name="lightning" class="w-8 h-8 text-white" />
         </button>
         
         <!-- Login -->
@@ -173,9 +167,7 @@
           class="flex flex-col items-center py-1 px-3 rounded-lg transition-colors text-gray-600 hover:text-blue-600 cursor-pointer"
           onclick={() => openRegister()}
         >
-          <svg class="w-6 h-6 mb-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
-          </svg>
+          <Icon name="userPlus" class="w-6 h-6 mb-0.5" />
           <span class="text-xs">Sign Up</span>
         </button>
       </div>
@@ -197,9 +189,7 @@
           class="flex flex-col items-center py-1 px-3 rounded-lg transition-colors {activeTab === 'my-day' ? 'text-blue-600' : 'text-gray-500'} cursor-pointer"
           onclick={() => navigateTo('/my-day')}
         >
-          <svg class="w-6 h-6 mb-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
+          <Icon name="clock" class="w-6 h-6 mb-0.5" />
           <span class="text-xs">My Day</span>
         </button>
         
@@ -209,9 +199,7 @@
           class="flex flex-col items-center py-1 px-3 rounded-lg transition-colors {activeTab === 'tasks' ? 'text-blue-600' : 'text-gray-500'} cursor-pointer"
           onclick={() => navigateTo('/tasks')}
         >
-          <svg class="w-6 h-6 mb-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-          </svg>
+          <Icon name="clipboard" class="w-6 h-6 mb-0.5" />
           <span class="text-xs">Tasks</span>
         </button>
         
@@ -222,9 +210,7 @@
           onclick={() => toggleQuickActions()}
           aria-label="Quick actions menu"
         >
-          <svg class="w-8 h-8 transition-colors duration-300 {lightningColor}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
-          </svg>
+          <Icon name="lightning" class="w-8 h-8 transition-colors duration-300 {lightningColor}" />
         </button>
         
         <!-- Money -->
@@ -233,9 +219,7 @@
           class="flex flex-col items-center py-1 px-3 rounded-lg transition-colors {activeTab === 'money' ? 'text-blue-600' : 'text-gray-500'} cursor-pointer"
           onclick={() => navigateTo('/money')}
         >
-          <svg class="w-6 h-6 mb-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
+          <Icon name="dollar" class="w-6 h-6 mb-0.5" />
           <span class="text-xs">Money</span>
         </button>
         

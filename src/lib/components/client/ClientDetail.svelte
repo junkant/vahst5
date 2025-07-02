@@ -230,9 +230,7 @@
             aria-label="Close"
             disabled={isLoading || isSaving}
           >
-            <svg class="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-            </svg>
+            <Icon name="close" class="w-5 h-5 text-gray-500" />
           </button>
         </div>
       </div>
@@ -246,14 +244,7 @@
             class="w-full flex items-center justify-between text-left mb-4"
           >
             <h3 class="text-lg font-medium text-gray-900">Basic Information</h3>
-            <svg 
-              class="w-5 h-5 text-gray-400 transition-transform {expandedSections.info ? 'rotate-180' : ''}"
-              fill="none" 
-              stroke="currentColor" 
-              viewBox="0 0 24 24"
-            >
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-            </svg>
+            <Icon name="chevronDown" class="w-5 h-5 text-gray-400 transition-transform {expandedSections.info ? " />
           </button>
           
           {#if expandedSections.info}
@@ -412,14 +403,7 @@
             aria-controls="client-history"
           >
             <h3 class="text-lg font-medium text-gray-900">Service History</h3>
-            <svg 
-              class="w-5 h-5 text-gray-400 transition-transform {expandedSections.history ? 'rotate-180' : ''}"
-              fill="none" 
-              stroke="currentColor" 
-              viewBox="0 0 24 24"
-            >
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-            </svg>
+            <Icon name="chevronDown" class="w-5 h-5 text-gray-400 transition-transform {expandedSections.history ? " />
           </button>
           
           <div id="client-history">
@@ -448,14 +432,7 @@
             aria-controls="client-jobs"
           >
             <h3 class="text-lg font-medium text-gray-900">Active Jobs</h3>
-            <svg 
-              class="w-5 h-5 text-gray-400 transition-transform {expandedSections.jobs ? 'rotate-180' : ''}"
-              fill="none" 
-              stroke="currentColor" 
-              viewBox="0 0 24 24"
-            >
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-            </svg>
+            <Icon name="chevronDown" class="w-5 h-5 text-gray-400 transition-transform {expandedSections.jobs ? " />
           </button>
           
           <div id="client-jobs">
@@ -483,14 +460,7 @@
             aria-controls="client-notes"
           >
             <h3 class="text-lg font-medium text-gray-900">Notes</h3>
-            <svg 
-              class="w-5 h-5 text-gray-400 transition-transform {expandedSections.notes ? 'rotate-180' : ''}"
-              fill="none" 
-              stroke="currentColor" 
-              viewBox="0 0 24 24"
-            >
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-            </svg>
+            <Icon name="chevronDown" class="w-5 h-5 text-gray-400 transition-transform {expandedSections.notes ? " />
           </button>
           
           <div id="client-notes">

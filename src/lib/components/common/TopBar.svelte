@@ -200,9 +200,7 @@
         tabindex="0"
         onkeydown={(e) => (e.key === 'Enter' || e.key === ' ') && openClientSelector()}
       >
-        <svg class="w-4 h-4 text-gray-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-        </svg>
+        <Icon name="user" class="w-4 h-4 text-gray-500 flex-shrink-0" />
         
         <!-- Client Display -->
         {#if clients.isLoadingClients}
@@ -221,9 +219,7 @@
               class="text-gray-400 hover:text-gray-600 p-0.5 rounded hover:bg-gray-100 cursor-pointer"
               aria-label="Clear client selection"
             >
-              <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-              </svg>
+              <Icon name="close" class="w-3 h-3" />
             </span>
           </div>
         {:else if clients.clients.length === 0 && !clients.isLoadingClients}
@@ -233,9 +229,7 @@
         {/if}
         
         <!-- Dropdown Arrow -->
-        <svg class="w-4 h-4 text-gray-400 flex-shrink-0 ml-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-        </svg>
+        <Icon name="chevronDown" class="w-4 h-4 text-gray-400 flex-shrink-0 ml-auto" />
       </div>
       
       <!-- Quick Search Button -->
@@ -244,9 +238,7 @@
         class="absolute right-0 top-0 h-full px-2 hover:bg-gray-200 rounded-r-lg transition-colors flex items-center"
         aria-label="Quick search"
       >
-        <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-        </svg>
+        <Icon name="search" class="w-4 h-4 text-gray-400" />
       </button>
       
       <!-- Inline Search Dropdown -->
@@ -311,9 +303,7 @@
         <div class="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white font-medium">
           {auth.user?.email?.[0]?.toUpperCase() || 'U'}
         </div>
-        <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-        </svg>
+        <Icon name="chevronDown" class="w-4 h-4 text-gray-400" />
       </button>
       
       {#if showUserMenu}
