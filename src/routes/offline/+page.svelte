@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { browser } from '$app/environment';
 	import { goto } from '$app/navigation';
+	import Icon from '$lib/components/icons/Icon.svelte';
 	
 	let isOnline = $state(false);
 	let previousPage = $state('');

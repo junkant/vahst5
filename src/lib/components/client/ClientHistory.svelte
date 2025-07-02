@@ -7,6 +7,7 @@
 <script lang="ts">
   import { useJobs } from '$lib/stores/jobs.svelte';
   import type { Client } from '$lib/stores/client.svelte';
+  import Icon from '$lib/components/icons/Icon.svelte';
   
   interface Props {
     client: Client;

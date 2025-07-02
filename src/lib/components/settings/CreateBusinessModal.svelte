@@ -1,6 +1,7 @@
 <!-- src/lib/components/settings/CreateBusinessModal.svelte -->
 <script lang="ts">
   import { useAuth } from '$lib/stores/auth.svelte';
+  import Icon from '$lib/components/icons/Icon.svelte';
   
   const auth = useAuth();
   

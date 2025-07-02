@@ -1,6 +1,7 @@
 <script>
   import { createCombobox, melt } from '@melt-ui/svelte';
   import { useClients } from '$lib/stores/client.svelte';
+  import Icon from '$lib/components/icons/Icon.svelte';
   
   export let onSelect = () => {};
   export let placeholder = 'Search clients...';

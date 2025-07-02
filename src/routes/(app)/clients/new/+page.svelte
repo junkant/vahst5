@@ -4,6 +4,7 @@
   import { useClients } from '$lib/stores/client.svelte';
   import { useAuth } from '$lib/stores/auth.svelte';
   import { useTenant } from '$lib/stores/tenant.svelte';
+  import Icon from '$lib/components/icons/Icon.svelte';
   
   const clients = useClients();
   const auth = useAuth();

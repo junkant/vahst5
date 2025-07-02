@@ -3,6 +3,7 @@
   import { useAuth } from '$lib/stores/auth.svelte';
   import { goto } from '$app/navigation';
   import CreateBusinessModal from './CreateBusinessModal.svelte';
+  import Icon from '$lib/components/icons/Icon.svelte';
   
   const auth = useAuth();
   

@@ -9,6 +9,7 @@
   import { useOffline } from '$lib/stores/offline.svelte';
   import { useAuth } from '$lib/stores/auth.svelte';
   import { browser } from '$app/environment';
+  import Icon from '$lib/components/icons/Icon.svelte';
   
   const offline = useOffline();
   const auth = useAuth();

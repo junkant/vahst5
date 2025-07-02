@@ -11,6 +11,7 @@
   import { useTenant } from '$lib/stores/tenant.svelte';
   import { debounce } from '$lib/utils/debounce';
   import { onMount } from 'svelte';
+  import Icon from '$lib/components/icons/Icon.svelte';
   
   const auth = useAuth();
   const clients = useClients();

@@ -2,6 +2,7 @@
 <script lang="ts">
   import { page } from '$app/stores';
   import { goto } from '$app/navigation';
+  import Icon from '$lib/components/icons/Icon.svelte';
   
   let { children } = $props();
   

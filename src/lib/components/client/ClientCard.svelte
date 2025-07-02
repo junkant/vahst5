@@ -1,6 +1,6 @@
 <script>
   import { useClients } from '$lib/stores/client.svelte';
-  
+  import Icon from '$lib/components/icons/Icon.svelte';
   export let client;
   
   const clients = useClients();

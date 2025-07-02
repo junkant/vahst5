@@ -9,6 +9,7 @@
   import { fly, fade } from 'svelte/transition';
   import { flip } from 'svelte/animate';
   import { onMount } from 'svelte';
+  import Icon from '$lib/components/icons/Icon.svelte';
   
   const toast = useToast();
   

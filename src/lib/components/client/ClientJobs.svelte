@@ -8,6 +8,7 @@
   import { useJobs } from '$lib/stores/jobs.svelte';
   import { goto } from '$app/navigation';
   import type { Client } from '$lib/stores/client.svelte';
+  import Icon from '$lib/components/icons/Icon.svelte';
   
   interface Props {
     client: Client;

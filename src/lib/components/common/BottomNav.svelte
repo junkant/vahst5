@@ -10,6 +10,7 @@
   import { useAuth } from '$lib/stores/auth.svelte';
   import { useVoice } from '$lib/stores/voice.svelte';
   import { useNetwork } from '$lib/stores/network.svelte.ts';
+  import Icon from '$lib/components/icons/Icon.svelte';
   
   interface Props {
     mode?: 'app' | 'landing';

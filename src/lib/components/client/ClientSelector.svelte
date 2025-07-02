@@ -2,6 +2,7 @@
 <script lang="ts">
   import { useClients } from '$lib/stores/client.svelte';
   import { goto } from '$app/navigation';
+  import Icon from '$lib/components/icons/Icon.svelte';
   
   let { open = $bindable(false) } = $props();
   

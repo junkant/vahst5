@@ -6,6 +6,7 @@
   import { useClients } from '$lib/stores/client.svelte';
   import { useTenant } from '$lib/stores/tenant.svelte';
   import { goto } from '$app/navigation';
+  import Icon from '$lib/components/icons/Icon.svelte';
   
   const clients = useClients();
   const tenant = useTenant();

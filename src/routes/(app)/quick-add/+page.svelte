@@ -3,6 +3,7 @@
   import { goto } from '$app/navigation';
   import { useClients } from '$lib/stores/client.svelte';
   import NewClientForm from '$lib/components/client/NewClientForm.svelte';
+  import Icon from '$lib/components/icons/Icon.svelte';
   
   const clients = useClients();
   

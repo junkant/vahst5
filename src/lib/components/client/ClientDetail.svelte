@@ -9,6 +9,7 @@
   import { useToast } from '$lib/stores/toast.svelte';
   import { onMount } from 'svelte';
   import type { Client } from '$lib/stores/client.svelte';
+  import Icon from '$lib/components/icons/Icon.svelte';
   
   interface Props {
     client: Client;

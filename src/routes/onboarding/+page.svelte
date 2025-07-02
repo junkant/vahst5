@@ -2,7 +2,7 @@
 <script>
   import { goto } from '$app/navigation';
   import { useAuth } from '$lib/stores/auth.svelte';
-  
+  import Icon from '$lib/components/icons/Icon.svelte';
   const auth = useAuth();
   
   // Redirect if not authenticated

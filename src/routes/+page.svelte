@@ -5,6 +5,7 @@
   import BottomNav from '$lib/components/common/BottomNav.svelte';
   import LoginForm from '$lib/components/auth/LoginForm.svelte';
   import RegisterForm from '$lib/components/auth/RegisterForm.svelte';
+  import Icon from '$lib/components/icons/Icon.svelte';
   
   const auth = useAuth();
   

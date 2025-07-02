@@ -2,6 +2,7 @@
 <script lang="ts">
   import { useAuth } from '$lib/stores/auth.svelte';
   import { createEventDispatcher } from 'svelte';
+  import Icon from '$lib/components/icons/Icon.svelte';
   
   const auth = useAuth();
   const dispatch = createEventDispatcher();

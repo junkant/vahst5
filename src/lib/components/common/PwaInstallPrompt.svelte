@@ -1,6 +1,7 @@
 <script lang="ts">
   import { browser } from '$app/environment';
   import { fade } from 'svelte/transition';
+  import Icon from '$lib/components/icons/Icon.svelte';
   
   let showPrompt = $state(false);
   let deferredPrompt = $state<any>(null);

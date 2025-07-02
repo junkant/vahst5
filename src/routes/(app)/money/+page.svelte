@@ -2,6 +2,7 @@
 <script>
   import { useClients } from '$lib/stores/client.svelte';
   import { onMount } from 'svelte';
+  import Icon from '$lib/components/icons/Icon.svelte';
   
   const clients = useClients();
   

@@ -1,6 +1,7 @@
 <!-- src/lib/components/settings/NotificationSettings.svelte -->
 <script lang="ts">
   import { useNotifications } from '$lib/stores/notifications.svelte';
+  import Icon from '$lib/components/icons/Icon.svelte';
   
   const notifications = useNotifications();
   

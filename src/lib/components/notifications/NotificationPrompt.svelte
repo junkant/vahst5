@@ -4,6 +4,7 @@
   import { slide, fade } from 'svelte/transition';
   import { useNotifications } from '$lib/stores/notifications.svelte';
   import { useToast } from '$lib/stores/toast.svelte';
+  import Icon from '$lib/components/icons/Icon.svelte';
 const toast = useToast();
   
   const notifications = useNotifications();
