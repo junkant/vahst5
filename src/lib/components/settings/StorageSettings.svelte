@@ -4,7 +4,8 @@
   import { storageMonitor, type StorageInfo } from '$lib/utils/storageMonitor';
   import { localCache } from '$lib/utils/localCache';
   import { useTenant } from '$lib/stores/tenant.svelte';
-  import { toast } from '$lib/utils/toast';
+  import { useToast } from '$lib/stores/toast.svelte';
+const toast = useToast();
   
   const tenant = useTenant();
   

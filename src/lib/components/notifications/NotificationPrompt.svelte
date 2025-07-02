@@ -3,7 +3,8 @@
   import { onMount } from 'svelte';
   import { slide, fade } from 'svelte/transition';
   import { useNotifications } from '$lib/stores/notifications.svelte';
-  import { toast } from '$lib/utils/toast';
+  import { useToast } from '$lib/stores/toast.svelte';
+const toast = useToast();
   
   const notifications = useNotifications();
   

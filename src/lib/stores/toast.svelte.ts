@@ -296,15 +296,34 @@ class ToastStore {
   }
 }
 
-// Export singleton instance
-let toastStore: ToastStore;
+// With this pattern that ensures browser-only initialization:
+let toastStore: ToastStore | null = null;
 
 export function useToast() {
-  if (!toastStore) {
+  // Only create the store in browser environment
+  if (!toastStore && browser) {
     toastStore = new ToastStore();
   }
+  
+  // Return a stub during SSR that won't break
+  if (!toastStore) {
+    return {
+      toasts: [],
+      isPaused: false,
+      success: () => '',
+      error: () => '',
+      info: () => '',
+      warning: () => '',
+      remove: () => {},
+      clear: () => {},
+      clearByType: () => {},
+      update: () => {},
+      pause: () => {},
+      resume: () => {},
+      promise: async (p: any) => p,
+      cleanup: () => {}
+    };
+  }
+  
   return toastStore;
 }
-
-// Export types
-export type { Toast, ToastType };

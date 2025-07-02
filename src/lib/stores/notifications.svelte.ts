@@ -5,7 +5,7 @@ import { browser } from '$app/environment';
 import { db, getMessagingInstance, VAPID_KEY } from '$lib/firebase/config';
 import { useAuth } from './auth.svelte';
 import { useOffline } from './offline.svelte';
-import { toast } from '$lib/utils/toast';
+import { useToast } from '$lib/stores/toast.svelte';
 
 export interface NotificationPreferences {
   enabled: boolean;
@@ -49,6 +49,13 @@ class NotificationStore {
         this.initializeMessaging();
       }
     }
+  }
+
+  // Helper method to show toast messages (SSR-safe)
+  private showToast(type: 'success' | 'error' | 'info' | 'warning', message: string) {
+    if (!browser) return;
+    const toast = useToast();
+    toast[type](message);
   }
 
   // Initialize Firebase Messaging (lazy loaded)
@@ -97,7 +104,7 @@ class NotificationStore {
         }
         
         // Show in-app toast as well
-        toast.success(payload.notification?.body || 'New notification received');
+        this.showToast('success', payload.notification?.body || 'New notification received');
       });
     } catch (error) {
       console.error('Failed to initialize messaging:', error);
@@ -150,20 +157,20 @@ class NotificationStore {
           this.preferences.enabled = true;
           await this.updatePreferences({ enabled: true });
           
-          toast.success('Notifications enabled successfully!');
+          this.showToast('success', 'Notifications enabled successfully!');
           return true;
         } else {
           throw new Error('No registration token available');
         }
       } else {
         this.error = 'Notification permission denied';
-        toast.error('Please enable notifications in your browser settings');
+        this.showToast('error', 'Please enable notifications in your browser settings');
         return false;
       }
     } catch (error) {
       console.error('Error requesting permission:', error);
       this.error = error instanceof Error ? error.message : 'Failed to enable notifications';
-      toast.error(this.error);
+      this.showToast('error', this.error);
       return false;
     } finally {
       this.isLoading = false;
@@ -267,7 +274,7 @@ class NotificationStore {
     }
     
     this.token = null;
-    toast.info('Notifications disabled');
+    this.showToast('info', 'Notifications disabled');
   }
 
   // Check if notifications are supported (cached)

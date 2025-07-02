@@ -2,7 +2,8 @@
 <script lang="ts">
   import { browser } from '$app/environment';
   import { onMount } from 'svelte';
-  import { toast } from '$lib/utils/toast';
+  import { useToast } from '$lib/stores/toast.svelte';
+const toast = useToast();
   
   let isInstalled = $state(false);
   let deferredPrompt = $state<any>(null);

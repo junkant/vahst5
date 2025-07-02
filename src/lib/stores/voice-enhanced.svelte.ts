@@ -4,7 +4,8 @@ import { VoiceCommandRegistry } from '$lib/voice/commands.registry';
 import { VoiceContextManager } from '$lib/voice/context.svelte.ts';
 import { useClients } from './client.svelte';
 import { useAuth } from './auth.svelte';
-import { toast } from '$lib/utils/toast';
+import { useToast } from '$lib/stores/toast.svelte';
+const toast = useToast();
 
 class VoiceControlStore {
   // State

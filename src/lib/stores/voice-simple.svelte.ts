@@ -1,8 +1,9 @@
 // src/lib/stores/voice-simple.svelte.ts
 import { goto } from '$app/navigation';
 import { useClients } from './client.svelte';
-import { useAuth } from './auth.svelte';  // ADD THIS IMPORT
-import { toast } from '$lib/utils/toast';
+import { useAuth } from './auth.svelte'; 
+import { useToast } from '$lib/stores/toast.svelte';
+const toast = useToast();
 
 interface VoiceCommand {
   patterns: RegExp[];
