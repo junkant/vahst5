@@ -33,7 +33,10 @@
           <Icon name="bell" class="h-5 w-5 text-green-500" />
           <span class="text-sm text-green-500">Active</span>
         {:else}
-          <Icon name="moon" class="h-5 w-5 text-gray-400" size={2} />
+          <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192l-3.536 3.536M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
           <span class="text-sm text-gray-400">Inactive</span>
         {/if}
       </div>
@@ -122,7 +125,9 @@
             <!-- Schedule Reminders -->
             <label class="flex items-center justify-between rounded-lg border p-4 cursor-pointer hover:bg-gray-50">
               <div class="flex items-center space-x-3">
-                <Icon name="calendar" class="h-5 w-5 text-gray-500" size={2} />
+                <svg class="h-5 w-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
                 <div>
                   <p class="font-medium">Schedule Reminders</p>
                   <p class="text-sm text-gray-600">

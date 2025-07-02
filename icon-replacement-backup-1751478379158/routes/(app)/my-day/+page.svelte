@@ -148,7 +148,9 @@
         </div>
       {:else if todayJobs.length === 0}
         <div class="text-center py-8">
-          <Icon name="calendar" class="w-12 h-12 text-gray-400 mx-auto mb-3" size={2} />
+          <svg class="w-12 h-12 text-gray-400 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+          </svg>
           <h3 class="text-lg font-medium text-gray-900 mb-1">No jobs scheduled for today</h3>
           <p class="text-gray-500 mb-4">Looks like you have a light day ahead!</p>
           <button 
@@ -260,7 +262,9 @@
                   aria-label="Edit {client.name}"
                   title="Edit client"
                 >
-                  <Icon name="edit" class="w-4 h-4" size={2} />
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                  </svg>
                 </button>
                 <!-- Selection Indicator -->
                 {#if clients.selectedClient?.id === client.id}
