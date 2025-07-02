@@ -1,3 +1,9 @@
+<!-- src/lib/components/common/OfflineIndicator.svelte -->
+<!--
+  @component OfflineIndicator
+  @description Shows offline status and sync queue information
+  @usage <OfflineIndicator /> (place in root layout)
+-->
 <script lang="ts">
   import { fade, slide } from 'svelte/transition';
   import { useOffline } from '$lib/stores/offline.svelte';
@@ -79,7 +85,7 @@
     return formatTime(date);
   }
   
-  // Determine what to show
+  // Determine what to show - only show when there's something to report
   const shouldShowIndicator = $derived(
     auth.user && (
       !offline.isOnline || 
@@ -166,30 +172,29 @@
           {/if}
           
           {#if offline.hasQueuedOperations}
-            <div class="space-y-2">
+            <div class="space-y-2 mb-3">
               <p class="text-sm font-medium text-gray-700 dark:text-gray-300">
-                Pending Operations:
+                Pending changes:
               </p>
-              <div class="max-h-32 overflow-y-auto space-y-1">
-                {#each offline.queue as operation}
-                  <div class="text-xs text-gray-600 dark:text-gray-400 flex items-center gap-2">
-                    <span class="capitalize">{operation.type}</span>
-                    <span class="text-gray-400">•</span>
-                    <span>{operation.collection}</span>
-                    <span class="text-gray-400">•</span>
-                    <span>{formatTimestamp(operation.timestamp)}</span>
-                    {#if operation.retries > 0}
-                      <span class="text-orange-500">(retry {operation.retries})</span>
-                    {/if}
-                  </div>
-                {/each}
-              </div>
+              {#each offline.offlineQueue.slice(0, 3) as operation}
+                <div class="text-xs text-gray-600 dark:text-gray-400 flex items-center gap-2">
+                  <span class="capitalize">{operation.type}</span>
+                  <span class="text-gray-400">•</span>
+                  <span>{operation.collection}</span>
+                  <span class="text-gray-400 ml-auto">{formatTimestamp(operation.timestamp)}</span>
+                </div>
+              {/each}
+              {#if offline.queueLength > 3}
+                <p class="text-xs text-gray-500 dark:text-gray-400">
+                  And {offline.queueLength - 3} more...
+                </p>
+              {/if}
             </div>
           {/if}
           
           {#if offline.hasSyncErrors}
-            <div class="mt-3 p-2 bg-red-50 dark:bg-red-900/20 rounded">
-              <p class="text-sm text-red-600 dark:text-red-400 font-medium mb-1">
+            <div class="bg-red-50 dark:bg-red-900/20 rounded p-3 mb-3">
+              <p class="text-sm font-medium text-red-600 dark:text-red-400">
                 {offline.syncErrors.length} operation{offline.syncErrors.length === 1 ? '' : 's'} failed to sync
               </p>
               <div class="space-y-1">
@@ -246,22 +251,6 @@
           </div>
         </div>
       {/if}
-    </div>
-  </div>
-{/if}
-
-<!-- Simple connection status indicator -->
-{#if auth.user && offline.isOnline && !offline.hasQueuedOperations && !offline.isSyncing && syncStatus !== 'success'}
-  <div 
-    class="fixed bottom-20 right-4 p-2"
-    transition:fade
-  >
-    <div class="flex items-center gap-2 text-xs text-green-600 dark:text-green-400">
-      <!-- Wifi Icon -->
-      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.141 0M1.394 9.393c5.857-5.857 15.355-5.857 21.213 0" />
-      </svg>
-      <span>Connected</span>
     </div>
   </div>
 {/if}

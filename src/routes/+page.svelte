@@ -82,69 +82,104 @@
             Start Free Trial
           </button>
           <button
-            onclick={() => scrollToSection('features')}
-            class="px-8 py-4 bg-blue-700 text-white rounded-lg font-semibold text-lg hover:bg-blue-600 transition-colors"
+            onclick={openLogin}
+            class="px-8 py-4 bg-blue-500 text-white rounded-lg font-semibold text-lg hover:bg-blue-400 transition-colors"
           >
-            See How It Works
+            Sign In
           </button>
         </div>
-        
-        <p class="mt-4 text-sm text-blue-200">
-          No credit card required • 14-day free trial
-        </p>
       </div>
     </div>
   </section>
   
   <!-- Features Section -->
-  <section id="features" class="py-20 bg-white">
+  <section id="features" class="py-20">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       <div class="text-center mb-16">
         <h2 class="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
-          Built for Field Workers
+          Everything You Need, Nothing You Don't
         </h2>
-        <p class="text-xl text-gray-600 max-w-2xl mx-auto">
-          Stop fighting with software designed for office workers. Vahst is built from the ground up for people on the move.
+        <p class="text-xl text-gray-600 max-w-3xl mx-auto">
+          Designed by field service pros, for field service pros. Every feature has been battle-tested in the real world.
         </p>
       </div>
       
-      <div class="grid md:grid-cols-3 gap-8">
-        <!-- Client-First Design -->
-        <div class="text-center">
-          <div class="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <svg class="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-            </svg>
-          </div>
-          <h3 class="text-xl font-semibold text-gray-900 mb-2">Client-Centric Workflow</h3>
-          <p class="text-gray-600">
-            Everything revolves around your clients. See their history, equipment, and preferences at a glance.
-          </p>
-        </div>
-        
-        <!-- Voice-First -->
-        <div class="text-center">
-          <div class="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <svg class="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+        <!-- Voice Control -->
+        <div class="bg-white p-8 rounded-xl shadow-lg hover:shadow-xl transition-shadow">
+          <div class="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mb-6">
+            <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
             </svg>
           </div>
-          <h3 class="text-xl font-semibold text-gray-900 mb-2">Voice Commands</h3>
+          <h3 class="text-xl font-semibold text-gray-900 mb-3">Voice-First Design</h3>
           <p class="text-gray-600">
-            Hands dirty? No problem. Use voice commands to log notes, create jobs, and update statuses.
+            Update jobs, create tasks, and navigate hands-free. Perfect for when you're under a sink or up a ladder.
           </p>
         </div>
         
-        <!-- Mobile-First -->
-        <div class="text-center">
-          <div class="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <svg class="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
+        <!-- Client Management -->
+        <div class="bg-white p-8 rounded-xl shadow-lg hover:shadow-xl transition-shadow">
+          <div class="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center mb-6">
+            <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
             </svg>
           </div>
-          <h3 class="text-xl font-semibold text-gray-900 mb-2">Mobile-First Design</h3>
+          <h3 class="text-xl font-semibold text-gray-900 mb-3">Client-Centric Workflow</h3>
           <p class="text-gray-600">
-            Works perfectly on any device. Access everything you need from your phone, tablet, or truck computer.
+            Every feature starts with selecting a client. See their history, preferences, and job details instantly.
+          </p>
+        </div>
+        
+        <!-- Offline Mode -->
+        <div class="bg-white p-8 rounded-xl shadow-lg hover:shadow-xl transition-shadow">
+          <div class="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center mb-6">
+            <svg class="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+            </svg>
+          </div>
+          <h3 class="text-xl font-semibold text-gray-900 mb-3">Works Anywhere</h3>
+          <p class="text-gray-600">
+            No signal? No problem. Keep working offline and everything syncs when you're back in range.
+          </p>
+        </div>
+        
+        <!-- Quick Actions -->
+        <div class="bg-white p-8 rounded-xl shadow-lg hover:shadow-xl transition-shadow">
+          <div class="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center mb-6">
+            <svg class="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+            </svg>
+          </div>
+          <h3 class="text-xl font-semibold text-gray-900 mb-3">Lightning Fast</h3>
+          <p class="text-gray-600">
+            Quick actions, smart shortcuts, and predictive features help you get more done in less time.
+          </p>
+        </div>
+        
+        <!-- Multi-Business -->
+        <div class="bg-white p-8 rounded-xl shadow-lg hover:shadow-xl transition-shadow">
+          <div class="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center mb-6">
+            <svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+            </svg>
+          </div>
+          <h3 class="text-xl font-semibold text-gray-900 mb-3">Multi-Business Support</h3>
+          <p class="text-gray-600">
+            Run multiple businesses or work for different companies? Switch between them with one tap.
+          </p>
+        </div>
+        
+        <!-- Smart Scheduling -->
+        <div class="bg-white p-8 rounded-xl shadow-lg hover:shadow-xl transition-shadow">
+          <div class="w-12 h-12 bg-indigo-100 rounded-lg flex items-center justify-center mb-6">
+            <svg class="w-6 h-6 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+          </div>
+          <h3 class="text-xl font-semibold text-gray-900 mb-3">Smart Scheduling</h3>
+          <p class="text-gray-600">
+            AI-powered scheduling that considers travel time, job complexity, and your preferences.
           </p>
         </div>
       </div>
@@ -152,139 +187,115 @@
   </section>
   
   <!-- Pricing Section -->
-  <section id="pricing" class="py-20 bg-white">
+  <section id="pricing" class="py-20 bg-gray-100">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       <div class="text-center mb-16">
         <h2 class="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
           Simple, Transparent Pricing
         </h2>
-        <p class="text-xl text-gray-600 max-w-2xl mx-auto">
-          One price per user. All features included. Add modules as you grow.
+        <p class="text-xl text-gray-600">
+          Start free, upgrade when you're ready. No surprises.
         </p>
       </div>
       
-      <div class="max-w-4xl mx-auto">
-        <!-- Main Pricing Card -->
-        <div class="bg-gradient-to-br from-blue-600 to-blue-700 rounded-2xl shadow-xl p-8 text-white mb-8">
-          <div class="flex flex-col md:flex-row items-center justify-between">
-            <div>
-              <h3 class="text-2xl font-bold mb-2">Full Access</h3>
-              <p class="text-blue-100 mb-4 md:mb-0">Everything you need to run your field service business</p>
-            </div>
-            <div class="text-center md:text-right">
-              <div class="text-5xl font-bold">$39.99</div>
-              <p class="text-blue-100">per user / month</p>
-            </div>
-          </div>
-        </div>
-        
-        <!-- What's Included -->
-        <div class="bg-gray-50 rounded-2xl p-8 mb-8">
-          <h3 class="text-xl font-semibold text-gray-900 mb-6">All Features Included</h3>
-          <div class="grid md:grid-cols-2 gap-4">
-            {#each [
-              'Unlimited clients & jobs',
-              'Voice-powered workflows',
-              'Real-time scheduling',
-              'Invoice & payment processing',
-              'Equipment tracking',
-              'Job history & notes',
-              'Mobile & desktop apps',
-              'Customer portal',
-              'Team collaboration',
-              'Basic reporting',
-              'Email & phone support',
-              '99.9% uptime guarantee'
-            ] as feature}
-              <div class="flex items-start">
-                <svg class="w-5 h-5 text-green-500 mr-3 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-                </svg>
-                <span class="text-gray-700">{feature}</span>
-              </div>
-            {/each}
-          </div>
-        </div>
-        
-        <!-- Optional Modules -->
-        <div class="bg-white border-2 border-gray-200 rounded-2xl p-8">
-          <div class="flex items-start justify-between mb-6">
-            <div>
-              <h3 class="text-xl font-semibold text-gray-900">Power-Up Modules</h3>
-              <p class="text-gray-600 mt-1">Advanced features for growing businesses</p>
-            </div>
-            <div class="text-right">
-              <span class="text-2xl font-bold text-gray-900">$12</span>
-              <p class="text-sm text-gray-600">per module / month</p>
+      <div class="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+        <!-- Starter Plan -->
+        <div class="bg-white rounded-2xl shadow-xl p-8">
+          <div class="mb-8">
+            <h3 class="text-2xl font-bold text-gray-900">Starter</h3>
+            <p class="text-gray-600 mt-2">Perfect for solo techs and small teams</p>
+            <div class="mt-4">
+              <span class="text-4xl font-bold">$29</span>
+              <span class="text-gray-600">/month per user</span>
             </div>
           </div>
           
-          <div class="space-y-4">
-            <div class="flex items-start p-4 bg-gray-50 rounded-lg">
-              <div class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center mr-4 flex-shrink-0">
-                <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+          <ul class="space-y-4 mb-8">
+            {#each [
+              'Unlimited clients & jobs',
+              'Voice control & navigation',
+              'Offline mode',
+              'Mobile & web apps',
+              'Basic reporting',
+              '14-day free trial'
+            ] as feature}
+              <li class="flex items-start">
+                <svg class="w-5 h-5 text-green-500 mr-3 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
                 </svg>
-              </div>
-              <div>
-                <h4 class="font-semibold text-gray-900">Advanced Analytics</h4>
-                <p class="text-sm text-gray-600 mt-1">Custom dashboards, predictive insights, and detailed performance metrics</p>
-              </div>
-            </div>
-            
-            <div class="flex items-start p-4 bg-gray-50 rounded-lg">
-              <div class="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center mr-4 flex-shrink-0">
-                <svg class="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                </svg>
-              </div>
-              <div>
-                <h4 class="font-semibold text-gray-900">Smart Scheduling</h4>
-                <p class="text-sm text-gray-600 mt-1">AI-powered route optimization and automated appointment booking</p>
-              </div>
-            </div>
-            
-            <div class="flex items-start p-4 bg-gray-50 rounded-lg">
-              <div class="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center mr-4 flex-shrink-0">
-                <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-              </div>
-              <div>
-                <h4 class="font-semibold text-gray-900">Inventory Management</h4>
-                <p class="text-sm text-gray-600 mt-1">Track parts, equipment, and supplies across trucks and warehouses</p>
-              </div>
-            </div>
-          </div>
-        </div>
-        
-        <!-- CTA -->
-        <div class="text-center mt-12">
+                <span class="text-gray-700">{feature}</span>
+              </li>
+            {/each}
+          </ul>
+          
           <button
             onclick={openRegister}
-            class="px-8 py-4 bg-blue-600 text-white rounded-lg font-semibold text-lg hover:bg-blue-700 transition-colors"
+            class="w-full py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-colors"
           >
-            Start Your 14-Day Free Trial
+            Start Free Trial
           </button>
-          <p class="mt-4 text-sm text-gray-600">
-            No credit card required • Cancel anytime • Full access to all features
-          </p>
         </div>
+        
+        <!-- Pro Plan -->
+        <div class="bg-gradient-to-br from-blue-600 to-blue-700 rounded-2xl shadow-xl p-8 text-white relative">
+          <div class="absolute top-4 right-4 bg-yellow-400 text-blue-900 px-3 py-1 rounded-full text-sm font-semibold">
+            Most Popular
+          </div>
+          
+          <div class="mb-8">
+            <h3 class="text-2xl font-bold">Professional</h3>
+            <p class="text-blue-100 mt-2">For growing businesses</p>
+            <div class="mt-4">
+              <span class="text-4xl font-bold">$49</span>
+              <span class="text-blue-100">/month per user</span>
+            </div>
+          </div>
+          
+          <ul class="space-y-4 mb-8">
+            {#each [
+              'Everything in Starter',
+              'Advanced scheduling',
+              'Team management',
+              'Custom workflows',
+              'Priority support',
+              'API access'
+            ] as feature}
+              <li class="flex items-start">
+                <svg class="w-5 h-5 text-white mr-3 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                </svg>
+                <span>{feature}</span>
+              </li>
+            {/each}
+          </ul>
+          
+          <button
+            onclick={openRegister}
+            class="w-full py-3 bg-white text-blue-600 rounded-lg font-semibold hover:bg-gray-100 transition-colors"
+          >
+            Start Free Trial
+          </button>
+        </div>
+      </div>
+      
+      <!-- Enterprise -->
+      <div class="mt-12 text-center">
+        <p class="text-gray-600">
+          Need something bigger? 
+          <button class="text-blue-600 font-semibold hover:underline">
+            Contact us for Enterprise pricing
+          </button>
+        </p>
       </div>
     </div>
   </section>
   
-  <!-- Social Proof Section -->
-  <section class="py-20 bg-gray-50">
+  <!-- Testimonials Section -->
+  <section class="py-20">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-      <div class="text-center mb-16">
-        <h2 class="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
-          Trusted by Field Service Pros
-        </h2>
-        <p class="text-xl text-gray-600">
-          Join thousands of technicians who've ditched the paperwork
-        </p>
-      </div>
+      <h2 class="text-3xl font-bold text-center text-gray-900 mb-12">
+        Loved by Field Service Pros
+      </h2>
       
       <div class="grid md:grid-cols-3 gap-8">
         <div class="bg-white p-6 rounded-lg shadow-sm">
@@ -296,7 +307,8 @@
             {/each}
           </div>
           <p class="text-gray-700 mb-4">
-            "Finally, software that gets it. I can update job status with my voice while my hands are full of tools."
+            "Game changer. I can update jobs while driving between sites using just my voice. 
+            Saves me 30 minutes every day."
           </p>
           <p class="text-sm text-gray-600 font-semibold">Mike T. - HVAC Tech</p>
         </div>
@@ -310,7 +322,8 @@
             {/each}
           </div>
           <p class="text-gray-700 mb-4">
-            "The client-first approach is genius. Everything I need is right there when I pull up to a job."
+            "Finally, software that gets it. Everything revolves around the client, not the job. 
+            Everything I need is right there when I pull up to a job."
           </p>
           <p class="text-sm text-gray-600 font-semibold">Sarah L. - Plumber</p>
         </div>
@@ -372,8 +385,8 @@
     </div>
   </section>
   
-  <!-- Bottom Navigation -->
-  <BottomNav mode="landing" {openLogin} {openRegister} />
+  <!-- Bottom Navigation - Fixed the props passing -->
+  <BottomNav mode="landing" openLogin={openLogin} openRegister={openRegister} />
   
   <!-- Auth Modals -->
   <LoginForm bind:open={showLogin} />

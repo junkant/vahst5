@@ -8,11 +8,18 @@
   let deferredPrompt = $state<any>(null);
   
   function scrollToSection(id: string) {
-    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' });
+    const element = document.getElementById(id);
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
   }
   
   function openLogin() {
-    window.dispatchEvent(new Event('openLoginModal'));
+    window.dispatchEvent(new CustomEvent('openLoginModal'));
+  }
+  
+  function openRegister() {
+    window.dispatchEvent(new CustomEvent('openRegisterModal'));
   }
   
   function handleEnableApp() {
@@ -21,7 +28,7 @@
       toast.info('VAHST is already installed! Check your home screen or app drawer.');
     } else if (deferredPrompt) {
       // Show install prompt
-      window.dispatchEvent(new Event('showInstallPrompt'));
+      window.dispatchEvent(new CustomEvent('showInstallPrompt'));
     } else {
       // Show instructions for manual install
       toast.info('To install VAHST: Use your browser menu and select "Install App" or "Add to Home Screen"');
@@ -61,20 +68,23 @@
       <!-- Desktop Navigation -->
       <nav class="hidden md:flex items-center gap-6">
         <button 
-          class="px-4 py-2 {isInstalled ? 'bg-green-600 hover:bg-green-700' : 'bg-blue-600 hover:bg-blue-700'} text-white rounded-lg transition-colors"
-          onclick={handleEnableApp}
+          type="button"
+          class="px-4 py-2 {isInstalled ? 'bg-green-600 hover:bg-green-700' : 'bg-blue-600 hover:bg-blue-700'} text-white rounded-lg transition-colors cursor-pointer"
+          onclick={() => handleEnableApp()}
         >
           {isInstalled ? '✓ App Enabled' : 'Enable App'}
         </button>
         <button 
-          onclick={openLogin}
-          class="px-4 py-2 text-gray-700 hover:text-gray-900 font-medium transition-colors"
+          type="button"
+          onclick={() => openLogin()}
+          class="px-4 py-2 text-gray-700 hover:text-gray-900 font-medium transition-colors cursor-pointer"
         >
           Login
         </button>
         <button 
-          onclick={() => window.dispatchEvent(new Event('openRegisterModal'))}
-          class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          type="button"
+          onclick={() => openRegister()}
+          class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors cursor-pointer"
         >
           Get Started
         </button>

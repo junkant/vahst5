@@ -40,6 +40,21 @@ export default defineConfig({
     }
   },
   
+  // SSR configuration - FIXES THE MELT-UI ERROR
+  ssr: {
+    noExternal: [
+      '@melt-ui/svelte',
+      '@melt-ui/pp',
+      '@floating-ui/core',
+      '@floating-ui/dom',
+      '@floating-ui/utils',
+      '@internationalized/date',
+      'dequal',
+      'focus-trap',
+      'nanoid/non-secure'
+    ]
+  },
+  
   build: {
     // Optimize output
     target: 'esnext',
@@ -70,8 +85,8 @@ export default defineConfig({
           if (id.includes('firebase/messaging')) return 'firebase-messaging';
           if (id.includes('firebase')) return 'firebase-core';
           
-          // UI libraries
-          if (id.includes('@melt-ui/svelte')) return 'melt-ui';
+          // UI libraries - SKIP MELT-UI TO AVOID CHUNKING ISSUES
+          // if (id.includes('@melt-ui/svelte')) return 'melt-ui';
           if (id.includes('lucide-svelte')) return 'lucide-icons';
           
           // Component chunks
@@ -87,7 +102,7 @@ export default defineConfig({
           if (id.includes('date-fns')) return 'date-utils';
           
           // Other vendor libraries
-          if (id.includes('node_modules')) return 'vendor';
+          if (id.includes('node_modules') && !id.includes('@melt-ui')) return 'vendor';
         }
       },
       
@@ -123,8 +138,15 @@ export default defineConfig({
       'firebase/firestore',
       'firebase/messaging',
       '@melt-ui/svelte',
+      '@melt-ui/pp',
+      '@floating-ui/core',
+      '@floating-ui/dom',
+      '@internationalized/date',
       'lucide-svelte',
-      'date-fns'
+      'date-fns',
+      'dequal',
+      'focus-trap',
+      'nanoid/non-secure'
     ],
     exclude: ['@sveltejs/kit']
   },

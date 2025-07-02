@@ -98,21 +98,22 @@
         out:fade={{ duration: 150 }}
         class="relative pointer-events-auto"
         role="alert"
-        onmouseenter={() => toastItem.pauseOnHover && handleMouseEnter(toastItem.id)}
-        onmouseleave={() => toastItem.pauseOnHover && handleMouseLeave(toastItem.id)}
-        onkeydown={(e) => handleKeyDown(e, toastItem.id)}
-        tabindex="0"
+        aria-live="assertive"
+        aria-atomic="true"
       >
         <div 
           class="flex items-start gap-3 px-4 py-3 rounded-lg shadow-lg border backdrop-blur-sm 
                  max-w-sm min-w-[300px] {styles.container} relative overflow-hidden"
+          onmouseenter={() => toastItem.pauseOnHover && handleMouseEnter(toastItem.id)}
+          onmouseleave={() => toastItem.pauseOnHover && handleMouseLeave(toastItem.id)}
         >
           <!-- Progress bar -->
           {#if toastItem.duration && toastItem.duration > 0}
             <div 
               class="absolute bottom-0 left-0 h-1 transition-all duration-100 {styles.progressBar}"
               style="width: {calculateProgress(toastItem)}%"
-            />
+              aria-hidden="true"
+            ></div>
           {/if}
           
           <!-- Icon -->
@@ -159,6 +160,7 @@
           <!-- Close button -->
           <button
             onclick={() => toast.remove(toastItem.id)}
+            onkeydown={(e) => handleKeyDown(e, toastItem.id)}
             class="flex-shrink-0 p-1 rounded hover:bg-black/10 transition-colors 
                    focus:outline-none focus:ring-2 focus:ring-current"
             aria-label="Dismiss notification"

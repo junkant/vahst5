@@ -13,9 +13,11 @@
   
   interface Props {
     mode?: 'app' | 'landing';
+    openLogin?: () => void;
+    openRegister?: () => void;
   }
   
-  let { mode = 'app' }: Props = $props();
+  let { mode = 'app', openLogin: propsOpenLogin, openRegister: propsOpenRegister }: Props = $props();
   
   const client = useClients();
   const auth = useAuth();
@@ -54,16 +56,27 @@
   }
   
   function scrollToSection(id: string) {
-    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' });
+    const element = document.getElementById(id);
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
   }
   
   // Emit events for login/register modals
   function openLogin() {
-    window.dispatchEvent(new Event('openLoginModal'));
+    if (propsOpenLogin) {
+      propsOpenLogin();
+    } else {
+      window.dispatchEvent(new CustomEvent('openLoginModal'));
+    }
   }
   
   function openRegister() {
-    window.dispatchEvent(new Event('openRegisterModal'));
+    if (propsOpenRegister) {
+      propsOpenRegister();
+    } else {
+      window.dispatchEvent(new CustomEvent('openRegisterModal'));
+    }
   }
   
   function handleVoiceClick() {
@@ -98,7 +111,7 @@
 
 {#if mode === 'landing'}
   <!-- Landing Page Bottom Navigation -->
-  <nav class="fixed bottom-0 left-0 right-0 z-30">
+  <nav class="fixed bottom-0 left-0 right-0 z-40">
     <!-- Shadow and curve effect -->
     <div class="absolute inset-x-0 bottom-0 h-16 bg-white rounded-t-[2rem] shadow-[0_-10px_40px_rgba(0,0,0,0.1)]"></div>
     
@@ -107,7 +120,8 @@
       <div class="flex items-center justify-around">
         <!-- Features -->
         <button 
-          class="flex flex-col items-center py-1 px-3 rounded-lg transition-colors text-gray-600 hover:text-blue-600"
+          type="button"
+          class="flex flex-col items-center py-1 px-3 rounded-lg transition-colors text-gray-600 hover:text-blue-600 cursor-pointer"
           onclick={() => scrollToSection('features')}
         >
           <svg class="w-6 h-6 mb-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -118,7 +132,8 @@
         
         <!-- Pricing -->
         <button 
-          class="flex flex-col items-center py-1 px-3 rounded-lg transition-colors text-gray-600 hover:text-blue-600"
+          type="button"
+          class="flex flex-col items-center py-1 px-3 rounded-lg transition-colors text-gray-600 hover:text-blue-600 cursor-pointer"
           onclick={() => scrollToSection('pricing')}
         >
           <svg class="w-6 h-6 mb-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -129,8 +144,9 @@
         
         <!-- Center CTA -->
         <button 
-          class="flex items-center justify-center w-14 h-14 -mt-4 bg-blue-600 rounded-full shadow-lg hover:bg-blue-700 transition-all transform hover:scale-105"
-          onclick={openRegister}
+          type="button"
+          class="flex items-center justify-center w-14 h-14 -mt-4 bg-blue-600 rounded-full shadow-lg hover:bg-blue-700 transition-all transform hover:scale-105 cursor-pointer"
+          onclick={() => openRegister()}
           aria-label="Start free trial"
         >
           <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -140,8 +156,9 @@
         
         <!-- Login -->
         <button 
-          class="flex flex-col items-center py-1 px-3 rounded-lg transition-colors text-gray-600 hover:text-blue-600"
-          onclick={openLogin}
+          type="button"
+          class="flex flex-col items-center py-1 px-3 rounded-lg transition-colors text-gray-600 hover:text-blue-600 cursor-pointer"
+          onclick={() => openLogin()}
         >
           <svg class="w-6 h-6 mb-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
@@ -151,8 +168,9 @@
         
         <!-- Register -->
         <button 
-          class="flex flex-col items-center py-1 px-3 rounded-lg transition-colors text-gray-600 hover:text-blue-600"
-          onclick={openRegister}
+          type="button"
+          class="flex flex-col items-center py-1 px-3 rounded-lg transition-colors text-gray-600 hover:text-blue-600 cursor-pointer"
+          onclick={() => openRegister()}
         >
           <svg class="w-6 h-6 mb-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
@@ -174,7 +192,8 @@
         
         <!-- My Day -->
         <button 
-          class="flex flex-col items-center py-1 px-3 rounded-lg transition-colors {activeTab === 'my-day' ? 'text-blue-600' : 'text-gray-500'}"
+          type="button"
+          class="flex flex-col items-center py-1 px-3 rounded-lg transition-colors {activeTab === 'my-day' ? 'text-blue-600' : 'text-gray-500'} cursor-pointer"
           onclick={() => navigateTo('/my-day')}
         >
           <svg class="w-6 h-6 mb-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -185,7 +204,8 @@
         
         <!-- Tasks -->
         <button 
-          class="flex flex-col items-center py-1 px-3 rounded-lg transition-colors {activeTab === 'tasks' ? 'text-blue-600' : 'text-gray-500'}"
+          type="button"
+          class="flex flex-col items-center py-1 px-3 rounded-lg transition-colors {activeTab === 'tasks' ? 'text-blue-600' : 'text-gray-500'} cursor-pointer"
           onclick={() => navigateTo('/tasks')}
         >
           <svg class="w-6 h-6 mb-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -196,8 +216,9 @@
         
         <!-- Center Action Button - Quick Actions with Dynamic Lightning Color -->
         <button 
-          class="flex items-center justify-center w-14 h-14 -mt-4 bg-blue-600 rounded-full shadow-lg hover:bg-blue-700 transition-all transform hover:scale-105"
-          onclick={toggleQuickActions}
+          type="button"
+          class="flex items-center justify-center w-14 h-14 -mt-4 bg-blue-600 rounded-full shadow-lg hover:bg-blue-700 transition-all transform hover:scale-105 cursor-pointer"
+          onclick={() => toggleQuickActions()}
           aria-label="Quick actions menu"
         >
           <svg class="w-8 h-8 transition-colors duration-300 {lightningColor}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -207,7 +228,8 @@
         
         <!-- Money -->
         <button 
-          class="flex flex-col items-center py-1 px-3 rounded-lg transition-colors {activeTab === 'money' ? 'text-blue-600' : 'text-gray-500'}"
+          type="button"
+          class="flex flex-col items-center py-1 px-3 rounded-lg transition-colors {activeTab === 'money' ? 'text-blue-600' : 'text-gray-500'} cursor-pointer"
           onclick={() => navigateTo('/money')}
         >
           <svg class="w-6 h-6 mb-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -218,8 +240,9 @@
         
         <!-- Voice -->
         <button 
-          class="flex flex-col items-center py-1 px-3 rounded-lg transition-colors {voice?.isListening ? 'text-blue-600 bg-blue-50' : 'text-gray-500'}"
-          onclick={handleVoiceClick}
+          type="button"
+          class="flex flex-col items-center py-1 px-3 rounded-lg transition-colors {voice?.isListening ? 'text-blue-600 bg-blue-50' : 'text-gray-500'} cursor-pointer"
+          onclick={() => handleVoiceClick()}
         >
           <div class="relative">
             <svg class="w-6 h-6 mb-0.5 {voice?.isListening ? 'animate-pulse' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -239,29 +262,33 @@
       <div class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-4 w-64 bg-white rounded-2xl shadow-xl border border-gray-200 overflow-hidden">
         <div class="p-2">
           <button
+            type="button"
             onclick={() => { navigateTo('/quick-add'); showQuickActions = false; }}
-            class="w-full px-4 py-3 text-left hover:bg-gray-50 rounded-lg flex items-center space-x-3"
+            class="w-full px-4 py-3 text-left hover:bg-gray-50 rounded-lg flex items-center space-x-3 cursor-pointer"
           >
             <span class="text-2xl">➕</span>
             <span>Quick Add</span>
           </button>
           <button
+            type="button"
             onclick={() => { navigateTo('/clients'); showQuickActions = false; }}
-            class="w-full px-4 py-3 text-left hover:bg-gray-50 rounded-lg flex items-center space-x-3"
+            class="w-full px-4 py-3 text-left hover:bg-gray-50 rounded-lg flex items-center space-x-3 cursor-pointer"
           >
             <span class="text-2xl">👥</span>
             <span>Clients</span>
           </button>
           <button
+            type="button"
             onclick={() => { navigateTo('/jobs'); showQuickActions = false; }}
-            class="w-full px-4 py-3 text-left hover:bg-gray-50 rounded-lg flex items-center space-x-3"
+            class="w-full px-4 py-3 text-left hover:bg-gray-50 rounded-lg flex items-center space-x-3 cursor-pointer"
           >
             <span class="text-2xl">🔧</span>
             <span>Jobs</span>
           </button>
           <button
+            type="button"
             onclick={() => { navigateTo('/more'); showQuickActions = false; }}
-            class="w-full px-4 py-3 text-left hover:bg-gray-50 rounded-lg flex items-center space-x-3"
+            class="w-full px-4 py-3 text-left hover:bg-gray-50 rounded-lg flex items-center space-x-3 cursor-pointer"
           >
             <span class="text-2xl">⚙️</span>
             <span>More</span>

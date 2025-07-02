@@ -114,7 +114,8 @@
   }
   
   // Clear client selection
-  function handleClientClear() {
+  function handleClientClear(e: Event) {
+    e.stopPropagation();
     clients.selectClient(null);
     searchQuery = '';
   }
@@ -191,9 +192,12 @@
     
     <!-- Client Selector (Center) -->
     <div class="flex-1 max-w-xs relative search-container">
-      <button 
-        class="flex items-center gap-2 px-3 py-1.5 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors w-full"
+      <div 
+        class="flex items-center gap-2 px-3 py-1.5 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors w-full cursor-pointer"
         onclick={openClientSelector}
+        role="button"
+        tabindex="0"
+        onkeydown={(e) => (e.key === 'Enter' || e.key === ' ') && openClientSelector()}
       >
         <svg class="w-4 h-4 text-gray-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
@@ -208,18 +212,18 @@
               {clients.selectedClient.name}
             </span>
             <!-- Clear button -->
-            <button
-              onclick={(e) => {
-                e.stopPropagation();
-                handleClientClear();
-              }}
-              class="text-gray-400 hover:text-gray-600 p-0.5 rounded hover:bg-gray-100"
+            <span
+              onclick={handleClientClear}
+              onkeydown={(e) => (e.key === 'Enter' || e.key === ' ') && handleClientClear(e)}
+              role="button"
+              tabindex="0"
+              class="text-gray-400 hover:text-gray-600 p-0.5 rounded hover:bg-gray-100 cursor-pointer"
               aria-label="Clear client selection"
             >
               <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
               </svg>
-            </button>
+            </span>
           </div>
         {:else if clients.clients.length === 0 && !clients.isLoadingClients}
           <span class="text-sm text-gray-500 truncate">No clients yet</span>
@@ -231,7 +235,7 @@
         <svg class="w-4 h-4 text-gray-400 flex-shrink-0 ml-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
         </svg>
-      </button>
+      </div>
       
       <!-- Quick Search Button -->
       <button
