@@ -34,8 +34,8 @@
     $page.error !== null // Include error pages
   );
   
-  // Check if we're on the business selection page
-  const isBusinessSelectionPage = $derived($page.route.id === '/select-business');
+  // Check if we're on the business selection page - NO LONGER NEEDED
+  // const isBusinessSelectionPage = $derived($page.route.id === '/select-business');
   
   // Initialize tenant data when auth changes
   $effect(() => {
@@ -50,11 +50,11 @@
   $effect(() => {
     const currentTenantId = tenant.current?.id;
     
-    if (currentTenantId && !isPublicPage && !isBusinessSelectionPage) {
+    if (currentTenantId && !isPublicPage) {
       // Initialize client store for current tenant
       initializeClientStore(currentTenantId);
       console.log(`📋 Initializing clients for tenant: ${tenant.current.name}`);
-    } else if (!currentTenantId && !isPublicPage && !isBusinessSelectionPage) {
+    } else if (!currentTenantId && !isPublicPage) {
       // No tenant selected, cleanup clients
       clients.cleanup();
     }
@@ -62,7 +62,7 @@
   
   // Initialize job store when tenant changes
   $effect(() => {
-    if (!isPublicPage && !isBusinessSelectionPage && tenant.current?.id) {
+    if (!isPublicPage && tenant.current?.id) {
       initializeJobStore(tenant.current.id);
     }
     
@@ -81,13 +81,14 @@
   
   // Handle redirect for authenticated users on public pages
   $effect(() => {
-    if (!isPublicPage && !isBusinessSelectionPage && !$page.error) {
+    if (!isPublicPage && !$page.error) {
       if (!auth.user) {
         // Redirect to login if not authenticated
         goto('/login');
-      } else if (!tenant.current) {
-        // Redirect to business selection if no tenant selected
-        goto('/select-business');
+      } else if (!tenant.current && !$page.route.id?.includes('settings')) {
+        // Redirect to settings/profile if no tenant selected
+        // But don't redirect if already in settings to avoid loops
+        goto('/settings/profile');
       }
     }
   });
@@ -97,24 +98,20 @@
   <!-- Top Navigation -->
   {#if isPublicPage}
     <LandingHeader />
-  {:else if isBusinessSelectionPage}
-    <!-- No top bar for business selection page -->
   {:else}
     <TopBar />
   {/if}
   
   <!-- Main Content -->
-  <main class="flex-1 {isPublicPage || isBusinessSelectionPage ? '' : 'pb-20'}">
+  <main class="flex-1 {isPublicPage ? '' : 'pb-20'}">
     {@render children()}
   </main>
   
   <!-- Bottom Navigation -->
-  {#if !isBusinessSelectionPage}
-    {#if isPublicPage}
-      <LandingBottomNav />
-    {:else}
-      <BottomNav />
-    {/if}
+  {#if isPublicPage}
+    <LandingBottomNav />
+  {:else}
+    <BottomNav />
   {/if}
   
   <!-- Global Components - Only show auth-specific components when authenticated -->
