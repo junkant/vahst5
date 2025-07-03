@@ -1,15 +1,38 @@
-<!--
-  @component LandingBottomNav
-  @description Bottom navigation bar for landing/marketing pages
-  @usage <LandingBottomNav />
--->
+<!-- src/lib/components/common/LandingBottomNav.svelte -->
 <script lang="ts">
+  import { page } from '$app/stores';
+  import { goto } from '$app/navigation';
   import Icon from '$lib/components/icons/Icon.svelte';
   
+  // Determine if we're on the home page
+  const isHomePage = $derived($page.url.pathname === '/');
+  
   function scrollToSection(id: string) {
+    if (!isHomePage) {
+      // If not on home page, navigate to home first, then scroll
+      goto(`/#${id}`);
+      return;
+    }
+    
     const element = document.getElementById(id);
     if (element) {
       element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }
+  
+  function handleFeatureClick() {
+    if (isHomePage) {
+      scrollToSection('features');
+    } else {
+      goto('/#features');
+    }
+  }
+  
+  function handlePricingClick() {
+    if (isHomePage) {
+      scrollToSection('pricing');
+    } else {
+      goto('/#pricing');
     }
   }
   
@@ -29,21 +52,21 @@
   <!-- Navigation content -->
   <div class="relative bg-white rounded-t-[2rem] px-6 pt-1 pb-2">
     <div class="flex items-center justify-around">
-      <!-- Features -->
+      <!-- Features - Smart navigation -->
       <button 
         type="button"
         class="flex flex-col items-center py-1 px-3 rounded-lg transition-colors text-gray-600 hover:text-blue-600 cursor-pointer"
-        onclick={() => scrollToSection('features')}
+        onclick={handleFeatureClick}
       >
         <Icon name="clipboard" class="w-6 h-6 mb-0.5" />
         <span class="text-xs">Features</span>
       </button>
       
-      <!-- Pricing -->
+      <!-- Pricing - Smart navigation -->
       <button 
         type="button"
         class="flex flex-col items-center py-1 px-3 rounded-lg transition-colors text-gray-600 hover:text-blue-600 cursor-pointer"
-        onclick={() => scrollToSection('pricing')}
+        onclick={handlePricingClick}
       >
         <Icon name="dollar" class="w-6 h-6 mb-0.5" />
         <span class="text-xs">Pricing</span>

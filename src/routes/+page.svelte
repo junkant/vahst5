@@ -201,8 +201,7 @@
     </div>
   </div>
 </section>
-
-<!-- Pricing Section -->
+<!-- Pricing Section - Replace the existing pricing section in +page.svelte -->
 <section id="pricing" class="py-20 bg-white">
   <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
     <div class="text-center mb-16">
@@ -210,94 +209,68 @@
         Simple, Transparent Pricing
       </h2>
       <p class="text-xl text-gray-600">
-        Start free, upgrade when you're ready. No surprises.
+        One price. All features. No surprises.
       </p>
     </div>
     
-    <div class="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
-      <!-- Starter Plan -->
-      <div class="bg-white rounded-2xl shadow-xl border border-gray-200 p-8">
-        <div class="mb-8">
-          <h3 class="text-2xl font-bold text-gray-900">Starter</h3>
-          <p class="text-gray-600 mt-2">Perfect for solo techs and small teams</p>
-          <div class="mt-4">
-            <span class="text-4xl font-bold">$29</span>
-            <span class="text-gray-600">/month per user</span>
+    <!-- Single Pricing Card -->
+    <div class="max-w-md mx-auto">
+      <div class="bg-gradient-to-br from-blue-600 to-blue-700 rounded-2xl shadow-xl p-8 text-white relative">
+        <div class="absolute top-4 right-4 bg-yellow-400 text-blue-900 px-3 py-1 rounded-full text-sm font-semibold">
+          All Features Included
+        </div>
+        
+        <div class="text-center mb-8">
+          <h3 class="text-2xl font-bold mb-2">VAHST Complete</h3>
+          <p class="text-blue-100 mb-6">Everything you need for field service success</p>
+          <div class="mb-2">
+            <span class="text-5xl font-bold">$39.99</span>
           </div>
+          <p class="text-blue-100">per user/month</p>
         </div>
         
         <ul class="space-y-4 mb-8">
           {#each [
             'Unlimited clients & jobs',
-            'Voice control & navigation',
+            'Voice-powered workflows',
+            'Smart scheduling & dispatch',
+            'Invoicing & payments',
+            'Team management',
             'Offline mode',
             'Mobile & web apps',
-            'Basic reporting',
-            '14-day free trial'
-          ] as feature}
-            <li class="flex items-start">
-              <Icon name="check" class="w-5 h-5 text-green-500 mr-3 mt-0.5 flex-shrink-0" />
-              <span class="text-gray-700">{feature}</span>
-            </li>
-          {/each}
-        </ul>
-        
-        <button
-          onclick={openRegister}
-          class="w-full py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-colors"
-        >
-          Start Free Trial
-        </button>
-      </div>
-      
-      <!-- Pro Plan -->
-      <div class="bg-gradient-to-br from-blue-600 to-blue-700 rounded-2xl shadow-xl p-8 text-white relative">
-        <div class="absolute top-4 right-4 bg-yellow-400 text-blue-900 px-3 py-1 rounded-full text-sm font-semibold">
-          Most Popular
-        </div>
-        
-        <div class="mb-8">
-          <h3 class="text-2xl font-bold">Professional</h3>
-          <p class="text-blue-100 mt-2">For growing businesses</p>
-          <div class="mt-4">
-            <span class="text-4xl font-bold">$49</span>
-            <span class="text-blue-100">/month per user</span>
-          </div>
-        </div>
-        
-        <ul class="space-y-4 mb-8">
-          {#each [
-            'Everything in Starter',
-            'Advanced scheduling',
-            'Team management',
             'Custom workflows',
-            'Priority support',
-            'API access'
+            'Advanced reporting',
           ] as feature}
             <li class="flex items-start">
               <Icon name="check" class="w-5 h-5 text-white mr-3 mt-0.5 flex-shrink-0" />
-              <span>{feature}</span>
+              <span class="text-white">{feature}</span>
             </li>
           {/each}
         </ul>
         
         <button
           onclick={openRegister}
-          class="w-full py-3 bg-white text-blue-600 rounded-lg font-semibold hover:bg-gray-100 transition-colors"
+          class="w-full py-4 bg-white text-blue-600 rounded-lg font-semibold hover:bg-gray-100 transition-colors text-lg"
         >
           Start Free Trial
         </button>
+        
+        <p class="text-center text-blue-100 text-sm mt-4">
+          14-day free trial • No credit card required
+        </p>
       </div>
     </div>
     
-    <!-- Enterprise -->
+    <!-- Trust badges -->
     <div class="mt-12 text-center">
-      <p class="text-gray-600">
-        Need something bigger?
-        <button class="text-blue-600 font-semibold hover:underline ml-1">
-          Contact us for Enterprise pricing
-        </button>
-      </p>
+      <p class="text-gray-600 mb-6">Trusted by field service professionals</p>
+      <div class="flex justify-center items-center space-x-8 opacity-60">
+        <div class="text-2xl">🔧</div>
+        <div class="text-2xl">⚡</div>
+        <div class="text-2xl">🏠</div>
+        <div class="text-2xl">🔨</div>
+        <div class="text-2xl">🚰</div>
+      </div>
     </div>
   </div>
 </section>
