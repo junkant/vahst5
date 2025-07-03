@@ -10,6 +10,7 @@
   import { useOffline } from '$lib/stores/offline.svelte';
   import TopBar from '$lib/components/common/TopBar.svelte';
   import BottomNav from '$lib/components/common/BottomNav.svelte';
+  import LandingBottomNav from '$lib/components/common/LandingBottomNav.svelte';
   import LandingHeader from '$lib/components/common/LandingHeader.svelte';
   import OfflineIndicator from '$lib/components/common/OfflineIndicator.svelte';
   import PwaInstallPrompt from '$lib/components/common/PwaInstallPrompt.svelte';
@@ -29,17 +30,12 @@
     $page.route.id === '/' ||
     $page.route.id === '/login' ||
     $page.route.id === '/register' ||
-    $page.route.id === '/onboarding'
+    $page.route.id === '/onboarding' ||
+    $page.error !== null // Include error pages
   );
   
   // Check if we're on the business selection page
   const isBusinessSelectionPage = $derived($page.route.id === '/select-business');
-  
-  // Check if we're on an error page
-  const isErrorPage = $derived($page.error !== null);
-  
-  // Determine navigation mode
-  const navMode = $derived(isPublicPage ? 'landing' : 'app');
   
   // Initialize tenant data when auth changes
   $effect(() => {
@@ -76,91 +72,60 @@
     };
   });
   
-  // Update client jobs when selected client changes
+  // Subscribe to job updates for selected client
   $effect(() => {
-    if (!isPublicPage && !isBusinessSelectionPage && tenant.current?.id && clients.selectedClient?.id) {
+    if (clients.selectedClient && tenant.current?.id) {
       updateClientJobsSubscription(tenant.current.id, clients.selectedClient.id);
     }
   });
   
-  // Process offline queue when user logs in
+  // Handle redirect for authenticated users on public pages
   $effect(() => {
-    if (auth.user && tenant.current && offline.isOnline && offline.hasQueuedOperations) {
-      setTimeout(() => {
-        offline.processQueue();
-      }, 1000);
-    }
-  });
-  
-  // Save queue to localStorage whenever it changes
-  $effect(() => {
-    offline.saveQueueToStorage();
-  });
-  
-  // Handle redirects
-  $effect(() => {
-    if (!auth.isLoading && !isErrorPage) {
-      // Redirect unauthenticated users from protected pages
-      if (!auth.user && !isPublicPage && !isBusinessSelectionPage) {
-        goto('/');
-        return;
-      }
-      
-      // Redirect authenticated users from public pages (but only if they have a selected tenant)
-      if (auth.isAuthenticated && auth.hasTenant && isPublicPage) {
-        goto('/my-day');
-        return;
-      }
-      
-      // Handle business selection flow
-      if (auth.isAuthenticated && !isBusinessSelectionPage && !isPublicPage) {
-        if (auth.needsBusinessSelection()) {
-          goto('/select-business');
-          return;
-        }
-      }
-      
-      // Redirect from business selection if not needed
-      if (isBusinessSelectionPage && auth.isAuthenticated && !auth.needsBusinessSelection()) {
-        goto('/my-day');
-        return;
-      }
-      
-      // Redirect unauthenticated users from business selection
-      if (isBusinessSelectionPage && !auth.isAuthenticated) {
+    if (!isPublicPage && !isBusinessSelectionPage && !$page.error) {
+      if (!auth.user) {
+        // Redirect to login if not authenticated
         goto('/login');
-        return;
+      } else if (!tenant.current) {
+        // Redirect to business selection if no tenant selected
+        goto('/select-business');
       }
     }
   });
 </script>
 
 <div class="min-h-screen bg-gray-50">
-  <!-- Conditional Top Navigation -->
-  {#if !isPublicPage && !isBusinessSelectionPage}
-    <TopBar />
-  {:else if $page.route.id === '/'}
+  <!-- Top Navigation -->
+  {#if isPublicPage}
     <LandingHeader />
+  {:else if isBusinessSelectionPage}
+    <!-- No top bar for business selection page -->
+  {:else}
+    <TopBar />
   {/if}
-
+  
   <!-- Main Content -->
-  <main class="{!isPublicPage && !isBusinessSelectionPage ? 'pb-20' : ''}">
+  <main class="flex-1 {isPublicPage || isBusinessSelectionPage ? '' : 'pb-20'}">
     {@render children()}
   </main>
-
-  <!-- Bottom Navigation (hide on business selection only) -->
+  
+  <!-- Bottom Navigation -->
   {#if !isBusinessSelectionPage}
-    <BottomNav mode={navMode} />
+    {#if isPublicPage}
+      <LandingBottomNav />
+    {:else}
+      <BottomNav />
+    {/if}
   {/if}
   
-  <!-- App-wide components -->
-  <OfflineIndicator />
-  <PwaInstallPrompt />
-  
-  <!-- Only show NotificationPrompt for authenticated users with selected tenant -->
-  {#if auth.isAuthenticated && tenant.hasTenant && !isPublicPage && !isBusinessSelectionPage}
+  <!-- Global Components - Only show auth-specific components when authenticated -->
+  {#if !isPublicPage}
+    <OfflineIndicator />
     <NotificationPrompt />
   {/if}
   
+  <!-- PWA prompt can show everywhere -->
+  <PwaInstallPrompt />
+  
+  <!-- Toaster is global for all pages -->
   <Toaster />
 </div>
