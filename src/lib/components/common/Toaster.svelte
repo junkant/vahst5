@@ -1,4 +1,4 @@
-<!-- src/lib/components/common/Toaster.svelte -->
+<!-- src/lib/components/common/Toaster.svelte - COMPLETE FIXED VERSION -->
 <!--
   @component Toaster
   @description Optimized toast notification component with animations and interactions
@@ -105,8 +105,15 @@
         <div 
           class="flex items-start gap-3 px-4 py-3 rounded-lg shadow-lg border backdrop-blur-sm 
                  max-w-sm min-w-[300px] {styles.container} relative overflow-hidden"
+          role="alert"
+          tabindex="0"
           onmouseenter={() => toastItem.pauseOnHover && handleMouseEnter(toastItem.id)}
           onmouseleave={() => toastItem.pauseOnHover && handleMouseLeave(toastItem.id)}
+          onkeydown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              toastItem.pauseOnHover && handleMouseEnter(toastItem.id);
+            }
+          }}
         >
           <!-- Progress bar -->
           {#if toastItem.duration && toastItem.duration > 0}

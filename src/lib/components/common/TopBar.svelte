@@ -1,4 +1,4 @@
-<!-- src/lib/components/common/TopBar.svelte -->
+<!-- src/lib/components/common/TopBar.svelte - COMPLETE FIXED VERSION -->
 <!--
   @component TopBar
   @description Optimized top navigation bar with lazy-loaded client selector and debounced search
@@ -8,14 +8,12 @@
   import { goto } from '$app/navigation';
   import { useAuth } from '$lib/stores/auth.svelte';
   import { useClients } from '$lib/stores/client.svelte';
-  import { useTenant } from '$lib/stores/tenant.svelte';
   import { debounce } from '$lib/utils/debounce';
   import { onMount } from 'svelte';
   import Icon from '$lib/components/icons/Icon.svelte';
   
   const auth = useAuth();
   const clients = useClients();
-  const tenant = useTenant();
   
   // State management
   let showClientSelector = $state(false);
@@ -23,6 +21,7 @@
   let showInlineSearch = $state(false);
   let searchQuery = $state('');
   let ClientSelector = $state<any>(null);
+  let searchInputRef: HTMLInputElement;
   
   // Track tenant changes for cleanup
   let lastTenantId = $state<string | null>(null);
@@ -54,6 +53,11 @@
     if (!showInlineSearch) {
       searchQuery = '';
       debouncedSearch.cancel?.(); // Cancel any pending searches
+    } else {
+      // Focus input after state update
+      setTimeout(() => {
+        searchInputRef?.focus();
+      }, 0);
     }
     showClientSelector = false; // Close selector if open
   }
@@ -64,99 +68,91 @@
       if (term.trim()) {
         clients.searchClients(term);
       } else {
-        clients.clearSearch?.(); // Clear search results if implemented
+        clients.clearSearch?.();
       }
     }, 300),
-    { cancel: () => {} } // Add cancel method placeholder
+    { cancel: () => {} } // Add cancel method
   );
   
-  // Watch for search query changes
-  $effect(() => {
-    if (showInlineSearch) {
-      debouncedSearch(searchQuery);
-    }
-  });
-  
-  // Monitor tenant changes and handle cleanup
-  $effect(() => {
-    const currentTenantId = tenant.current?.id || null;
-    
-    if (currentTenantId !== lastTenantId) {
-      const oldTenantId = lastTenantId;
-      lastTenantId = currentTenantId;
-      
-      // Clear selected client when tenant changes
-      if (oldTenantId !== null && clients.selectedClient) {
-        clients.selectClient(null);
-      }
-      
-      // Subscribe to new tenant
-      if (currentTenantId) {
-        clients.subscribeTenant(currentTenantId);
-      }
-      
-      // Reset search state
-      searchQuery = '';
-      showInlineSearch = false;
-    }
-  });
-  
-  // Handle sign out
-  async function handleSignOut() {
-    closeAllDropdowns();
-    await auth.signOut();
-    goto('/');
-  }
-  
-  // Navigate to settings
-  function navigateToSettings() {
-    closeAllDropdowns();
-    goto('/settings');
-  }
-  
   // Clear client selection
-  function handleClientClear(e: Event) {
-    e.stopPropagation();
+  function handleClientClear(event: Event) {
+    event.stopPropagation();
     clients.selectClient(null);
-    searchQuery = '';
   }
   
-  // Close all dropdowns
-  function closeAllDropdowns() {
-    showUserMenu = false;
-    showClientSelector = false;
-    showInlineSearch = false;
-    searchQuery = '';
-  }
-  
-  // Handle clicks outside dropdowns
-  function handleClickOutside(event: MouseEvent) {
-    const target = event.target as HTMLElement;
-    if (!target.closest('.user-menu-container') && showUserMenu) {
+  // Handle dropdown interactions
+  function handleDropdownKeydown(event: KeyboardEvent) {
+    if (event.key === 'Escape') {
+      showClientSelector = false;
       showUserMenu = false;
+      showInlineSearch = false;
     }
-    if (!target.closest('.search-container') && showInlineSearch) {
+  }
+  
+  // Clean up tenant changes
+  $effect(() => {
+    const currentTenantId = auth.tenant?.id || null;
+    
+    if (lastTenantId && lastTenantId !== currentTenantId) {
+      // Tenant changed, reset UI state
+      showClientSelector = false;
+      showUserMenu = false;
       showInlineSearch = false;
       searchQuery = '';
+      ClientSelector = null;
     }
-  }
+    
+    lastTenantId = currentTenantId;
+  });
   
-  // Cleanup on unmount
+  // Handle click outside
   $effect(() => {
-    // Add global click listener
-    document.addEventListener('click', handleClickOutside);
+    if (showClientSelector || showUserMenu || showInlineSearch) {
+      const handleClickOutside = (event: MouseEvent) => {
+        const target = event.target as Element;
+        if (!target.closest('.client-selector-container') && 
+            !target.closest('.user-menu-container') &&
+            !target.closest('.search-container')) {
+          showClientSelector = false;
+          showUserMenu = false;
+          showInlineSearch = false;
+        }
+      };
+      
+      document.addEventListener('click', handleClickOutside);
+      return () => {
+        document.removeEventListener('click', handleClickOutside);
+      };
+    }
+  });
+  
+  // Key event listeners
+  onMount(() => {
+    const handleKeydown = (e: KeyboardEvent) => {
+      // Global search shortcut: Cmd/Ctrl + K
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        toggleInlineSearch();
+      }
+    };
+    
+    document.addEventListener('keydown', handleKeydown);
+    document.addEventListener('keydown', handleDropdownKeydown);
     
     return () => {
-      closeAllDropdowns();
-      debouncedSearch.cancel?.();
-      document.removeEventListener('click', handleClickOutside);
+      document.removeEventListener('keydown', handleKeydown);
+      document.removeEventListener('keydown', handleDropdownKeydown);
     };
   });
   
-  // Performance monitoring
+  // Performance monitoring in dev - only log once
   if (import.meta.env.DEV) {
     onMount(() => {
-      console.log(`✨ TopBar mounted in ${performance.now() - renderStart}ms`);
+      // Only log if component hasn't been mounted before in this session
+      if (!window.__topBarMounted) {
+        window.__topBarMounted = true;
+        console.log(`✨ TopBar initial mount in ${performance.now() - renderStart}ms`);
+      }
     });
   }
   
@@ -179,14 +175,14 @@
     
     <!-- Business Name (Left) -->
     <div class="flex-shrink-0 min-w-[120px]">
-      {#if auth.isLoading || !tenant.current?.name}
+      {#if auth.isLoading || !auth.tenant?.name}
         <div class="h-7 w-32 bg-gray-200 rounded animate-pulse"></div>
       {:else}
         <button 
           onclick={() => goto('/my-day')}
           class="text-lg font-semibold text-gray-900 animate-fade-in hover:text-blue-600 transition-colors text-left"
         >
-          {tenant.current.name}
+          {auth.tenant.name}
         </button>
       {/if}
     </div>
@@ -246,11 +242,11 @@
         <div class="absolute top-full left-0 right-0 mt-1 bg-white rounded-lg shadow-lg border border-gray-200 z-50">
           <div class="p-2">
             <input
+              bind:this={searchInputRef}
               type="text"
               bind:value={searchQuery}
               placeholder="Quick search clients..."
               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-              autofocus
             />
           </div>
           
@@ -301,76 +297,99 @@
         aria-label="User menu"
       >
         <div class="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white font-medium">
-          {auth.user?.email?.[0]?.toUpperCase() || 'U'}
+          {auth.user?.email?.charAt(0).toUpperCase() || 'U'}
         </div>
         <Icon name="chevronDown" class="w-4 h-4 text-gray-400" />
       </button>
       
+      <!-- User Dropdown -->
       {#if showUserMenu}
-        <div class="absolute right-0 mt-2 bg-white rounded-lg shadow-lg border border-gray-200 p-2 min-w-[200px] z-50">
-          <!-- User Info -->
-          <div class="px-3 py-2 border-b border-gray-100 mb-2">
+        <div class="absolute right-0 top-full mt-1 w-56 bg-white rounded-lg shadow-lg border border-gray-200 z-50">
+          <div class="p-3 border-b border-gray-100">
             <p class="text-sm font-medium text-gray-900 truncate">
-              {auth.user?.email}
+              {auth.user?.email || 'User'}
             </p>
-            <div class="flex items-center justify-between mt-1">
-              <p class="text-xs text-gray-500 truncate">
-                {tenant.current?.name || 'No Business'}
-              </p>
-              {#if tenant.userRole}
-                <span class="text-xs px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded">
-                  {tenant.userRole.charAt(0).toUpperCase() + tenant.userRole.slice(1)}
-                </span>
-              {/if}
-            </div>
+            {#if auth.tenant}
+              <p class="text-sm text-gray-500 mt-1">{auth.tenant.name}</p>
+            {/if}
           </div>
           
-          <!-- Menu Items -->
-          <button 
-            onclick={navigateToSettings}
-            class="w-full flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded"
-          >
-            <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-            </svg>
-            Settings
-          </button>
-          
-          <button 
-            onclick={handleSignOut}
-            class="w-full flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded"
-          >
-            <Icon name="logout" class="w-5 h-5 text-gray-400" size={2} />
-            Sign Out
-          </button>
+          <div class="py-1">
+            <button
+              onclick={() => {
+                showUserMenu = false;
+                goto('/settings/profile');
+              }}
+              class="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 transition-colors flex items-center gap-2"
+            >
+              <Icon name="user" class="w-4 h-4 text-gray-400" />
+              Profile Settings
+            </button>
+            
+            <button
+              onclick={() => {
+                showUserMenu = false;
+                goto('/settings/business');
+              }}
+              class="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 transition-colors flex items-center gap-2"
+            >
+              <Icon name="building" class="w-4 h-4 text-gray-400" />
+              Business Settings
+            </button>
+            
+            <button
+              onclick={() => {
+                showUserMenu = false;
+                goto('/settings/team');
+              }}
+              class="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 transition-colors flex items-center gap-2"
+            >
+              <Icon name="users" class="w-4 h-4 text-gray-400" />
+              Team Members
+            </button>
+            
+            <hr class="my-1 border-gray-100" />
+            
+            <button
+              onclick={async () => {
+                showUserMenu = false;
+                await auth.signOut();
+                goto('/');
+              }}
+              class="w-full px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50 transition-colors flex items-center gap-2"
+            >
+              <Icon name="logout" class="w-4 h-4" />
+              Sign Out
+            </button>
+          </div>
         </div>
       {/if}
     </div>
   </div>
   
-  <!-- Lazy loaded client selector modal -->
+  <!-- Client Selector Modal -->
   {#if showClientSelector && ClientSelector}
-    <ClientSelector bind:open={showClientSelector} />
+    <div class="client-selector-container">
+      <ClientSelector 
+        bind:open={showClientSelector} 
+        onSelect={() => showClientSelector = false}
+      />
+    </div>
   {/if}
 </header>
 
 <style>
   /* Fade in animation */
-  @keyframes fade-in {
-    from {
-      opacity: 0;
-    }
-    to {
-      opacity: 1;
-    }
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-4px); }
+    to { opacity: 1; transform: translateY(0); }
   }
   
   .animate-fade-in {
-    animation: fade-in 0.2s ease-out;
+    animation: fadeIn 0.2s ease-out;
   }
   
-  /* Safe area for notch/status bar */
+  /* Handle safe area for iOS */
   .safe-top {
     padding-top: env(safe-area-inset-top);
   }

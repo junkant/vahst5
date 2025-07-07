@@ -1,4 +1,4 @@
-<!-- src/lib/components/auth/LoginForm.svelte - UPDATED -->
+<!-- src/lib/components/auth/LoginForm.svelte - FIXED VERSION -->
 <script>
   import { goto } from '$app/navigation';
   import { useAuth } from '$lib/stores/auth.svelte';
@@ -27,18 +27,37 @@
       if (result.error) {
         error = result.error;
       } else {
-        // Success - close modal and redirect based on auth state
+        // Success - close modal
         open = false;
-        
-        // Use the auth store's smart redirect logic
-        const redirectPath = auth.getPostLoginRedirect();
-        goto(redirectPath);
         
         // Reset form
         formData = {
           email: '',
           password: ''
         };
+        
+        // IMPORTANT: Wait for tenants to be loaded before redirecting
+        // Create an effect to watch for tenant loading completion
+        let checkInterval = setInterval(() => {
+          if (auth.tenantsLoaded) {
+            clearInterval(checkInterval);
+            
+            // Now check where to redirect
+            const redirectPath = auth.getPostLoginRedirect();
+            console.log('Redirecting to:', redirectPath);
+            console.log('Available tenants:', auth.tenants);
+            console.log('Current tenant:', auth.tenant);
+            goto(redirectPath);
+          }
+        }, 100); // Check every 100ms
+        
+        // Timeout after 5 seconds to prevent infinite waiting
+        setTimeout(() => {
+          clearInterval(checkInterval);
+          // Force redirect if tenants haven't loaded
+          const redirectPath = auth.getPostLoginRedirect();
+          goto(redirectPath);
+        }, 5000);
       }
     } catch (err) {
       error = 'An unexpected error occurred';

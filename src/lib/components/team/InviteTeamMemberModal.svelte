@@ -1,4 +1,4 @@
-<!-- src/lib/components/team/InviteTeamMemberModal.svelte -->
+<!-- src/lib/components/team/InviteTeamMemberModal.svelte - COMPLETE FIXED VERSION -->
 <script lang="ts">
   import { createDialog, melt } from '@melt-ui/svelte';
   import { fade, scale } from 'svelte/transition';
@@ -91,7 +91,7 @@
       }
     } catch (err) {
       console.error('Failed to invite team member:', err);
-      error = err instanceof Error ? err.message : 'Failed to send invite';
+      error = err instanceof Error ? err.message : 'Failed to send invitation';
     } finally {
       isLoading = false;
     }
@@ -100,138 +100,147 @@
   function copyInviteLink() {
     if (inviteLink) {
       navigator.clipboard.writeText(inviteLink);
-      // You could add a toast notification here
+      // You could show a toast here
     }
   }
   
   function closeModal() {
-    if (!isLoading) {
-      open = false;
-      // Reset form
-      email = '';
-      role = USER_ROLES.TEAM_MEMBER;
-      error = null;
-      inviteLink = null;
-    }
+    open = false;
+    // Reset form state
+    email = '';
+    role = USER_ROLES.TEAM_MEMBER;
+    error = null;
+    inviteLink = null;
   }
 </script>
 
 {#if $dialogOpen}
-  <div
-    use:melt={$overlay}
-    class="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm"
-    transition:fade={{ duration: 150 }}
-  />
-  
-  <div
-    use:melt={$content}
-    class="fixed left-[50%] top-[50%] z-50 w-[90vw] max-w-md 
-           translate-x-[-50%] translate-y-[-50%] rounded-xl bg-white p-0 
-           shadow-2xl overflow-hidden"
-    transition:scale={{ duration: 150, start: 0.95 }}
-  >
-    <!-- Header -->
-    <div class="px-6 py-4 border-b">
-      <h2 use:melt={$title} class="text-lg font-semibold text-gray-900">
-        Invite Team Member
-      </h2>
-      <p use:melt={$description} class="text-sm text-gray-500 mt-1">
-        Send an invitation to join your team
-      </p>
-    </div>
-    
-    <!-- Content -->
-    <div class="p-6">
+  <div use:melt={$overlay} class="fixed inset-0 z-50 bg-black/50" transition:fade={{ duration: 150 }}>
+    <div
+      use:melt={$content}
+      class="fixed left-[50%] top-[50%] z-50 max-h-[85vh] w-[90vw] max-w-[450px] translate-x-[-50%] 
+             translate-y-[-50%] rounded-lg bg-white p-6 shadow-lg"
+      transition:scale={{ duration: 150, start: 0.95 }}
+    >
+      <!-- Header -->
+      <div class="mb-6">
+        <h2 use:melt={$title} class="text-lg font-semibold">
+          Invite Team Member
+        </h2>
+        <p use:melt={$description} class="text-sm text-gray-600 mt-1">
+          Invite someone to join your team
+        </p>
+        <button
+          use:melt={$close}
+          aria-label="Close"
+          class="absolute right-4 top-4 p-1 rounded-lg hover:bg-gray-100"
+        >
+          <Icon name="x" class="w-5 h-5" />
+        </button>
+      </div>
+      
+      <!-- Content -->
       {#if inviteLink}
         <!-- Success State -->
-        <div class="text-center py-4">
-          <div class="w-16 h-16 mx-auto mb-4 bg-green-100 rounded-full flex items-center justify-center">
-            <Icon name="checkCircle" class="w-8 h-8 text-green-600" />
+        <div class="space-y-4">
+          <div class="bg-green-50 border border-green-200 rounded-lg p-4">
+            <div class="flex items-start gap-3">
+              <Icon name="checkCircle" class="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
+              <div class="flex-1">
+                <p class="text-sm font-medium text-green-900">
+                  Invitation created successfully!
+                </p>
+                <p class="text-sm text-green-700 mt-1">
+                  Share this link with your team member:
+                </p>
+              </div>
+            </div>
           </div>
-          <h3 class="text-lg font-medium text-gray-900 mb-2">Invitation Created!</h3>
-          <p class="text-sm text-gray-600 mb-4">
-            Share this link with the team member to join your business:
-          </p>
           
-          <div class="bg-gray-50 rounded-lg p-3 mb-4 flex items-center gap-2">
+          <!-- Invite Link -->
+          <div class="relative">
             <input
               type="text"
               value={inviteLink}
               readonly
-              class="flex-1 bg-transparent text-sm text-gray-700 outline-none"
+              class="w-full px-3 py-2 pr-24 border border-gray-300 rounded-lg bg-gray-50 
+                     text-sm text-gray-600 font-mono"
             />
             <button
               onclick={copyInviteLink}
-              class="px-3 py-1 text-sm bg-white border border-gray-300 rounded-md
-                     hover:bg-gray-50 transition-colors"
+              class="absolute right-1 top-1 px-3 py-1 bg-blue-600 text-white text-sm 
+                     rounded-md hover:bg-blue-700 transition-colors"
             >
               Copy
             </button>
           </div>
           
-          <p class="text-xs text-gray-500 mb-4">
-            Note: You'll need to manually send this link to the invited member. 
-            The invitation expires in 7 days.
+          <p class="text-xs text-gray-500">
+            This link expires in 7 days. The recipient must use the email address: 
+            <span class="font-medium">{email}</span>
           </p>
           
-          <div class="flex gap-3">
-            <button
-              onclick={() => { inviteLink = null; }}
-              class="flex-1 px-4 py-2 text-blue-600 bg-blue-50 hover:bg-blue-100 
-                     font-medium rounded-lg transition-colors"
-            >
-              Invite Another
-            </button>
+          <!-- Actions -->
+          <div class="flex gap-3 mt-6">
             <button
               onclick={closeModal}
-              class="flex-1 px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 
-                     font-medium rounded-lg transition-colors"
+              class="flex-1 px-4 py-2 bg-gray-100 text-gray-700 font-medium rounded-lg
+                     hover:bg-gray-200 transition-colors"
             >
-              Done
+              Close
+            </button>
+            <button
+              onclick={() => inviteLink = null}
+              class="flex-1 px-4 py-2 bg-blue-600 text-white font-medium rounded-lg
+                     hover:bg-blue-700 transition-colors"
+            >
+              Invite Another
             </button>
           </div>
         </div>
       {:else}
-        <!-- Form State -->
-        <form onsubmit={handleSubmit}>
+        <!-- Form -->
+        <form onsubmit={handleSubmit} class="space-y-4">
+          <!-- Error Display -->
           {#if error}
-            <div class="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2">
-              <Icon name="alertCircle" class="w-4 h-4 text-red-600 flex-shrink-0" />
-              <p class="text-sm text-red-800">{error}</p>
+            <div class="bg-red-50 border border-red-200 rounded-lg p-3">
+              <p class="text-sm text-red-700">{error}</p>
             </div>
           {/if}
           
           <!-- Email Input -->
-          <div class="mb-6">
-            <label for="invite-email" class="block text-sm font-medium text-gray-700 mb-2">
+          <div>
+            <label for="invite-email" class="block text-sm font-medium text-gray-700 mb-1">
               Email Address
             </label>
             <input
               id="invite-email"
               type="email"
               bind:value={email}
-              placeholder="team.member@example.com"
               required
               disabled={isLoading}
-              class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 
-                     focus:ring-blue-500 focus:border-blue-500 transition-colors
-                     disabled:bg-gray-50 disabled:text-gray-500"
+              placeholder="colleague@company.com"
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none 
+                     focus:ring-2 focus:ring-blue-500 focus:border-transparent 
+                     disabled:bg-gray-100 disabled:cursor-not-allowed"
             />
           </div>
           
           <!-- Role Selection -->
-          <div class="mb-6">
-            <label class="block text-sm font-medium text-gray-700 mb-3">
-              Select Role
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">
+              Role
             </label>
-            <div class="space-y-3">
+            <div class="space-y-2">
               {#each invitableRoles as roleOption}
-                <label class="relative flex items-start p-3 border-2 rounded-lg cursor-pointer
-                              transition-all hover:bg-gray-50
-                              {role === roleOption 
-                                ? 'border-blue-500 bg-blue-50' 
-                                : 'border-gray-200'}">
+                <label 
+                  for="role-{roleOption}"
+                  class="flex items-start gap-3 p-3 border rounded-lg cursor-pointer 
+                         hover:bg-gray-50 transition-colors
+                         {role === roleOption ? 'border-blue-500 bg-blue-50' : 'border-gray-200'}"
+                >
                   <input
+                    id="role-{roleOption}"
                     type="radio"
                     name="role"
                     value={roleOption}
@@ -239,25 +248,23 @@
                     disabled={isLoading}
                     class="sr-only"
                   />
-                  <div class="flex items-center gap-3 w-full">
-                    <div class="flex-shrink-0">
-                      <div class="w-4 h-4 rounded-full border-2 flex items-center justify-center
-                                  {role === roleOption 
-                                    ? 'border-blue-600 bg-blue-600' 
-                                    : 'border-gray-300 bg-white'}">
-                        {#if role === roleOption}
-                          <div class="w-1.5 h-1.5 bg-white rounded-full"></div>
-                        {/if}
-                      </div>
+                  <div class="flex items-center">
+                    <div class="w-4 h-4 rounded-full border-2 flex items-center justify-center
+                                {role === roleOption 
+                                  ? 'border-blue-600 bg-blue-600' 
+                                  : 'border-gray-300 bg-white'}">
+                      {#if role === roleOption}
+                        <div class="w-1.5 h-1.5 bg-white rounded-full"></div>
+                      {/if}
                     </div>
-                    <div class="flex-1">
-                      <p class="text-sm font-medium text-gray-900">
-                        {ROLE_LABELS[roleOption]}
-                      </p>
-                      <p class="text-xs text-gray-500 mt-0.5">
-                        {ROLE_DESCRIPTIONS[roleOption]}
-                      </p>
-                    </div>
+                  </div>
+                  <div class="flex-1">
+                    <p class="text-sm font-medium text-gray-900">
+                      {ROLE_LABELS[roleOption]}
+                    </p>
+                    <p class="text-xs text-gray-500 mt-0.5">
+                      {ROLE_DESCRIPTIONS[roleOption]}
+                    </p>
                   </div>
                 </label>
               {/each}
@@ -288,7 +295,7 @@
                      disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
               {#if isLoading}
-                <span class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                <span class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
                 Creating...
               {:else}
                 Create Invitation

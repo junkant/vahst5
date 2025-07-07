@@ -1,4 +1,4 @@
-// src/lib/stores/auth.svelte.ts
+// src/lib/stores/auth.svelte.ts - FIXED VERSION WITH PROPER TENANT LOADING
 import { onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut as firebaseSignOut } from 'firebase/auth';
 import type { User as FirebaseUser } from 'firebase/auth';
 import { doc, getDoc, setDoc, serverTimestamp, collection, updateDoc } from 'firebase/firestore';
@@ -29,6 +29,8 @@ let currentTenant = $state<Tenant | null>(null);
 let availableTenants = $state<Tenant[]>([]);
 let isLoading = $state(true);
 let error = $state<string | null>(null);
+// ADD: Track if tenants have been loaded
+let tenantsLoaded = $state(false);
 
 // Initialize auth listener
 if (typeof window !== 'undefined') {
@@ -40,6 +42,7 @@ if (typeof window !== 'undefined') {
         // Load user's tenants
         const tenants = await getUserTenants(firebaseUser.uid);
         availableTenants = tenants;
+        tenantsLoaded = true; // Mark tenants as loaded
         
         // Set current tenant (from localStorage or require selection for multiple)
         const savedTenantId = localStorage.getItem('selectedTenantId');
@@ -59,10 +62,12 @@ if (typeof window !== 'undefined') {
       } catch (err) {
         console.error('Failed to load tenant data:', err);
         error = err instanceof Error ? err.message : 'Failed to load tenant data';
+        tenantsLoaded = true; // Even on error, mark as loaded
       }
     } else {
       currentTenant = null;
       availableTenants = [];
+      tenantsLoaded = false;
       // Clear localStorage when user signs out
       if (typeof window !== 'undefined') {
         localStorage.removeItem('selectedTenantId');
@@ -78,6 +83,10 @@ async function signIn(email: string, password: string) {
   try {
     error = null;
     const userCredential = await signInWithEmailAndPassword(auth, email, password);
+    
+    // IMPORTANT: Wait for tenants to be loaded by the auth state listener
+    // The onAuthStateChanged handler will load tenants automatically
+    
     return { user: userCredential.user, error: null };
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Sign in failed';
@@ -86,50 +95,62 @@ async function signIn(email: string, password: string) {
   }
 }
 
-async function signUp(email: string, password: string, tenantName: string) {
+async function signUp(email: string, password: string, businessName: string) {
   try {
     error = null;
     const userCredential = await createUserWithEmailAndPassword(auth, email, password);
     const newUser = userCredential.user;
-    
-    // Create user profile
-    await setDoc(doc(db, 'users', newUser.uid), {
-      email: newUser.email,
-      createdAt: serverTimestamp()
-    });
-    
-    // Create tenant with default plan
+
+    // Create a new tenant/business
     const tenantRef = doc(collection(db, 'tenants'));
-    await setDoc(tenantRef, {
-      name: tenantName,
+    const tenantData = {
+      name: businessName,
+      ownerId: newUser.uid,
+      plan: 'starter' as const,
       type: null,
-      plan: 'starter',
       settings: {},
       limits: {
         users: 10,
         clients: 'unlimited',
-        jobs: 'unlimited',
-        storage: 5
+        jobs: 'unlimited'
       },
       createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-      ownerId: newUser.uid
+      updatedAt: serverTimestamp()
+    };
+
+    await setDoc(tenantRef, tenantData);
+
+    // Create user profile
+    await setDoc(doc(db, 'users', newUser.uid), {
+      email: newUser.email,
+      createdAt: serverTimestamp(),
+      defaultTenant: tenantRef.id
     });
-    
-    // Add user to tenant as owner
+
+    // Create user-tenant relationship
     await setDoc(doc(db, 'userTenants', newUser.uid), {
       tenants: {
         [tenantRef.id]: {
-          tenantId: tenantRef.id,
           role: 'owner',
           permissions: ['all'],
-          joinedAt: serverTimestamp(),
-          status: 'active'
+          joinedAt: serverTimestamp()
         }
       },
       defaultTenant: tenantRef.id
     });
+
+    // Update local state
+    const newTenant: Tenant = {
+      id: tenantRef.id,
+      ...tenantData,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
     
+    availableTenants = [newTenant];
+    currentTenant = newTenant;
+    localStorage.setItem('selectedTenantId', tenantRef.id);
+
     return { user: newUser, error: null };
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Sign up failed';
@@ -150,6 +171,7 @@ async function signOut() {
     await firebaseSignOut(auth);
     currentTenant = null;
     availableTenants = [];
+    tenantsLoaded = false;
     return { error: null };
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Sign out failed';
@@ -212,6 +234,9 @@ function needsBusinessSelection(): boolean {
   // User must be authenticated
   if (!user) return false;
   
+  // IMPORTANT: Wait for tenants to be loaded
+  if (!tenantsLoaded) return false;
+  
   // If no tenants, they need to create one
   if (!availableTenants.length) return true;
   
@@ -231,6 +256,9 @@ function needsBusinessSelection(): boolean {
 function getPostLoginRedirect(): string {
   if (!user) return '/login';
   
+  // IMPORTANT: If tenants haven't loaded yet, don't redirect anywhere
+  if (!tenantsLoaded) return '/';
+  
   // If user has no tenants, go to business selection to create one
   if (!availableTenants.length) return '/select-business';
   
@@ -248,174 +276,107 @@ function getPostLoginRedirect(): string {
 }
 
 // Create a new business for the current user
-async function createBusiness(businessName: string, businessType?: string): Promise<Tenant> {
-  if (!user) {
-    throw new Error('User must be authenticated to create a business');
-  }
+async function createBusiness(businessName: string, businessType?: string) {
+  if (!user) throw new Error('Must be authenticated to create a business');
   
   try {
-    error = null;
-    
-    // Create new tenant with default plan
+    // Create a new tenant/business
     const tenantRef = doc(collection(db, 'tenants'));
     const tenantData = {
-      name: businessName.trim(),
+      name: businessName,
+      ownerId: user.uid,
+      plan: 'starter' as const,
       type: businessType || null,
-      plan: 'starter',
       settings: {},
       limits: {
         users: 10,
         clients: 'unlimited',
-        jobs: 'unlimited',
-        storage: 5
+        jobs: 'unlimited'
       },
       createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-      ownerId: user.uid
+      updatedAt: serverTimestamp()
     };
-    
+
     await setDoc(tenantRef, tenantData);
-    
-    // Add user as owner to this tenant
+
+    // Update user-tenant relationship
     const userTenantRef = doc(db, 'userTenants', user.uid);
-    await setDoc(userTenantRef, {
-      tenants: {
-        [tenantRef.id]: {
-          tenantId: tenantRef.id,
+    const userTenantDoc = await getDoc(userTenantRef);
+    
+    if (userTenantDoc.exists()) {
+      // Add to existing tenants
+      await updateDoc(userTenantRef, {
+        [`tenants.${tenantRef.id}`]: {
           role: 'owner',
           permissions: ['all'],
-          joinedAt: serverTimestamp(),
-          status: 'active'
+          joinedAt: serverTimestamp()
         }
-      }
-    }, { merge: true });
-    
-    // Create the new tenant object for local state
+      });
+    } else {
+      // Create new document
+      await setDoc(userTenantRef, {
+        tenants: {
+          [tenantRef.id]: {
+            role: 'owner',
+            permissions: ['all'],
+            joinedAt: serverTimestamp()
+          }
+        },
+        defaultTenant: tenantRef.id
+      });
+    }
+
+    // Create tenant object
     const newTenant: Tenant = {
       id: tenantRef.id,
-      name: businessName.trim(),
-      type: businessType || null,
+      name: businessName,
+      ownerId: user.uid,
       plan: 'starter',
+      type: businessType || null,
       settings: {},
       limits: {
         users: 10,
         clients: 'unlimited',
-        jobs: 'unlimited',
-        storage: 5
+        jobs: 'unlimited'
       },
       createdAt: new Date(),
-      updatedAt: new Date(),
-      ownerId: user.uid
+      updatedAt: new Date()
     };
     
-    // Update local state and switch to new tenant
+    // Update local state
     addTenant(newTenant);
     await setTenant(newTenant);
     
     return newTenant;
-  } catch (err) {
-    const message = err instanceof Error ? err.message : 'Failed to create business';
-    error = message;
-    throw new Error(message);
+  } catch (error) {
+    console.error('Failed to create business:', error);
+    throw error;
   }
 }
 
-// Update tenant information
-async function updateTenant(tenantId: string, updates: Partial<Tenant>): Promise<void> {
-  if (!user) {
-    throw new Error('User must be authenticated to update tenant');
-  }
-  
-  try {
-    error = null;
-    
-    // Update in Firestore
-    const tenantRef = doc(db, 'tenants', tenantId);
-    await updateDoc(tenantRef, {
-      ...updates,
-      updatedAt: serverTimestamp()
-    });
-    
-    // Update local state
-    availableTenants = availableTenants.map(t => 
-      t.id === tenantId ? { ...t, ...updates, updatedAt: new Date() } : t
-    );
-    
-    // Update current tenant if it's the one being updated
-    if (currentTenant?.id === tenantId) {
-      currentTenant = { ...currentTenant, ...updates, updatedAt: new Date() };
-    }
-  } catch (err) {
-    const message = err instanceof Error ? err.message : 'Failed to update tenant';
-    error = message;
-    throw new Error(message);
-  }
-}
-
-// Refresh tenant data from server
-async function refreshTenants(): Promise<void> {
-  if (!user) return;
-  
-  try {
-    error = null;
-    const tenants = await getUserTenants(user.uid);
-    availableTenants = tenants;
-    
-    // Update current tenant if it exists in the refreshed list
-    if (currentTenant) {
-      const refreshedCurrentTenant = tenants.find(t => t.id === currentTenant.id);
-      if (refreshedCurrentTenant) {
-        currentTenant = refreshedCurrentTenant;
-      } else {
-        // Current tenant no longer exists, clear it
-        currentTenant = null;
-        if (typeof window !== 'undefined') {
-          localStorage.removeItem('selectedTenantId');
-        }
-      }
-    }
-  } catch (err) {
-    error = err instanceof Error ? err.message : 'Failed to refresh tenant data';
-  }
-}
-
-// Export the store hook
+// Export the auth store
 export function useAuth() {
   return {
-    // State getters
+    // State
     get user() { return user; },
     get tenant() { return currentTenant; },
     get tenants() { return availableTenants; },
+    get isAuthenticated() { return !!user; },
     get isLoading() { return isLoading; },
     get error() { return error; },
+    get tenantsLoaded() { return tenantsLoaded; }, // Export this for checking
     
-    // Auth actions
+    // Actions
     signIn,
     signUp,
     signOut,
-    
-    // Tenant actions
     setTenant,
     addTenant,
     removeTenant,
     createBusiness,
-    updateTenant,
-    refreshTenants,
     
-    // Navigation helpers
+    // Helpers
     needsBusinessSelection,
-    getPostLoginRedirect,
-    
-    // Computed values
-    get isAuthenticated() { return !!user; },
-    get hasTenant() { return !!currentTenant; },
-    get hasMultipleTenants() { return availableTenants.length > 1; },
-    get isOwner() { 
-      if (!currentTenant || !user) return false;
-      return currentTenant.ownerId === user.uid;
-    }
+    getPostLoginRedirect
   };
 }
-// Register auth store globally for tenant store to use
-import { registerAuthStore } from './tenant.svelte';
-registerAuthStore(useAuth());

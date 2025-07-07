@@ -1,9 +1,16 @@
-<!-- src/routes/(app)/settings/profile/+page.svelte -->
+<!-- src/routes/(app)/settings/profile/+page.svelte - FIXED VERSION -->
 <script lang="ts">
+  import { goto } from '$app/navigation';
   import { useAuth } from '$lib/stores/auth.svelte';
   import BusinessSwitcher from '$lib/components/settings/BusinessSwitcher.svelte';
   
   const auth = useAuth();
+  
+  async function handleSignOut() {
+    await auth.signOut();
+    // After sign out, go to home page, not login
+    goto('/');
+  }
 </script>
 
 <div class="space-y-6">
@@ -56,7 +63,7 @@
         
         <button
           class="w-full px-4 py-2 border border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition-colors"
-          onclick={() => auth.signOut()}
+          onclick={handleSignOut}
         >
           Sign Out
         </button>
