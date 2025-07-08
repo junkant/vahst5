@@ -1,4 +1,4 @@
-<!-- src/routes/+layout.svelte - CLEAN VERSION -->
+<!-- src/routes/+layout.svelte -->
 <script lang="ts">
   import '../app.css';
   import { page } from '$app/stores';
@@ -25,10 +25,14 @@
   // List of routes that don't require authentication
   const publicRoutes = ['/', '/login', '/register', '/onboarding', '/select-business'];
   
+  // Check if current route is an invite route
+  const isInviteRoute = $derived($page.route.id?.startsWith('/invite/'));
+  
   // Determine if we're on a public page
   const isPublicPage = $derived(
     publicRoutes.includes($page.route.id || '') ||
     $page.route.id?.includes('(public)') ||
+    isInviteRoute || // Add invite routes as public
     // Only treat error pages as public if user is not authenticated
     ($page.error !== null && !auth.user)
   );
@@ -37,73 +41,24 @@
   const isInitializing = $derived(
     !isPublicPage && (
       auth.isLoading || 
-      (auth.user && !auth.tenantsLoaded)
+      !auth.tenantsLoaded ||
+      (auth.isAuthenticated && auth.needsBusinessSelection() && !auth.tenant)
     )
   );
   
-  // Initialize client store when tenant changes
-  let lastTenantId = $state<string | null>(null);
+  // Track if we've already checked auth for this route
+  let hasCheckedAuth = $state(false);
   
+  // Handle authentication and tenant selection redirects
   $effect(() => {
-    const currentTenantId = auth.tenant?.id || null;
+    // Skip if we're on a public page or initializing
+    if (isPublicPage || isInitializing) return;
     
-    // Only initialize if tenant actually changed
-    if (currentTenantId !== lastTenantId) {
-      lastTenantId = currentTenantId;
-      
-      if (currentTenantId) {
-        // Initialize client store for current tenant
-        initializeClientStore(currentTenantId);
-        if (auth.tenant?.name) {
-          console.log(`📋 Initializing clients for tenant: ${auth.tenant.name}`);
-        }
-      } else {
-        // No tenant selected, cleanup clients
-        clients.cleanup();
-      }
-    }
-  });
-  
-  // Initialize job store when tenant changes
-  $effect(() => {
-    const tenantId = auth.tenant?.id;
-    if (tenantId && tenantId !== lastTenantId) {
-      initializeJobStore(tenantId);
-    }
-    
-    // Cleanup when component unmounts
-    return () => {
-      if (lastTenantId !== auth.tenant?.id) {
-        cleanupJobStore();
-      }
-    };
-  });
-  
-  // Subscribe to job updates for selected client
-  $effect(() => {
-    if (clients.selectedClient && auth.tenant?.id) {
-      updateClientJobsSubscription(auth.tenant.id, clients.selectedClient.id);
-    }
-  });
-  
-  // Handle authentication redirects
-  let hasCheckedAuth = false;
-  
-  $effect(() => {
-    // Skip if we're on a public page
-    if (isPublicPage) {
-      hasCheckedAuth = false;
-      return;
-    }
-    
-    // Skip if already checked for this route
+    // Skip if we've already checked this route
     if (hasCheckedAuth) return;
     
-    // Wait for auth to load
-    if (auth.isLoading) return;
-    
-    // Wait for tenants to load if user is authenticated
-    if (auth.user && !auth.tenantsLoaded) return;
+    // Skip if tenant isn't loaded yet
+    if (!auth.tenantsLoaded) return;
     
     // Mark as checked
     hasCheckedAuth = true;
