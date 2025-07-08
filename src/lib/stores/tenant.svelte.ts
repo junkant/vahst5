@@ -1,9 +1,11 @@
 // src/lib/stores/tenant.svelte.ts
-// Optimized tenant store with correct role structure
+// Complete tenant store with enhanced invitation system
 
 import { doc, getDoc, collection, query, where, getDocs, addDoc, updateDoc, deleteDoc, serverTimestamp, writeBatch } from 'firebase/firestore';
 import { db } from '$lib/firebase/config';
 import type { User as FirebaseUser } from 'firebase/auth';
+import { createInvite, getInviteByCode, getTenantInvites } from '$lib/firebase/invites';
+import type { CreateInviteInput, TeamInvite as EnhancedInvite } from '$lib/types/invites';
 
 // Types
 export type UserRole = 'owner' | 'manager' | 'team_member';
@@ -23,14 +25,59 @@ export interface TenantInvite {
   id: string;
   tenantId: string;
   tenantName: string;
-  email: string;
-  role: UserRole;
-  invitedBy: string;
-  invitedByName?: string;
+  
+  // Recipient info
+  recipientEmail: string;
+  recipientName?: string;
+  recipientPhone?: string;
+  invitedRole: UserRole;
+  
+  // Invite details
+  code: string; // ABCD-1234 format
+  shortUrl: string; // vahst.app/invite/ABCD1234
+  qrCodeUrl?: string; // Data URL for QR code
+  
+  // Status tracking
+  status: 'pending_approval' | 'active' | 'accepted' | 'expired' | 'cancelled';
+  
+  // Personal touch
+  personalMessage?: string;
+  messageTemplate: 'casual' | 'formal';
+  
+  // Created by
+  createdBy: {
+    id: string;
+    name: string;
+    email: string;
+    role: UserRole;
+  };
+  
+  // For team member suggestions
+  needsApproval: boolean;
+  approvedBy?: {
+    id: string;
+    name: string;
+    timestamp: Date;
+  };
+  
+  // Tracking
   createdAt: Date;
   expiresAt: Date;
-  status: 'pending' | 'accepted' | 'expired' | 'cancelled';
-  code?: string;
+  firstViewedAt?: Date;
+  acceptedAt?: Date;
+  acceptedBy?: string;
+  
+  // Share tracking
+  shareLog: Array<{
+    method: 'copied_email' | 'copied_sms' | 'copied_link' | 'showed_qr' | 'downloaded_qr';
+    timestamp: Date;
+  }>;
+  
+  // Legacy fields for type compatibility
+  email?: string;
+  role?: UserRole;
+  invitedBy?: string;
+  invitedByName?: string;
 }
 
 export interface TenantSettings {
@@ -237,7 +284,7 @@ async function loadTeamMembers(): Promise<void> {
   }
 }
 
-// Optimized invite loading
+// Load pending invites from enhanced system
 async function loadPendingInvites(): Promise<void> {
   const store = getAuthStore();
   const currentTenant = store.tenant;
@@ -245,34 +292,23 @@ async function loadPendingInvites(): Promise<void> {
   if (!currentTenant) return;
   
   try {
-    const invitesQuery = query(
-      collection(db, 'tenantInvites'),
-      where('tenantId', '==', currentTenant.id),
-      where('status', '==', 'pending')
-    );
+    // Load enhanced invites from the new system
+    const invites = await getTenantInvites(currentTenant.id);
     
-    const snapshot = await getDocs(invitesQuery);
-    const invites: TenantInvite[] = [];
+    // Auto-expire old invites
     const now = new Date();
     const batch = writeBatch(db);
     let hasExpired = false;
     
-    snapshot.forEach((doc) => {
-      const data = doc.data();
-      const invite = {
-        id: doc.id,
-        ...data,
-        createdAt: data.createdAt?.toDate() || new Date(),
-        expiresAt: data.expiresAt?.toDate() || new Date()
-      } as TenantInvite;
-      
-      // Auto-expire old invites
-      if (invite.expiresAt < now) {
-        batch.update(doc.ref, { status: 'expired' });
+    const activeInvites = invites.filter(invite => {
+      if (invite.expiresAt < now && invite.status === 'active') {
+        batch.update(doc(db, 'tenants', currentTenant.id, 'invites', invite.id), { 
+          status: 'expired' 
+        });
         hasExpired = true;
-      } else {
-        invites.push(invite);
+        return false;
       }
+      return true;
     });
     
     // Commit expired updates if any
@@ -280,23 +316,25 @@ async function loadPendingInvites(): Promise<void> {
       await batch.commit();
     }
     
-    pendingInvites = invites;
+    // Update local state with enhanced invite objects
+    pendingInvites = activeInvites as TenantInvite[];
   } catch (err) {
     console.error('Error loading invites:', err);
   }
 }
 
-// Create team member invite
+// Create team member invite with enhanced features
 async function inviteTeamMember(
   email: string, 
   role: UserRole, 
-  invitedByUser: { id: string; name?: string }
-): Promise<{ success: boolean; error?: string; invite?: TenantInvite }> {
+  invitedByUser: { id: string; name?: string },
+  additionalData?: { name?: string; phone?: string; message?: string; template?: 'casual' | 'formal' }
+): Promise<{ success: boolean; error?: string; invite?: EnhancedInvite }> {
   const store = getAuthStore();
   const currentTenant = store.tenant;
   
-  if (!currentTenant) {
-    return { success: false, error: 'No tenant selected' };
+  if (!store.user || !currentTenant) {
+    return { success: false, error: 'No authenticated user or tenant' };
   }
   
   // Validate email format
@@ -316,46 +354,63 @@ async function inviteTeamMember(
     
     // Check if invite already exists
     const existingInvite = pendingInvites.find(i => 
-      i.email.toLowerCase() === email.toLowerCase()
+      i.recipientEmail?.toLowerCase() === email.toLowerCase() ||
+      i.email?.toLowerCase() === email.toLowerCase() // Legacy support
     );
     if (existingInvite) {
       return { success: false, error: 'An invite is already pending for this email' };
     }
     
     // Check team member limits
-    const memberCount = teamMembers.length + pendingInvites.length;
-    const userLimit = currentTenant.limits?.users || 10; // Default to 10 for starter
+    const activeMemberCount = teamMembers.length;
+    const activeInviteCount = pendingInvites.filter(i => 
+      i.status === 'active' || i.status === 'pending_approval'
+    ).length;
+    const totalCount = activeMemberCount + activeInviteCount;
+    const userLimit = currentTenant.limits?.users || 10;
     
-    if (userLimit !== -1 && memberCount >= userLimit) {
+    if (userLimit !== -1 && totalCount >= userLimit) {
       return { success: false, error: `Team member limit (${userLimit}) reached. Upgrade your plan to add more members.` };
     }
     
-    // Create invite
-    const inviteData = {
-      tenantId: currentTenant.id,
-      tenantName: currentTenant.name,
+    // Get current user's role for the invite
+    const currentUserRole = getCurrentUserRole() || 'team_member';
+    
+    // Create the invite input
+    const inviteInput: CreateInviteInput = {
       email: email.toLowerCase().trim(),
       role,
-      invitedBy: invitedByUser.id,
-      invitedByName: invitedByUser.name || invitedByUser.id,
-      createdAt: serverTimestamp(),
-      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
-      status: 'pending',
-      code: generateInviteCode()
+      name: additionalData?.name,
+      phone: additionalData?.phone,
+      message: additionalData?.message,
+      template: additionalData?.template || 'casual'
     };
     
-    const inviteRef = await addDoc(collection(db, 'tenantInvites'), inviteData);
+    // Use the new enhanced invite creation
+    const invite = await createInvite(
+      currentTenant.id,
+      currentTenant.name,
+      inviteInput,
+      {
+        uid: store.user.uid,
+        displayName: store.user.displayName,
+        email: store.user.email,
+        role: currentUserRole
+      }
+    );
     
-    const newInvite: TenantInvite = {
-      id: inviteRef.id,
-      ...inviteData,
-      createdAt: new Date(),
-      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
-    } as TenantInvite;
+    // Add to local state (convert to TenantInvite type)
+    const tenantInvite: TenantInvite = {
+      ...invite,
+      email: invite.recipientEmail, // Legacy support
+      role: invite.invitedRole, // Legacy support
+      invitedBy: invite.createdBy.id, // Legacy support
+      invitedByName: invite.createdBy.name // Legacy support
+    };
     
-    pendingInvites = [...pendingInvites, newInvite];
+    pendingInvites = [...pendingInvites, tenantInvite];
     
-    return { success: true, invite: newInvite };
+    return { success: true, invite };
   } catch (err) {
     console.error('Error inviting team member:', err);
     return { 
@@ -365,33 +420,28 @@ async function inviteTeamMember(
   }
 }
 
-// Accept invite
+// Accept invite with enhanced system
 async function acceptInvite(inviteCode: string, user: FirebaseUser): Promise<{ success: boolean; error?: string }> {
   try {
-    // Find invite by code
-    const invitesQuery = query(
-      collection(db, 'tenantInvites'),
-      where('code', '==', inviteCode.toUpperCase()),
-      where('status', '==', 'pending')
-    );
+    // Format the code and get enhanced invite details
+    const formattedCode = inviteCode.toUpperCase();
+    const invite = await getInviteByCode(formattedCode);
     
-    const snapshot = await getDocs(invitesQuery);
-    if (snapshot.empty) {
+    if (!invite) {
       return { success: false, error: 'Invalid or expired invite code' };
     }
     
-    const inviteDoc = snapshot.docs[0];
-    const invite = { id: inviteDoc.id, ...inviteDoc.data() } as TenantInvite;
-    
-    // Check if invite is expired
-    if (new Date(invite.expiresAt) < new Date()) {
-      await updateDoc(doc(db, 'tenantInvites', invite.id), { status: 'expired' });
-      return { success: false, error: 'This invite has expired' };
+    // Validate invite
+    if (invite.status !== 'active') {
+      return { success: false, error: `This invitation is ${invite.status}` };
     }
     
-    // Check if email matches (case-insensitive)
-    if (invite.email.toLowerCase() !== user.email?.toLowerCase()) {
-      return { success: false, error: 'This invite is for a different email address' };
+    if (new Date() > invite.expiresAt) {
+      return { success: false, error: 'This invitation has expired' };
+    }
+    
+    if (invite.recipientEmail.toLowerCase() !== user.email?.toLowerCase()) {
+      return { success: false, error: 'This invitation is for a different email address' };
     }
     
     // Use batch write for atomic operation
@@ -406,11 +456,11 @@ async function acceptInvite(inviteCode: string, user: FirebaseUser): Promise<{ s
       batch.update(userTenantRef, {
         [`tenants.${invite.tenantId}`]: {
           tenantId: invite.tenantId,
-          role: invite.role,
-          permissions: getDefaultPermissions(invite.role),
+          role: invite.invitedRole,
+          permissions: getDefaultPermissions(invite.invitedRole),
           joinedAt: serverTimestamp(),
           status: 'active',
-          invitedBy: invite.invitedBy
+          invitedBy: invite.createdBy.id
         }
       });
     } else {
@@ -419,18 +469,18 @@ async function acceptInvite(inviteCode: string, user: FirebaseUser): Promise<{ s
         tenants: {
           [invite.tenantId]: {
             tenantId: invite.tenantId,
-            role: invite.role,
-            permissions: getDefaultPermissions(invite.role),
+            role: invite.invitedRole,
+            permissions: getDefaultPermissions(invite.invitedRole),
             joinedAt: serverTimestamp(),
             status: 'active',
-            invitedBy: invite.invitedBy
+            invitedBy: invite.createdBy.id
           }
         }
       });
     }
     
     // Update invite status
-    batch.update(doc(db, 'tenantInvites', invite.id), { 
+    batch.update(doc(db, 'tenants', invite.tenantId, 'invites', invite.id), { 
       status: 'accepted',
       acceptedAt: serverTimestamp(),
       acceptedBy: user.uid
@@ -546,10 +596,17 @@ async function removeTeamMember(memberId: string): Promise<{ success: boolean; e
   }
 }
 
-// Cancel invite
+// Cancel invite with enhanced system
 async function cancelInvite(inviteId: string): Promise<{ success: boolean; error?: string }> {
+  const store = getAuthStore();
+  const currentTenant = store.tenant;
+  
+  if (!currentTenant) {
+    return { success: false, error: 'No tenant selected' };
+  }
+  
   try {
-    await updateDoc(doc(db, 'tenantInvites', inviteId), { 
+    await updateDoc(doc(db, 'tenants', currentTenant.id, 'invites', inviteId), { 
       status: 'cancelled',
       cancelledAt: serverTimestamp()
     });
@@ -572,13 +629,19 @@ function getDefaultPermissions(role: UserRole): string[] {
 }
 
 function generateInviteCode(): string {
-  // More secure code generation
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-  let code = '';
-  for (let i = 0; i < 8; i++) {
-    code += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
-  return code;
+  // Enhanced format for better readability
+  const letters = 'ABCDEFGHJKLMNPQRSTUVWXYZ'; // No I or O
+  const numbers = '23456789'; // No 0 or 1
+  
+  const letterPart = Array(4).fill(0).map(() => 
+    letters[Math.floor(Math.random() * letters.length)]
+  ).join('');
+  
+  const numberPart = Array(4).fill(0).map(() => 
+    numbers[Math.floor(Math.random() * numbers.length)]
+  ).join('');
+  
+  return `${letterPart}-${numberPart}`;
 }
 
 // Check if user has specific permission

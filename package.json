@@ -20,7 +20,10 @@
   },
   "dependencies": {
     "@melt-ui/svelte": "^0.86.6",
-    "firebase": "^11.9.1"
+    "@types/qrcode": "^1.5.5",
+    "firebase": "^11.9.1",
+    "nanoid": "^5.1.5",
+    "qrcode": "^1.5.4"
   },
   "devDependencies": {
     "@eslint/compat": "^1.2.5",

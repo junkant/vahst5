@@ -1,9 +1,10 @@
-// src/lib/stores/auth.svelte.ts - FIXED VERSION WITH PROPER TENANT LOADING
+// src/lib/stores/auth.svelte.ts - COMPLETE VERSION WITH TENANT STORE REGISTRATION
 import { onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut as firebaseSignOut } from 'firebase/auth';
 import type { User as FirebaseUser } from 'firebase/auth';
 import { doc, getDoc, setDoc, serverTimestamp, collection, updateDoc } from 'firebase/firestore';
 import { auth, db } from '$lib/firebase/config';
 import { getUserTenants } from '$lib/firebase/firestore';
+import { registerAuthStore } from '$lib/stores/tenant.svelte';
 
 // Import tenant type
 interface Tenant {
@@ -354,6 +355,37 @@ async function createBusiness(businessName: string, businessType?: string) {
   }
 }
 
+// Update tenant
+async function updateTenant(tenantId: string, updates: Partial<Tenant>): Promise<{ success: boolean; error?: any }> {
+  try {
+    await updateDoc(doc(db, 'tenants', tenantId), {
+      ...updates,
+      updatedAt: serverTimestamp()
+    });
+    
+    // Update local state if it's the current tenant
+    if (currentTenant?.id === tenantId) {
+      currentTenant = {
+        ...currentTenant,
+        ...updates,
+        updatedAt: new Date()
+      };
+    }
+    
+    // Update in available tenants list
+    availableTenants = availableTenants.map(t => 
+      t.id === tenantId 
+        ? { ...t, ...updates, updatedAt: new Date() }
+        : t
+    );
+    
+    return { success: true };
+  } catch (error) {
+    console.error('Failed to update tenant:', error);
+    return { success: false, error };
+  }
+}
+
 // Export the auth store
 export function useAuth() {
   return {
@@ -365,6 +397,8 @@ export function useAuth() {
     get isLoading() { return isLoading; },
     get error() { return error; },
     get tenantsLoaded() { return tenantsLoaded; }, // Export this for checking
+    get hasTenant() { return !!currentTenant; },
+    get isOwner() { return currentTenant?.ownerId === user?.uid; },
     
     // Actions
     signIn,
@@ -374,9 +408,29 @@ export function useAuth() {
     addTenant,
     removeTenant,
     createBusiness,
+    updateTenant,
     
     // Helpers
     needsBusinessSelection,
     getPostLoginRedirect
   };
+}
+
+// IMPORTANT: Create and register the auth store with the tenant store
+const authStore = {
+  get user() { return user; },
+  get tenant() { return currentTenant; },
+  get tenants() { return availableTenants; },
+  get isLoading() { return isLoading; },
+  get error() { return error; },
+  get hasTenant() { return !!currentTenant; },
+  get isOwner() { return currentTenant?.ownerId === user?.uid; },
+  setTenant,
+  createBusiness,
+  updateTenant
+};
+
+// Register the auth store with the tenant store
+if (typeof window !== 'undefined') {
+  registerAuthStore(authStore);
 }

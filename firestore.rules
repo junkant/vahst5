@@ -56,35 +56,73 @@ service cloud.firestore {
       allow delete: if isAuthenticated() && isOwner(request.auth.uid, tenantId);
     }
     
+    // Invite codes lookup collection (public read for accepting invites)
+    match /inviteCodes/{code} {
+      allow read: if true; // Anyone can look up an invite code
+      allow create: if isAuthenticated() && 
+                       userBelongsToTenant(request.auth.uid, request.resource.data.tenantId) &&
+                       canEditData(request.auth.uid, request.resource.data.tenantId);
+      allow update: if false; // Invite codes should never be updated
+      allow delete: if isAuthenticated() && 
+                       userBelongsToTenant(request.auth.uid, resource.data.tenantId) &&
+                       canManageTenant(request.auth.uid, resource.data.tenantId);
+    }
+    
+    // Tenant invites collection
+    match /tenants/{tenantId}/invites/{inviteId} {
+      // Allow read if user belongs to tenant OR if they are the invited email
+      allow read: if isAuthenticated() && 
+                     (userBelongsToTenant(request.auth.uid, tenantId) || 
+                      (resource != null && resource.data.recipientEmail == request.auth.token.email));
+      
+      // Allow create if user can edit data in the tenant
+      allow create: if isAuthenticated() && 
+                       userBelongsToTenant(request.auth.uid, tenantId) &&
+                       canEditData(request.auth.uid, tenantId);
+      
+      // Allow update if user can manage tenant OR if accepting the invite
+      allow update: if isAuthenticated() && 
+                       (canManageTenant(request.auth.uid, tenantId) ||
+                        (resource.data.recipientEmail == request.auth.token.email &&
+                         request.resource.data.status == 'accepted'));
+      
+      // Allow delete if user can manage tenant
+      allow delete: if isAuthenticated() && 
+                       canManageTenant(request.auth.uid, tenantId);
+    }
+    
+    // Bulk invite sessions
+    match /tenants/{tenantId}/bulkSessions/{sessionId} {
+      allow read: if isAuthenticated() && 
+                     userBelongsToTenant(request.auth.uid, tenantId);
+      allow create: if isAuthenticated() && 
+                       userBelongsToTenant(request.auth.uid, tenantId) &&
+                       canEditData(request.auth.uid, tenantId);
+      allow update, delete: if false; // Sessions are immutable
+    }
+    
+    // Pending approvals collection (for team member suggestions)
+    match /tenants/{tenantId}/pendingApprovals/{inviteId} {
+      allow read: if isAuthenticated() && 
+                     userBelongsToTenant(request.auth.uid, tenantId);
+      allow create: if isAuthenticated() && 
+                       userBelongsToTenant(request.auth.uid, tenantId);
+      allow update, delete: if isAuthenticated() && 
+                               canManageTenant(request.auth.uid, tenantId);
+    }
+    
     // Tenant-scoped data - all collections within a tenant
     match /tenants/{tenantId}/{collection}/{document} {
       allow read: if isAuthenticated() && userBelongsToTenant(request.auth.uid, tenantId);
       allow create, update: if isAuthenticated() && canEditData(request.auth.uid, tenantId);
       allow delete: if isAuthenticated() && canManageTenant(request.auth.uid, tenantId);
       
-      // Nested collections (e.g., client jobs, job photos)
+      // Nested collections
       match /{subcollection}/{subdocument=**} {
         allow read: if isAuthenticated() && userBelongsToTenant(request.auth.uid, tenantId);
         allow create, update: if isAuthenticated() && canEditData(request.auth.uid, tenantId);
         allow delete: if isAuthenticated() && canManageTenant(request.auth.uid, tenantId);
       }
-    }
-    
-    // Tenant invites - can be read by invited user, managed by tenant admins
-    match /tenantInvites/{inviteId} {
-      allow read: if isAuthenticated() && 
-                     (request.auth.token.email == resource.data.email ||
-                      canManageTenant(request.auth.uid, resource.data.tenantId));
-      allow create: if isAuthenticated() && 
-                       canManageTenant(request.auth.uid, request.resource.data.tenantId);
-      allow update: if isAuthenticated() && 
-                       (request.auth.token.email == resource.data.email ||
-                        canManageTenant(request.auth.uid, resource.data.tenantId));
-    }
-    
-    // Voice command logs (optional - for debugging voice commands)
-    match /voiceLogs/{tenantId}/{logId} {
-      allow read, write: if isAuthenticated() && userBelongsToTenant(request.auth.uid, tenantId);
     }
   }
 }
