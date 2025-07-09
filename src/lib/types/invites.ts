@@ -49,11 +49,19 @@ export interface TeamInvite {
   
   // Share tracking
   shareLog: ShareEvent[];
+  
+  // Resend history
+  resendHistory?: ResendHistory[];
 }
 
 export interface ShareEvent {
   method: 'copied_email' | 'copied_sms' | 'copied_link' | 'showed_qr' | 'downloaded_qr';
   timestamp: Date;
+}
+
+export interface ResendHistory {
+  timestamp: Date;
+  newExpiry: Date;
 }
 
 export interface BulkInviteSession {

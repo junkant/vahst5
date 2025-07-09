@@ -1,31 +1,65 @@
 <!-- src/routes/(app)/settings/team/+page.svelte -->
 <script lang="ts">
   import { onMount } from 'svelte';
+  import Icon from '$lib/components/icons/Icon.svelte';
+  import CreateInviteModal from '$lib/components/invites/CreateInviteModal.svelte';
+  import BulkInviteModal from '$lib/components/invites/BulkInviteModal.svelte';
+  import ApproveInviteModal from '$lib/components/invites/ApproveInviteModal.svelte';
+  import SuggestMemberModal from '$lib/components/invites/SuggestMemberModal.svelte';
+  import InviteAnalytics from '$lib/components/invites/InviteAnalytics.svelte';
   import { useTenant } from '$lib/stores/tenant.svelte';
   import { useAuth } from '$lib/stores/auth.svelte';
-  import { USER_ROLES, ROLE_LABELS, getRoleBadgeColor, type UserRole } from '$lib/constants/roles';
-  import CreateInviteModal from '$lib/components/invites/CreateInviteModal.svelte';
-  import InviteCard from '$lib/components/invites/InviteCard.svelte';
-  import Icon from '$lib/components/icons/Icon.svelte';
-  import { formatDate } from '$lib/utils/invites';
+  import { useToast } from '$lib/stores/toast.svelte';
+  import { formatRole, formatDate, getDaysUntilExpiry } from '$lib/utils/invites';
+  import { resendInvite, cancelInvite } from '$lib/firebase/invites';
+  import type { UserRole } from '$lib/stores/tenant.svelte';
+  import type { TeamInvite, BulkInviteResult } from '$lib/types/invites';
   
   const tenant = useTenant();
   const auth = useAuth();
+  const toast = useToast();
   
-  let showCreateInviteModal = $state(false);
+  // Modal states
+  let showCreateInvite = $state(false);
+  let showBulkInvite = $state(false);
+  let showApproveModal = $state(false);
+  let showSuggestModal = $state(false);
+  let selectedInviteForApproval = $state<TeamInvite | null>(null);
+  
+  // UI states
   let searchQuery = $state('');
   let roleFilter = $state('all');
-  let activeTab = $state<'members' | 'invites'>('members');
+  let activeTab = $state<'members' | 'invitations' | 'analytics'>('members');
   
-  // Initialize on mount
-  onMount(() => {
-    if (auth.user && tenant.current) {
-      tenant.initialize(auth.user);
-      tenant.loadTeamMembers();
+  // User role constants
+  const USER_ROLES = {
+    OWNER: 'owner' as UserRole,
+    MANAGER: 'manager' as UserRole,
+    TEAM_MEMBER: 'team_member' as UserRole
+  };
+  
+  // Load data on mount
+  onMount(async () => {
+    if (tenant.current) {
+      console.log('Current tenant:', tenant.current);
+      await tenant.loadTeamMembers();
+      console.log('Team loaded:', tenant.team);
+      console.log('Invites loaded:', tenant.invites);
     } else {
-      console.log('Team page - Auth user:', auth.user);
-      console.log('Team page - Current tenant:', tenant.current);
+      console.log('No current tenant');
     }
+  });
+  
+  // Current user role - using the exposed userRole from tenant store
+  const currentUserRole = $derived(tenant.userRole);
+  const isManager = $derived(currentUserRole === USER_ROLES.OWNER || currentUserRole === USER_ROLES.MANAGER);
+  
+  // Debug team and invites data
+  $effect(() => {
+    console.log('Debug - Tenant team:', tenant.team);
+    console.log('Debug - Tenant invites:', tenant.invites);
+    console.log('Debug - Current user role:', currentUserRole);
+    console.log('Debug - Is manager:', isManager);
   });
   
   // Filtered team members
@@ -67,27 +101,31 @@
     return invites.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
   });
   
-  // Check if current user can manage team
-  const canManageTeam = $derived(() => {
-    return tenant.canManageTeam;
+  // Team stats
+  const teamStats = $derived(() => {
+    if (!tenant.current) return null;
+    
+    return {
+      total: tenant.team.length,
+      owners: tenant.team.filter(m => m.role === USER_ROLES.OWNER).length,
+      managers: tenant.team.filter(m => m.role === USER_ROLES.MANAGER).length,
+      teamMembers: tenant.team.filter(m => m.role === USER_ROLES.TEAM_MEMBER).length,
+      pendingInvites: tenant.invites.filter(i => i.status === 'active' || i.status === 'pending_approval').length,
+      pendingApprovals: tenant.invites.filter(i => i.status === 'pending_approval').length
+    }
   });
   
-  // Stats
-  const stats = $derived(() => ({
-    totalMembers: tenant.team.length,
-    owners: tenant.team.filter(m => m.role === USER_ROLES.OWNER).length,
-    managers: tenant.team.filter(m => m.role === USER_ROLES.MANAGER).length,
-    teamMembers: tenant.team.filter(m => m.role === USER_ROLES.TEAM_MEMBER).length,
-    pendingInvites: tenant.invites.filter(i => i.status === 'active' || i.status === 'pending_approval').length,
-    pendingApprovals: tenant.invites.filter(i => i.status === 'pending_approval').length
-  }));
-  
   async function handleRoleChange(memberId: string, newRole: string) {
-    const result = await tenant.updateTeamMemberRole(memberId, newRole as UserRole);
-    if (!result.success) {
-      // TODO: Show toast instead
-      alert(result.error || 'Failed to update role');
-    }
+    const memberName = tenant.team.find(m => m.id === memberId)?.name || 'Team member';
+    
+    const result = await toast.promise(
+      tenant.updateTeamMemberRole(memberId, newRole as UserRole),
+      {
+        loading: 'Updating role...',
+        success: `${memberName}'s role updated to ${formatRole(newRole)}`,
+        error: (err) => err.error || 'Failed to update role'
+      }
+    );
   }
   
   async function handleRemoveMember(memberId: string, memberName: string) {
@@ -95,10 +133,14 @@
       return;
     }
     
-    const result = await tenant.removeTeamMember(memberId);
-    if (!result.success) {
-      alert(result.error || 'Failed to remove team member');
-    }
+    const result = await toast.promise(
+      tenant.removeTeamMember(memberId),
+      {
+        loading: 'Removing team member...',
+        success: `${memberName} removed from the team`,
+        error: (err) => err.error || 'Failed to remove team member'
+      }
+    );
   }
   
   async function handleCancelInvite(inviteId: string) {
@@ -106,15 +148,73 @@
       return;
     }
     
-    const result = await tenant.cancelInvite(inviteId);
-    if (!result.success) {
-      alert(result.error || 'Failed to cancel invitation');
+    if (!tenant.current) return;
+    
+    try {
+      const result = await cancelInvite(inviteId, tenant.current.id);
+      if (result.success) {
+        toast.success('Invitation cancelled');
+        await tenant.loadTeamMembers();
+      } else {
+        toast.error('Failed to cancel invitation', result.error);
+      }
+    } catch (error) {
+      toast.error('Failed to cancel invitation');
     }
   }
   
-  async function handleApproveInvite(inviteId: string) {
-    // TODO: Implement approve invite function
-    console.log('Approve invite:', inviteId);
+  async function handleResendInvite(invite: TeamInvite) {
+    if (!tenant.current) return;
+    
+    try {
+      const result = await resendInvite(invite.id, tenant.current.id);
+      if (result.success) {
+        toast.success('Invitation resent', `New expiry: 7 days from now`);
+        await tenant.loadTeamMembers();
+      } else {
+        toast.error('Failed to resend invitation', result.error);
+      }
+    } catch (error) {
+      toast.error('Failed to resend invitation');
+    }
+  }
+  
+  function handleApproveInvite(invite: TeamInvite) {
+    selectedInviteForApproval = invite;
+    showApproveModal = true;
+  }
+  
+  function handleInviteSuccess() {
+    console.log('Invite created successfully, reloading team data...');
+    // Refresh the team data to include the new invite
+    tenant.loadTeamMembers().then(() => {
+      console.log('Team data reloaded:', tenant.invites);
+    });
+    showCreateInvite = false;
+  }
+  
+  function handleBulkInviteSuccess(result: BulkInviteResult) {
+    tenant.loadTeamMembers();
+    showBulkInvite = false;
+    
+    if (result.successful.length > 0) {
+      toast.success(
+        `Successfully sent ${result.successful.length} invitation${result.successful.length !== 1 ? 's' : ''}`,
+        result.failed.length > 0 ? `${result.failed.length} failed` : undefined
+      );
+    }
+  }
+  
+  function handleApprovalSuccess() {
+    tenant.loadTeamMembers();
+    showApproveModal = false;
+    selectedInviteForApproval = null;
+  }
+  
+  function handleSuggestSuccess() {
+    tenant.loadTeamMembers();
+    showSuggestModal = false;
+    toast.success('Team member suggestion submitted', 'Your suggestion has been sent to managers for approval');
   }
 </script>
 
@@ -138,290 +238,411 @@
   {:else}
     <!-- Header -->
     <div class="mb-8">
-      <h1 class="text-2xl font-bold text-gray-900">Team Management</h1>
-      <p class="text-gray-600 mt-1">
-        Manage your team members and send invitations
-      </p>
-    </div>
-    
-    <!-- Stats -->
-    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-      <div class="bg-white rounded-lg border p-4">
-        <div class="flex items-center gap-3">
-          <div class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-            <Icon name="users" class="w-5 h-5 text-blue-600" />
-          </div>
-          <div>
-            <p class="text-sm text-gray-500">Total Members</p>
-            <p class="text-xl font-semibold">{stats.totalMembers}</p>
-          </div>
+      <div class="flex items-center justify-between">
+        <div>
+          <h1 class="text-2xl font-bold text-gray-900">Team Management</h1>
+          <p class="text-gray-600 mt-1">
+            Manage your team members and send invitations
+          </p>
         </div>
+        
+        <!-- Action Buttons -->
+        {#if isManager}
+          <div class="flex gap-3">
+            <button
+              onclick={() => showBulkInvite = true}
+              class="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg 
+                     hover:bg-gray-50 transition-colors flex items-center gap-2"
+            >
+              <Icon name="users" class="w-4 h-4" />
+              Bulk Invite
+            </button>
+            <button
+              onclick={() => showCreateInvite = true}
+              class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 
+                     transition-colors flex items-center gap-2"
+            >
+              <Icon name="plus" class="w-4 h-4" />
+              Invite Team Member
+            </button>
+          </div>
+        {:else}
+          <button
+            onclick={() => showSuggestModal = true}
+            class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 
+                   transition-colors flex items-center gap-2"
+          >
+            <Icon name="plus" class="w-4 h-4" />
+            Suggest Team Member
+          </button>
+        {/if}
       </div>
       
-      <div class="bg-white rounded-lg border p-4">
-        <div class="flex items-center gap-3">
-          <div class="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
-            <Icon name="crown" class="w-5 h-5 text-purple-600" />
+      <!-- Stats -->
+      {#if teamStats()}
+        <div class="mt-6 grid grid-cols-2 sm:grid-cols-4 gap-4">
+          <div class="bg-white p-4 rounded-lg border border-gray-200">
+            <p class="text-sm text-gray-600">Total Team</p>
+            <p class="mt-1 text-2xl font-semibold text-gray-900">{teamStats().total}</p>
           </div>
-          <div>
-            <p class="text-sm text-gray-500">Owners</p>
-            <p class="text-xl font-semibold">{stats.owners}</p>
+          
+          <div class="bg-white p-4 rounded-lg border border-gray-200">
+            <p class="text-sm text-gray-600">Owners</p>
+            <p class="mt-1 text-2xl font-semibold text-gray-900">{teamStats().owners}</p>
           </div>
-        </div>
-      </div>
-      
-      <div class="bg-white rounded-lg border p-4">
-        <div class="flex items-center gap-3">
-          <div class="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
-            <Icon name="mail" class="w-5 h-5 text-green-600" />
+          
+          <div class="bg-white p-4 rounded-lg border border-gray-200">
+            <p class="text-sm text-gray-600">Managers</p>
+            <p class="mt-1 text-2xl font-semibold text-gray-900">{teamStats().managers}</p>
           </div>
-          <div>
-            <p class="text-sm text-gray-500">Pending Invites</p>
-            <p class="text-xl font-semibold">{stats.pendingInvites}</p>
-          </div>
-        </div>
-      </div>
-      
-      {#if stats.pendingApprovals > 0}
-        <div class="bg-white rounded-lg border p-4 border-orange-200 bg-orange-50">
-          <div class="flex items-center gap-3">
-            <div class="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center">
-              <Icon name="alertCircle" class="w-5 h-5 text-orange-600" />
-            </div>
-            <div>
-              <p class="text-sm text-orange-700">Needs Approval</p>
-              <p class="text-xl font-semibold text-orange-900">{stats.pendingApprovals}</p>
-            </div>
+          
+          <div class="bg-white p-4 rounded-lg border border-gray-200">
+            <p class="text-sm text-gray-600">Pending Invites</p>
+            <p class="mt-1 text-2xl font-semibold text-gray-900">
+              {teamStats().pendingInvites}
+              {#if teamStats().pendingApprovals > 0}
+                <span class="text-sm font-normal text-amber-600">
+                  ({teamStats().pendingApprovals} need approval)
+                </span>
+              {/if}
+            </p>
           </div>
         </div>
       {/if}
     </div>
     
     <!-- Tabs -->
-    <div class="border-b border-gray-200 mb-6">
-      <nav class="flex space-x-8">
-        <button
-          onclick={() => activeTab = 'members'}
-          class="py-2 px-1 border-b-2 font-medium text-sm transition-colors
-                 {activeTab === 'members' 
-                   ? 'border-blue-500 text-blue-600' 
-                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}"
-        >
-          Team Members
-          <span class="ml-2 py-0.5 px-2 rounded-full text-xs bg-gray-100 text-gray-600">
-            {stats.totalMembers}
-          </span>
-        </button>
-        
-        <button
-          onclick={() => activeTab = 'invites'}
-          class="py-2 px-1 border-b-2 font-medium text-sm transition-colors
-                 {activeTab === 'invites' 
-                   ? 'border-blue-500 text-blue-600' 
-                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}"
-        >
-          Invitations
-          <span class="ml-2 py-0.5 px-2 rounded-full text-xs 
-                 {stats.pendingInvites > 0 ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-600'}">
-            {stats.pendingInvites}
-          </span>
-        </button>
-      </nav>
-    </div>
-    
-    <!-- Actions Bar -->
-    <div class="bg-white rounded-lg border p-4 mb-6">
-      <div class="flex flex-col md:flex-row gap-4">
-        <!-- Search -->
-        <div class="flex-1">
-          <div class="relative">
-            <Icon name="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-            <input
-              type="text"
-              bind:value={searchQuery}
-              placeholder={activeTab === 'members' ? 'Search team members...' : 'Search invitations...'}
-              class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg 
-                     focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            />
-          </div>
-        </div>
-        
-        {#if activeTab === 'members'}
-          <!-- Role Filter -->
-          <select
-            bind:value={roleFilter}
-            class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 
-                   focus:ring-blue-500 focus:border-blue-500"
-          >
-            <option value="all">All Roles</option>
-            <option value={USER_ROLES.OWNER}>Owners</option>
-            <option value={USER_ROLES.MANAGER}>Managers</option>
-            <option value={USER_ROLES.TEAM_MEMBER}>Team Members</option>
-          </select>
-        {/if}
-        
-        <!-- Invite Buttons -->
-        {#if canManageTeam}
+    <div class="bg-white rounded-lg shadow">
+      <div class="border-b border-gray-200">
+        <nav class="flex -mb-px">
           <button
-            onclick={() => showCreateInviteModal = true}
-            class="px-4 py-2 bg-blue-600 text-white font-medium rounded-lg
-                   hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 
-                   focus:ring-offset-2 transition-colors flex items-center gap-2"
+            onclick={() => activeTab = 'members'}
+            class="px-6 py-3 text-sm font-medium border-b-2 transition-colors
+                   {activeTab === 'members' 
+                     ? 'text-blue-600 border-blue-600' 
+                     : 'text-gray-500 border-transparent hover:text-gray-700 hover:border-gray-300'}"
           >
-            <Icon name="userPlus" class="w-5 h-5" />
-            Invite Member
+            Team Members
+            <span class="ml-2 px-2 py-0.5 text-xs rounded-full
+                         {activeTab === 'members' ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-600'}">
+              {tenant.team.length}
+            </span>
           </button>
-        {/if}
+          
+          <button
+            onclick={() => activeTab = 'invitations'}
+            class="px-6 py-3 text-sm font-medium border-b-2 transition-colors
+                   {activeTab === 'invitations' 
+                     ? 'text-blue-600 border-blue-600' 
+                     : 'text-gray-500 border-transparent hover:text-gray-700 hover:border-gray-300'}"
+          >
+            Invitations
+            <span class="ml-2 px-2 py-0.5 text-xs rounded-full
+                         {activeTab === 'invitations' ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-600'}">
+              {tenant.invites.filter(i => i.status === 'active' || i.status === 'pending_approval').length}
+            </span>
+            {#if teamStats()?.pendingApprovals && teamStats().pendingApprovals > 0}
+              <span class="ml-1 px-2 py-0.5 text-xs bg-amber-100 text-amber-700 rounded-full">
+                {teamStats().pendingApprovals} pending
+              </span>
+            {/if}
+          </button>
+          
+          {#if isManager}
+            <button
+              onclick={() => activeTab = 'analytics'}
+              class="px-6 py-3 text-sm font-medium border-b-2 transition-colors
+                     {activeTab === 'analytics' 
+                       ? 'text-blue-600 border-blue-600' 
+                       : 'text-gray-500 border-transparent hover:text-gray-700 hover:border-gray-300'}"
+            >
+              Analytics
+              <Icon name="chartBar" class="inline-block w-4 h-4 ml-1" />
+            </button>
+          {/if}
+        </nav>
       </div>
-    </div>
-    
-    <!-- Content -->
-    {#if activeTab === 'members'}
-      <!-- Team Members List -->
-      <div class="bg-white rounded-lg border overflow-hidden">
-        <div class="overflow-x-auto">
-          <table class="w-full">
-            <thead class="bg-gray-50 border-b">
-              <tr>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Member
-                </th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Role
-                </th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Status
-                </th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Joined
-                </th>
-                {#if canManageTeam}
-                  <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Actions
-                  </th>
-                {/if}
-              </tr>
-            </thead>
-            <tbody class="divide-y divide-gray-200">
-              {#if filteredMembers.length > 0}
-                {#each filteredMembers as member}
-                  <tr class="hover:bg-gray-50">
-                    <td class="px-6 py-4 whitespace-nowrap">
-                      <div class="flex items-center">
-                        <div class="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center">
-                          <span class="text-sm font-medium text-gray-600">
-                            {member.name?.charAt(0).toUpperCase() || member.email.charAt(0).toUpperCase()}
-                          </span>
-                        </div>
-                        <div class="ml-3">
-                          <div class="text-sm font-medium text-gray-900">
-                            {member.name || 'No name'}
-                          </div>
-                          <div class="text-sm text-gray-500">
-                            {member.email}
-                          </div>
-                        </div>
-                      </div>
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap">
-                      <span class="px-2 py-1 text-xs font-medium rounded-full {getRoleBadgeColor(member.role)}">
-                        {ROLE_LABELS[member.role] || member.role}
-                      </span>
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap">
-                      <span class="px-2 py-1 text-xs font-medium rounded-full
-                             {member.status === 'active' 
-                               ? 'bg-green-100 text-green-800' 
-                               : 'bg-gray-100 text-gray-800'}">
-                        {member.status}
-                      </span>
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {formatDate(member.joinedAt)}
-                    </td>
-                    {#if canManageTeam}
-                      <td class="px-6 py-4 whitespace-nowrap text-right text-sm">
-                        <div class="flex items-center justify-end gap-2">
-                          {#if member.id !== auth.user?.uid && member.role !== USER_ROLES.OWNER}
-                            <select
-                              value={member.role}
-                              onchange={(e) => handleRoleChange(member.id, e.currentTarget.value)}
-                              class="text-sm border border-gray-300 rounded px-2 py-1"
-                            >
-                              <option value={USER_ROLES.TEAM_MEMBER}>Team Member</option>
-                              <option value={USER_ROLES.MANAGER}>Manager</option>
-                            </select>
-                            
-                            <button
-                              onclick={() => handleRemoveMember(member.id, member.name || member.email)}
-                              class="text-red-600 hover:text-red-800"
-                            >
-                              <Icon name="trash2" class="w-4 h-4" />
-                            </button>
-                          {/if}
-                        </div>
-                      </td>
-                    {/if}
-                  </tr>
-                {/each}
-              {:else}
-                <tr>
-                  <td colspan={canManageTeam ? 5 : 4} class="px-6 py-12 text-center text-gray-500">
-                    {#if tenant.isLoadingTeam}
-                      Loading team members...
-                    {:else}
-                      No team members found
-                    {/if}
-                  </td>
-                </tr>
-              {/if}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    {:else}
-      <!-- Invitations Tab -->
-      <div class="space-y-4">
-        {#if filteredInvites.length > 0}
-          {#each filteredInvites as invite}
-            <InviteCard 
-              {invite} 
-              onCancel={() => handleCancelInvite(invite.id)}
-              onApprove={() => handleApproveInvite(invite.id)}
-              {canManageTeam}
-            />
-          {/each}
-        {:else}
-          <div class="bg-white rounded-lg border p-12 text-center">
-            <Icon name="mail" class="w-12 h-12 text-gray-400 mx-auto mb-4" />
-            <h3 class="text-lg font-medium text-gray-900 mb-2">No pending invitations</h3>
-            <p class="text-gray-500 mb-4">
-              Invite team members to start collaborating
-            </p>
-            {#if canManageTeam}
-              <button
-                onclick={() => showCreateInviteModal = true}
-                class="px-4 py-2 bg-blue-600 text-white font-medium rounded-lg
-                       hover:bg-blue-700 transition-colors inline-flex items-center gap-2"
+      
+      <!-- Search and Filter Bar (for members and invites tabs only) -->
+      {#if activeTab !== 'analytics'}
+        <div class="p-4 bg-gray-50 border-b">
+          <div class="flex flex-col sm:flex-row gap-4">
+            <!-- Search -->
+            <div class="flex-1">
+              <div class="relative">
+                <Icon name="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <input
+                  type="text"
+                  bind:value={searchQuery}
+                  placeholder={activeTab === 'members' ? 'Search team members...' : 'Search invitations...'}
+                  class="w-full pl-10 pr-4 py-2 bg-white border border-gray-300 rounded-lg 
+                         focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+            </div>
+            
+            {#if activeTab === 'members'}
+              <!-- Role Filter -->
+              <select
+                bind:value={roleFilter}
+                class="px-4 py-2 bg-white border border-gray-300 rounded-lg focus:ring-2 
+                       focus:ring-blue-500 focus:border-blue-500"
               >
-                <Icon name="userPlus" class="w-5 h-5" />
-                Send First Invite
-              </button>
+                <option value="all">All Roles</option>
+                <option value={USER_ROLES.OWNER}>Owners</option>
+                <option value={USER_ROLES.MANAGER}>Managers</option>
+                <option value={USER_ROLES.TEAM_MEMBER}>Team Members</option>
+              </select>
             {/if}
           </div>
+        </div>
+      {/if}
+      
+      <!-- Tab Content -->
+      <div class="p-6">
+        {#if activeTab === 'members'}
+          <!-- Team Members List -->
+          {#if tenant.isLoadingTeam}
+            <div class="text-center py-8">
+              <Icon name="loader2" class="w-8 h-8 text-gray-400 animate-spin mx-auto mb-2" />
+              <p class="text-gray-600">Loading team members...</p>
+            </div>
+          {:else if tenant.team.length === 0}
+            <div class="text-center py-8">
+              <Icon name="users" class="w-12 h-12 text-gray-300 mx-auto mb-3" />
+              <p class="text-gray-600 mb-4">
+                {searchQuery || roleFilter !== 'all' ? 'No team members found matching your criteria' : 'No team members yet'}
+              </p>
+              {#if !searchQuery && roleFilter === 'all'}
+                <button
+                  onclick={() => showCreateInvite = true}
+                  class="text-blue-600 hover:text-blue-700 font-medium"
+                >
+                  Invite your first team member
+                </button>
+              {/if}
+            </div>
+          {:else if filteredMembers.length === 0}
+            <div class="text-center py-8">
+              <p class="text-gray-600">No team members match your search criteria</p>
+            </div>
+          {:else}
+            <div class="space-y-4">
+              {#each filteredMembers as member}
+                <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                  <div class="flex items-center gap-4">
+                    <div class="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                      <span class="text-blue-600 font-semibold">
+                        {member.name ? member.name[0].toUpperCase() : member.email[0].toUpperCase()}
+                      </span>
+                    </div>
+                    
+                    <div>
+                      <p class="font-medium text-gray-900">
+                        {member.name || 'Unnamed User'}
+                        {#if member.id === auth.user?.uid}
+                          <span class="text-sm text-gray-500">(You)</span>
+                        {/if}
+                      </p>
+                      <p class="text-sm text-gray-600">{member.email}</p>
+                    </div>
+                  </div>
+                  
+                  <div class="flex items-center gap-4">
+                    {#if isManager && member.id !== auth.user?.uid}
+                      <select
+                        value={member.role}
+                        onchange={(e) => handleRoleChange(member.id, e.currentTarget.value)}
+                        class="px-3 py-1.5 text-sm border rounded-lg focus:ring-2 focus:ring-blue-500"
+                      >
+                        <option value={USER_ROLES.TEAM_MEMBER}>Team Member</option>
+                        <option value={USER_ROLES.MANAGER}>Manager</option>
+                        <option value={USER_ROLES.OWNER}>Owner</option>
+                      </select>
+                    {:else}
+                      <span class="px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border rounded-lg">
+                        {formatRole(member.role)}
+                      </span>
+                    {/if}
+                    
+                    {#if isManager && member.id !== auth.user?.uid}
+                      <button
+                        onclick={() => handleRemoveMember(member.id, member.name || member.email)}
+                        class="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                        aria-label="Remove member"
+                      >
+                        <Icon name="trash2" class="w-4 h-4" />
+                      </button>
+                    {/if}
+                  </div>
+                </div>
+              {/each}
+            </div>
+          {/if}
+        {:else if activeTab === 'invitations'}
+          <!-- Invitations List -->
+          {#if tenant.invites.length === 0}
+            <div class="text-center py-8">
+              <Icon name="mail" class="w-12 h-12 text-gray-300 mx-auto mb-3" />
+              <p class="text-gray-600 mb-4">
+                {searchQuery ? 'No invitations found matching your search' : 'No pending invitations'}
+              </p>
+              {#if !searchQuery}
+                <button
+                  onclick={() => showCreateInvite = true}
+                  class="px-4 py-2 bg-blue-600 text-white font-medium rounded-lg
+                         hover:bg-blue-700 transition-colors inline-flex items-center gap-2"
+                >
+                  <Icon name="userPlus" class="w-5 h-5" />
+                  Send First Invite
+                </button>
+              {/if}
+            </div>
+          {:else if filteredInvites.length === 0}
+            <div class="text-center py-8">
+              <p class="text-gray-600">No invitations match your search criteria</p>
+            </div>
+          {:else}
+            <div class="space-y-4">
+              {#each filteredInvites as invite}
+                {@const daysLeft = getDaysUntilExpiry(invite.expiresAt)}
+                {@const isExpired = invite.status === 'expired' || daysLeft <= 0}
+                {@const needsApproval = invite.status === 'pending_approval'}
+                {@const recipientEmail = invite.recipientEmail || invite.email}
+                {@const recipientName = invite.recipientName || invite.name}
+                {@const invitedRole = invite.invitedRole || invite.role}
+                {@const createdByName = invite.createdBy?.name || invite.invitedByName || 'Unknown'}
+                
+                <div class="p-4 border rounded-lg {isExpired ? 'bg-gray-50 border-gray-200 opacity-60' : 'bg-white border-gray-200 hover:border-gray-300'} transition-colors">
+                  <div class="flex items-start justify-between">
+                    <div class="flex-1">
+                      <div class="flex items-center gap-3 mb-2">
+                        <p class="font-medium text-gray-900">
+                          {recipientEmail}
+                        </p>
+                        {#if recipientName}
+                          <span class="text-sm text-gray-600">({recipientName})</span>
+                        {/if}
+                        
+                        {#if needsApproval}
+                          <span class="px-2 py-0.5 text-xs bg-amber-100 text-amber-700 rounded-full font-medium">
+                            Needs Approval
+                          </span>
+                        {:else if isExpired}
+                          <span class="px-2 py-0.5 text-xs bg-red-100 text-red-700 rounded-full font-medium">
+                            Expired
+                          </span>
+                        {:else if invite.status === 'accepted'}
+                          <span class="px-2 py-0.5 text-xs bg-green-100 text-green-700 rounded-full font-medium">
+                            Accepted
+                          </span>
+                        {/if}
+                      </div>
+                      
+                      <div class="flex items-center gap-4 text-sm text-gray-600">
+                        <span>Role: {formatRole(invitedRole)}</span>
+                        <span>Code: <code class="font-mono font-bold">{invite.code}</code></span>
+                        {#if !isExpired && !needsApproval && invite.status === 'active'}
+                          <span>Expires in {daysLeft} day{daysLeft !== 1 ? 's' : ''}</span>
+                        {/if}
+                      </div>
+                      
+                      <div class="mt-1 text-sm text-gray-500">
+                        Invited by {createdByName} on {formatDate(invite.createdAt)}
+                      </div>
+                    </div>
+                    
+                    <div class="flex items-center gap-2 ml-4">
+                      {#if needsApproval && isManager}
+                        <button
+                          onclick={() => handleApproveInvite(invite)}
+                          class="px-3 py-1.5 bg-green-600 text-white text-sm font-medium rounded-lg
+                                 hover:bg-green-700 transition-colors flex items-center gap-1"
+                        >
+                          <Icon name="check" class="w-3.5 h-3.5" />
+                          Approve
+                        </button>
+                      {/if}
+                      
+                      {#if isExpired && !invite.acceptedAt}
+                        <button
+                          onclick={() => handleResendInvite(invite)}
+                          class="px-3 py-1.5 bg-blue-600 text-white text-sm font-medium rounded-lg
+                                 hover:bg-blue-700 transition-colors flex items-center gap-1"
+                        >
+                          <Icon name="refresh" class="w-3.5 h-3.5" />
+                          Resend
+                        </button>
+                      {/if}
+                      
+                      {#if !invite.acceptedAt && invite.status !== 'cancelled'}
+                        <button
+                          onclick={() => handleCancelInvite(invite.id)}
+                          class="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                          aria-label="Cancel invitation"
+                        >
+                          <Icon name="x" class="w-4 h-4" />
+                        </button>
+                      {/if}
+                    </div>
+                  </div>
+                </div>
+              {/each}
+            </div>
+          {/if}
+        {:else if activeTab === 'analytics'}
+          <!-- Analytics Tab -->
+          <InviteAnalytics />
         {/if}
       </div>
-    {/if}
+    </div>
   {/if}
 </div>
 
 <!-- Modals -->
-{#if showCreateInviteModal}
-  <CreateInviteModal
-    bind:open={showCreateInviteModal}
-    onSuccess={() => {
-      tenant.loadTeamMembers();
-      activeTab = 'invites';
-    }}
+{#if showCreateInvite}
+  <CreateInviteModal 
+    bind:open={showCreateInvite}
+    onSuccess={handleInviteSuccess}
   />
 {/if}
+
+{#if showBulkInvite}
+  <BulkInviteModal 
+    isOpen={showBulkInvite}
+    onClose={() => showBulkInvite = false}
+    onSuccess={handleBulkInviteSuccess}
+  />
+{/if}
+
+{#if showApproveModal}
+  <ApproveInviteModal
+    isOpen={showApproveModal}
+    invite={selectedInviteForApproval}
+    onClose={() => {
+      showApproveModal = false;
+      selectedInviteForApproval = null;
+    }}
+    onSuccess={handleApprovalSuccess}
+  />
+{/if}
+
+{#if showSuggestModal}
+  <SuggestMemberModal
+    isOpen={showSuggestModal}
+    onClose={() => showSuggestModal = false}
+    onSuccess={handleSuggestSuccess}
+  />
+{/if}
+
+<style>
+  @keyframes spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+  
+  .animate-spin {
+    animation: spin 1s linear infinite;
+  }
+</style>

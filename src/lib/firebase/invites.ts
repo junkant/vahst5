@@ -10,7 +10,8 @@ import {
   updateDoc,
   serverTimestamp,
   writeBatch,
-  arrayUnion
+  arrayUnion,
+  Timestamp
 } from 'firebase/firestore';
 import { db } from './config';
 import { nanoid } from 'nanoid';
@@ -157,14 +158,14 @@ export async function createBulkInvites(
  */
 export async function getInviteByCode(code: string): Promise<TeamInvite | null> {
   try {
-    // First, try to find the invite using the code lookup
-    const codeLookupDoc = await getDoc(doc(db, 'inviteCodes', code));
+    // First check the code lookup
+    const codeDoc = await getDoc(doc(db, 'inviteCodes', code.toUpperCase()));
     
-    if (!codeLookupDoc.exists()) {
+    if (!codeDoc.exists()) {
       return null;
     }
     
-    const { inviteId, tenantId } = codeLookupDoc.data();
+    const { inviteId, tenantId } = codeDoc.data();
     
     // Get the actual invite
     const inviteDoc = await getDoc(doc(db, 'tenants', tenantId, 'invites', inviteId));
@@ -173,9 +174,23 @@ export async function getInviteByCode(code: string): Promise<TeamInvite | null> 
       return null;
     }
     
+    const data = inviteDoc.data();
+    
+    // Convert Firestore timestamps
     return {
-      id: inviteDoc.id,
-      ...inviteDoc.data()
+      ...data,
+      createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(data.createdAt),
+      expiresAt: data.expiresAt?.toDate ? data.expiresAt.toDate() : new Date(data.expiresAt),
+      firstViewedAt: data.firstViewedAt?.toDate ? data.firstViewedAt.toDate() : undefined,
+      acceptedAt: data.acceptedAt?.toDate ? data.acceptedAt.toDate() : undefined,
+      approvedBy: data.approvedBy ? {
+        ...data.approvedBy,
+        timestamp: data.approvedBy.timestamp?.toDate ? data.approvedBy.timestamp.toDate() : new Date(data.approvedBy.timestamp)
+      } : undefined,
+      shareLog: data.shareLog?.map((log: any) => ({
+        ...log,
+        timestamp: log.timestamp?.toDate ? log.timestamp.toDate() : new Date(log.timestamp)
+      })) || []
     } as TeamInvite;
   } catch (error) {
     console.error('Error getting invite by code:', error);
@@ -184,21 +199,31 @@ export async function getInviteByCode(code: string): Promise<TeamInvite | null> 
 }
 
 /**
- * Log invite view
+ * Get all invites for a tenant
  */
-export async function logInviteView(inviteId: string, tenantId: string): Promise<void> {
-  try {
-    const inviteRef = doc(db, 'tenants', tenantId, 'invites', inviteId);
-    const inviteDoc = await getDoc(inviteRef);
-    
-    if (inviteDoc.exists() && !inviteDoc.data().firstViewedAt) {
-      await updateDoc(inviteRef, {
-        firstViewedAt: serverTimestamp()
-      });
-    }
-  } catch (error) {
-    console.error('Error logging invite view:', error);
-  }
+export async function getTenantInvites(tenantId: string): Promise<TeamInvite[]> {
+  const invitesRef = collection(db, 'tenants', tenantId, 'invites');
+  const invitesSnap = await getDocs(invitesRef);
+  
+  return invitesSnap.docs.map(doc => {
+    const data = doc.data();
+    return {
+      ...data,
+      id: doc.id,
+      createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(data.createdAt),
+      expiresAt: data.expiresAt?.toDate ? data.expiresAt.toDate() : new Date(data.expiresAt),
+      firstViewedAt: data.firstViewedAt?.toDate ? data.firstViewedAt.toDate() : undefined,
+      acceptedAt: data.acceptedAt?.toDate ? data.acceptedAt.toDate() : undefined,
+      approvedBy: data.approvedBy ? {
+        ...data.approvedBy,
+        timestamp: data.approvedBy.timestamp?.toDate ? data.approvedBy.timestamp.toDate() : new Date(data.approvedBy.timestamp)
+      } : undefined,
+      shareLog: data.shareLog?.map((log: any) => ({
+        ...log,
+        timestamp: log.timestamp?.toDate ? log.timestamp.toDate() : new Date(log.timestamp)
+      })) || []
+    } as TeamInvite;
+  });
 }
 
 /**
@@ -210,13 +235,12 @@ export async function logShare(
   method: ShareEvent['method']
 ): Promise<void> {
   try {
-    const shareEvent: ShareEvent = {
-      method,
-      timestamp: new Date()
-    };
-    
-    await updateDoc(doc(db, 'tenants', tenantId, 'invites', inviteId), {
-      shareLog: arrayUnion(shareEvent)
+    const inviteRef = doc(db, 'tenants', tenantId, 'invites', inviteId);
+    await updateDoc(inviteRef, {
+      shareLog: arrayUnion({
+        method,
+        timestamp: serverTimestamp()
+      })
     });
   } catch (error) {
     console.error('Error logging share event:', error);
@@ -224,109 +248,257 @@ export async function logShare(
 }
 
 /**
- * Update invite status
+ * Mark invite as viewed (first time)
  */
-export async function updateInviteStatus(
-  inviteId: string,
-  tenantId: string,
-  status: TeamInvite['status']
-): Promise<void> {
-  try {
-    await updateDoc(doc(db, 'tenants', tenantId, 'invites', inviteId), {
-      status,
-      [`${status}At`]: serverTimestamp()
+export async function markInviteAsViewed(inviteId: string, tenantId: string): Promise<void> {
+  const inviteRef = doc(db, 'tenants', tenantId, 'invites', inviteId);
+  const inviteDoc = await getDoc(inviteRef);
+  
+  if (inviteDoc.exists() && !inviteDoc.data().firstViewedAt) {
+    await updateDoc(inviteRef, {
+      firstViewedAt: serverTimestamp()
     });
-  } catch (error) {
-    console.error('Error updating invite status:', error);
   }
 }
 
 /**
- * Accept team invite
+ * Accept an invite
  */
-export async function acceptTeamInvite(
+export async function acceptInvite(
+  inviteCode: string,
+  user: User
+): Promise<{ success: boolean; error?: string; tenantId?: string }> {
+  try {
+    const invite = await getInviteByCode(inviteCode);
+    
+    if (!invite) {
+      return { success: false, error: 'Invalid invite code' };
+    }
+    
+    // Check if expired
+    if (invite.expiresAt < new Date()) {
+      return { success: false, error: 'This invitation has expired' };
+    }
+    
+    // Check if already accepted
+    if (invite.status === 'accepted') {
+      return { success: false, error: 'This invitation has already been accepted' };
+    }
+    
+    // Check if needs approval
+    if (invite.status === 'pending_approval') {
+      return { success: false, error: 'This invitation is pending approval from a manager' };
+    }
+    
+    const batch = writeBatch(db);
+    
+    // Update invite status
+    const inviteRef = doc(db, 'tenants', invite.tenantId, 'invites', invite.id);
+    batch.update(inviteRef, {
+      status: 'accepted',
+      acceptedAt: serverTimestamp(),
+      acceptedBy: user.uid
+    });
+    
+    // Add user to tenant
+    const userTenantRef = doc(db, 'userTenants', user.uid);
+    const userTenantDoc = await getDoc(userTenantRef);
+    
+    if (userTenantDoc.exists()) {
+      batch.update(userTenantRef, {
+        [`tenants.${invite.tenantId}`]: {
+          role: invite.invitedRole,
+          joinedAt: serverTimestamp()
+        }
+      });
+    } else {
+      batch.set(userTenantRef, {
+        tenants: {
+          [invite.tenantId]: {
+            role: invite.invitedRole,
+            joinedAt: serverTimestamp()
+          }
+        }
+      });
+    }
+    
+    // Add to tenant's team collection
+    const teamMemberRef = doc(db, 'tenants', invite.tenantId, 'team', user.uid);
+    batch.set(teamMemberRef, {
+      id: user.uid,
+      email: user.email,
+      name: user.displayName || invite.recipientName || '',
+      role: invite.invitedRole,
+      permissions: getDefaultPermissions(invite.invitedRole),
+      joinedAt: serverTimestamp(),
+      status: 'active',
+      invitedBy: invite.createdBy.id
+    });
+    
+    // Remove from pending approvals if it was there
+    if (invite.needsApproval) {
+      const approvalRef = doc(db, 'tenants', invite.tenantId, 'pendingApprovals', invite.id);
+      batch.delete(approvalRef);
+    }
+    
+    await batch.commit();
+    
+    return { success: true, tenantId: invite.tenantId };
+  } catch (error) {
+    console.error('Error accepting invite:', error);
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Failed to accept invitation' 
+    };
+  }
+}
+
+/**
+ * Approve an invite (for managers/owners)
+ */
+export async function approveInvite(
   inviteId: string,
   tenantId: string,
-  userId: string
+  approvedBy: { uid: string; displayName?: string | null }
 ): Promise<{ success: boolean; error?: string }> {
   try {
     const batch = writeBatch(db);
     
     // Update invite status
-    batch.update(doc(db, 'tenants', tenantId, 'invites', inviteId), {
-      status: 'accepted',
-      acceptedAt: serverTimestamp(),
-      acceptedBy: userId
-    });
-    
-    // The user tenant relationship should already be set up by the existing acceptInvite function
-    // This function just updates the invite status
-    
-    await batch.commit();
-    
-    return { success: true };
-  } catch (error) {
-    console.error('Error accepting invite:', error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Failed to accept invite'
-    };
-  }
-}
-
-/**
- * Get all invites for a tenant
- */
-export async function getTenantInvites(tenantId: string): Promise<TeamInvite[]> {
-  try {
-    const invitesQuery = query(
-      collection(db, 'tenants', tenantId, 'invites'),
-      where('status', 'in', ['active', 'pending_approval'])
-    );
-    
-    const snapshot = await getDocs(invitesQuery);
-    
-    return snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    } as TeamInvite));
-  } catch (error) {
-    console.error('Error getting tenant invites:', error);
-    return [];
-  }
-}
-
-/**
- * Approve a team member's invite suggestion
- */
-export async function approveInvite(
-  inviteId: string,
-  tenantId: string,
-  approvedBy: { id: string; name: string }
-): Promise<{ success: boolean; error?: string }> {
-  try {
-    await updateDoc(doc(db, 'tenants', tenantId, 'invites', inviteId), {
+    const inviteRef = doc(db, 'tenants', tenantId, 'invites', inviteId);
+    batch.update(inviteRef, {
       status: 'active',
-      needsApproval: false,
       approvedBy: {
-        ...approvedBy,
+        id: approvedBy.uid,
+        name: approvedBy.displayName || 'Manager',
         timestamp: serverTimestamp()
       }
     });
     
     // Remove from pending approvals
-    await updateDoc(doc(db, 'tenants', tenantId, 'pendingApprovals', inviteId), {
-      approved: true,
-      approvedAt: serverTimestamp(),
-      approvedBy: approvedBy.id
-    });
+    const approvalRef = doc(db, 'tenants', tenantId, 'pendingApprovals', inviteId);
+    batch.delete(approvalRef);
+    
+    await batch.commit();
     
     return { success: true };
   } catch (error) {
     console.error('Error approving invite:', error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Failed to approve invite'
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Failed to approve invitation' 
     };
   }
+}
+
+/**
+ * Resend an invitation (generates new expiry)
+ */
+export async function resendInvite(
+  inviteId: string,
+  tenantId: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const inviteRef = doc(db, 'tenants', tenantId, 'invites', inviteId);
+    
+    // Generate new expiry date (7 days from now)
+    const newExpiryDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+    
+    await updateDoc(inviteRef, {
+      expiresAt: Timestamp.fromDate(newExpiryDate),
+      status: 'active', // Reset status if it was expired
+      resendHistory: arrayUnion({
+        timestamp: serverTimestamp(),
+        newExpiry: Timestamp.fromDate(newExpiryDate)
+      })
+    });
+    
+    return { success: true };
+  } catch (error) {
+    console.error('Error resending invite:', error);
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Failed to resend invitation' 
+    };
+  }
+}
+
+/**
+ * Cancel an invitation
+ */
+export async function cancelInvite(
+  inviteId: string,
+  tenantId: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const batch = writeBatch(db);
+    
+    // Update invite status
+    const inviteRef = doc(db, 'tenants', tenantId, 'invites', inviteId);
+    batch.update(inviteRef, {
+      status: 'cancelled',
+      cancelledAt: serverTimestamp()
+    });
+    
+    // Remove from pending approvals if it was there
+    const approvalRef = doc(db, 'tenants', tenantId, 'pendingApprovals', inviteId);
+    const approvalDoc = await getDoc(approvalRef);
+    if (approvalDoc.exists()) {
+      batch.delete(approvalRef);
+    }
+    
+    await batch.commit();
+    
+    return { success: true };
+  } catch (error) {
+    console.error('Error cancelling invite:', error);
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Failed to cancel invitation' 
+    };
+  }
+}
+
+/**
+ * Log when an invite is viewed (for analytics)
+ */
+export async function logInviteView(inviteId: string, tenantId: string): Promise<void> {
+  try {
+    await markInviteAsViewed(inviteId, tenantId);
+  } catch (error) {
+    console.error('Error logging invite view:', error);
+  }
+}
+
+/**
+ * Update invite status
+ */
+export async function updateInviteStatus(
+  inviteId: string, 
+  tenantId: string, 
+  status: TeamInvite['status']
+): Promise<void> {
+  try {
+    const inviteRef = doc(db, 'tenants', tenantId, 'invites', inviteId);
+    await updateDoc(inviteRef, {
+      status,
+      updatedAt: serverTimestamp()
+    });
+  } catch (error) {
+    console.error('Error updating invite status:', error);
+    throw error;
+  }
+}
+
+/**
+ * Get default permissions for a role
+ */
+function getDefaultPermissions(role: UserRole): string[] {
+  const permissions: Record<UserRole, string[]> = {
+    owner: ['all'],
+    manager: ['manage_team', 'manage_jobs', 'manage_clients', 'view_reports'],
+    team_member: ['manage_assigned_jobs', 'view_clients', 'update_status']
+  };
+  
+  return permissions[role] || [];
 }
