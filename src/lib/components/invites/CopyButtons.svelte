@@ -2,7 +2,7 @@
 <script lang="ts">
   import Icon from '$lib/components/icons/Icon.svelte';
   import { logShare } from '$lib/firebase/invites';
-  import { getEmailTemplate, getSMSTemplate, getWhatsAppTemplate, getSlackTemplate } from '$lib/utils/inviteTemplates';
+  import { getEmailTemplate, getSMSTemplate } from '$lib/utils/inviteTemplates';
   import type { TeamInvite } from '$lib/types/invites';
   
   interface Props {
@@ -47,22 +47,6 @@
       icon: 'link',
       description: 'Just the invitation URL',
       getCopyText: () => invite.shortUrl,
-      logMethod: 'copied_link'
-    },
-    {
-      id: 'whatsapp',
-      label: 'Copy for WhatsApp',
-      icon: 'messageCircle',
-      description: 'Formatted for WhatsApp',
-      getCopyText: () => getWhatsAppTemplate(invite),
-      logMethod: 'copied_link'
-    },
-    {
-      id: 'slack',
-      label: 'Copy for Slack',
-      icon: 'hash',
-      description: 'Slack-formatted message',
-      getCopyText: () => getSlackTemplate(invite),
       logMethod: 'copied_link'
     }
   ];

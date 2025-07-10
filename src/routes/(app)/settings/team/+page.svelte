@@ -6,7 +6,7 @@
   import BulkInviteModal from '$lib/components/invites/BulkInviteModal.svelte';
   import ApproveInviteModal from '$lib/components/invites/ApproveInviteModal.svelte';
   import SuggestMemberModal from '$lib/components/invites/SuggestMemberModal.svelte';
-  import InviteAnalytics from '$lib/components/invites/InviteAnalytics.svelte';
+  import ViewInviteModal from '$lib/components/invites/ViewInviteModal.svelte';
   import { useTenant } from '$lib/stores/tenant.svelte';
   import { useAuth } from '$lib/stores/auth.svelte';
   import { useToast } from '$lib/stores/toast.svelte';
@@ -24,12 +24,14 @@
   let showBulkInvite = $state(false);
   let showApproveModal = $state(false);
   let showSuggestModal = $state(false);
+  let showViewInviteModal = $state(false);
   let selectedInviteForApproval = $state<TeamInvite | null>(null);
+  let selectedInviteForViewing = $state<TeamInvite | null>(null);
   
   // UI states
   let searchQuery = $state('');
   let roleFilter = $state('all');
-  let activeTab = $state<'members' | 'invitations' | 'analytics'>('members');
+  let activeTab = $state<'members' | 'invitations'>('members');
   
   // User role constants
   const USER_ROLES = {
@@ -41,12 +43,7 @@
   // Load data on mount
   onMount(async () => {
     if (tenant.current) {
-      console.log('Current tenant:', tenant.current);
       await tenant.loadTeamMembers();
-      console.log('Team loaded:', tenant.team);
-      console.log('Invites loaded:', tenant.invites);
-    } else {
-      console.log('No current tenant');
     }
   });
   
@@ -54,16 +51,18 @@
   const currentUserRole = $derived(tenant.userRole);
   const isManager = $derived(currentUserRole === USER_ROLES.OWNER || currentUserRole === USER_ROLES.MANAGER);
   
-  // Debug team and invites data
+  // Reload data when modal closes
+  let previousShowCreateInvite = showCreateInvite;
   $effect(() => {
-    console.log('Debug - Tenant team:', tenant.team);
-    console.log('Debug - Tenant invites:', tenant.invites);
-    console.log('Debug - Current user role:', currentUserRole);
-    console.log('Debug - Is manager:', isManager);
+    if (previousShowCreateInvite && !showCreateInvite && tenant.current) {
+      // Modal just closed, reload data
+      tenant.loadTeamMembers();
+    }
+    previousShowCreateInvite = showCreateInvite;
   });
   
   // Filtered team members
-  const filteredMembers = $derived(() => {
+  const filteredMembers = $derived((() => {
     let members = [...tenant.team];
     
     // Filter by role
@@ -81,28 +80,34 @@
     }
     
     return members;
-  });
+  })());
   
   // Filtered invites
-  const filteredInvites = $derived(() => {
+  const filteredInvites = $derived((() => {
     let invites = [...tenant.invites];
     
     // Filter by search
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
-      invites = invites.filter(i => 
-        i.recipientEmail.toLowerCase().includes(query) ||
-        i.recipientName?.toLowerCase().includes(query) ||
-        i.code.toLowerCase().includes(query)
-      );
+      invites = invites.filter(i => {
+        const email = i.recipientEmail || i.email || '';
+        const name = i.recipientName || i.name || '';
+        return email.toLowerCase().includes(query) ||
+               name.toLowerCase().includes(query) ||
+               i.code.toLowerCase().includes(query);
+      });
     }
     
     // Sort by created date (newest first)
-    return invites.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
-  });
+    return invites.sort((a, b) => {
+      const dateA = a.createdAt instanceof Date ? a.createdAt : new Date(a.createdAt);
+      const dateB = b.createdAt instanceof Date ? b.createdAt : new Date(b.createdAt);
+      return dateB.getTime() - dateA.getTime();
+    });
+  })());
   
   // Team stats
-  const teamStats = $derived(() => {
+  const teamStats = $derived((() => {
     if (!tenant.current) return null;
     
     return {
@@ -113,7 +118,7 @@
       pendingInvites: tenant.invites.filter(i => i.status === 'active' || i.status === 'pending_approval').length,
       pendingApprovals: tenant.invites.filter(i => i.status === 'pending_approval').length
     }
-  });
+  })());
   
   async function handleRoleChange(memberId: string, newRole: string) {
     const memberName = tenant.team.find(m => m.id === memberId)?.name || 'Team member';
@@ -185,12 +190,9 @@
   }
   
   function handleInviteSuccess() {
-    console.log('Invite created successfully, reloading team data...');
     // Refresh the team data to include the new invite
-    tenant.loadTeamMembers().then(() => {
-      console.log('Team data reloaded:', tenant.invites);
-    });
-    showCreateInvite = false;
+    tenant.loadTeamMembers();
+    // Don't close the modal - let it show the success state
   }
   
   function handleBulkInviteSuccess(result: BulkInviteResult) {
@@ -215,6 +217,11 @@
     tenant.loadTeamMembers();
     showSuggestModal = false;
     toast.success('Team member suggestion submitted', 'Your suggestion has been sent to managers for approval');
+  }
+  
+  function handleViewInvite(invite: TeamInvite) {
+    selectedInviteForViewing = invite;
+    showViewInviteModal = true;
   }
 </script>
 
@@ -279,30 +286,30 @@
       </div>
       
       <!-- Stats -->
-      {#if teamStats()}
+      {#if teamStats}
         <div class="mt-6 grid grid-cols-2 sm:grid-cols-4 gap-4">
           <div class="bg-white p-4 rounded-lg border border-gray-200">
             <p class="text-sm text-gray-600">Total Team</p>
-            <p class="mt-1 text-2xl font-semibold text-gray-900">{teamStats().total}</p>
+            <p class="mt-1 text-2xl font-semibold text-gray-900">{teamStats.total}</p>
           </div>
           
           <div class="bg-white p-4 rounded-lg border border-gray-200">
             <p class="text-sm text-gray-600">Owners</p>
-            <p class="mt-1 text-2xl font-semibold text-gray-900">{teamStats().owners}</p>
+            <p class="mt-1 text-2xl font-semibold text-gray-900">{teamStats.owners}</p>
           </div>
           
           <div class="bg-white p-4 rounded-lg border border-gray-200">
             <p class="text-sm text-gray-600">Managers</p>
-            <p class="mt-1 text-2xl font-semibold text-gray-900">{teamStats().managers}</p>
+            <p class="mt-1 text-2xl font-semibold text-gray-900">{teamStats.managers}</p>
           </div>
           
           <div class="bg-white p-4 rounded-lg border border-gray-200">
             <p class="text-sm text-gray-600">Pending Invites</p>
             <p class="mt-1 text-2xl font-semibold text-gray-900">
-              {teamStats().pendingInvites}
-              {#if teamStats().pendingApprovals > 0}
+              {teamStats.pendingInvites}
+              {#if teamStats.pendingApprovals > 0}
                 <span class="text-sm font-normal text-amber-600">
-                  ({teamStats().pendingApprovals} need approval)
+                  ({teamStats.pendingApprovals} need approval)
                 </span>
               {/if}
             </p>
@@ -341,62 +348,49 @@
                          {activeTab === 'invitations' ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-600'}">
               {tenant.invites.filter(i => i.status === 'active' || i.status === 'pending_approval').length}
             </span>
-            {#if teamStats()?.pendingApprovals && teamStats().pendingApprovals > 0}
+            {#if teamStats?.pendingApprovals && teamStats.pendingApprovals > 0}
               <span class="ml-1 px-2 py-0.5 text-xs bg-amber-100 text-amber-700 rounded-full">
-                {teamStats().pendingApprovals} pending
+                {teamStats.pendingApprovals} pending
               </span>
             {/if}
           </button>
           
-          {#if isManager}
-            <button
-              onclick={() => activeTab = 'analytics'}
-              class="px-6 py-3 text-sm font-medium border-b-2 transition-colors
-                     {activeTab === 'analytics' 
-                       ? 'text-blue-600 border-blue-600' 
-                       : 'text-gray-500 border-transparent hover:text-gray-700 hover:border-gray-300'}"
-            >
-              Analytics
-              <Icon name="chartBar" class="inline-block w-4 h-4 ml-1" />
-            </button>
-          {/if}
+
         </nav>
       </div>
       
-      <!-- Search and Filter Bar (for members and invites tabs only) -->
-      {#if activeTab !== 'analytics'}
-        <div class="p-4 bg-gray-50 border-b">
-          <div class="flex flex-col sm:flex-row gap-4">
-            <!-- Search -->
-            <div class="flex-1">
-              <div class="relative">
-                <Icon name="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                <input
-                  type="text"
-                  bind:value={searchQuery}
-                  placeholder={activeTab === 'members' ? 'Search team members...' : 'Search invitations...'}
-                  class="w-full pl-10 pr-4 py-2 bg-white border border-gray-300 rounded-lg 
-                         focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                />
-              </div>
+      <!-- Search and Filter Bar -->
+      <div class="p-4 bg-gray-50 border-b">
+        <div class="flex flex-col sm:flex-row gap-4">
+          <!-- Search -->
+          <div class="flex-1">
+            <div class="relative">
+              <Icon name="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <input
+                type="text"
+                bind:value={searchQuery}
+                placeholder={activeTab === 'members' ? 'Search team members...' : 'Search invitations...'}
+                class="w-full pl-10 pr-4 py-2 bg-white border border-gray-300 rounded-lg 
+                       focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
             </div>
-            
-            {#if activeTab === 'members'}
-              <!-- Role Filter -->
-              <select
-                bind:value={roleFilter}
-                class="px-4 py-2 bg-white border border-gray-300 rounded-lg focus:ring-2 
-                       focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="all">All Roles</option>
-                <option value={USER_ROLES.OWNER}>Owners</option>
-                <option value={USER_ROLES.MANAGER}>Managers</option>
-                <option value={USER_ROLES.TEAM_MEMBER}>Team Members</option>
-              </select>
-            {/if}
           </div>
+          
+          {#if activeTab === 'members'}
+            <!-- Role Filter -->
+            <select
+              bind:value={roleFilter}
+              class="px-4 py-2 bg-white border border-gray-300 rounded-lg focus:ring-2 
+                     focus:ring-blue-500 focus:border-blue-500"
+            >
+              <option value="all">All Roles</option>
+              <option value={USER_ROLES.OWNER}>Owners</option>
+              <option value={USER_ROLES.MANAGER}>Managers</option>
+              <option value={USER_ROLES.TEAM_MEMBER}>Team Members</option>
+            </select>
+          {/if}
         </div>
-      {/if}
+      </div>
       
       <!-- Tab Content -->
       <div class="p-6">
@@ -407,13 +401,13 @@
               <Icon name="loader2" class="w-8 h-8 text-gray-400 animate-spin mx-auto mb-2" />
               <p class="text-gray-600">Loading team members...</p>
             </div>
-          {:else if tenant.team.length === 0}
+          {:else if filteredMembers.length === 0}
             <div class="text-center py-8">
               <Icon name="users" class="w-12 h-12 text-gray-300 mx-auto mb-3" />
               <p class="text-gray-600 mb-4">
                 {searchQuery || roleFilter !== 'all' ? 'No team members found matching your criteria' : 'No team members yet'}
               </p>
-              {#if !searchQuery && roleFilter === 'all'}
+              {#if !searchQuery && roleFilter === 'all' && isManager}
                 <button
                   onclick={() => showCreateInvite = true}
                   class="text-blue-600 hover:text-blue-700 font-medium"
@@ -421,10 +415,6 @@
                   Invite your first team member
                 </button>
               {/if}
-            </div>
-          {:else if filteredMembers.length === 0}
-            <div class="text-center py-8">
-              <p class="text-gray-600">No team members match your search criteria</p>
             </div>
           {:else}
             <div class="space-y-4">
@@ -513,7 +503,9 @@
                 {@const invitedRole = invite.invitedRole || invite.role}
                 {@const createdByName = invite.createdBy?.name || invite.invitedByName || 'Unknown'}
                 
-                <div class="p-4 border rounded-lg {isExpired ? 'bg-gray-50 border-gray-200 opacity-60' : 'bg-white border-gray-200 hover:border-gray-300'} transition-colors">
+                <div 
+                  onclick={() => handleViewInvite(invite)}
+                  class="p-4 border rounded-lg cursor-pointer {isExpired ? 'bg-gray-50 border-gray-200 opacity-60' : needsApproval ? 'bg-amber-50 border-amber-200 hover:bg-amber-100' : 'bg-white border-gray-200 hover:border-gray-300 hover:shadow-sm'} transition-all duration-200">
                   <div class="flex items-start justify-between">
                     <div class="flex-1">
                       <div class="flex items-center gap-3 mb-2">
@@ -548,7 +540,7 @@
                       </div>
                       
                       <div class="mt-1 text-sm text-gray-500">
-                        Invited by {createdByName} on {formatDate(invite.createdAt)}
+                        Invited by {createdByName} on {formatDate(invite.createdAt instanceof Date ? invite.createdAt : new Date(invite.createdAt))}
                       </div>
                     </div>
                     
@@ -590,9 +582,6 @@
               {/each}
             </div>
           {/if}
-        {:else if activeTab === 'analytics'}
-          <!-- Analytics Tab -->
-          <InviteAnalytics />
         {/if}
       </div>
     </div>
@@ -632,6 +621,17 @@
     isOpen={showSuggestModal}
     onClose={() => showSuggestModal = false}
     onSuccess={handleSuggestSuccess}
+  />
+{/if}
+
+{#if showViewInviteModal}
+  <ViewInviteModal
+    isOpen={showViewInviteModal}
+    invite={selectedInviteForViewing}
+    onClose={() => {
+      showViewInviteModal = false;
+      selectedInviteForViewing = null;
+    }}
   />
 {/if}
 

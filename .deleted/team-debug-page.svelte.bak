@@ -1,0 +1,78 @@
+<!-- Debug page to test team loading -->
+<script lang="ts">
+  import { onMount } from 'svelte';
+  import { useTenant } from '$lib/stores/tenant.svelte';
+  import { useAuth } from '$lib/stores/auth.svelte';
+  
+  const tenant = useTenant();
+  const auth = useAuth();
+  
+  let loading = $state(false);
+  let error = $state<string | null>(null);
+  
+  onMount(async () => {
+    await loadData();
+  });
+  
+  async function loadData() {
+    loading = true;
+    error = null;
+    try {
+      console.log('Loading team data...');
+      await tenant.loadTeamMembers();
+      console.log('Team loaded successfully');
+    } catch (e) {
+      error = e instanceof Error ? e.message : 'Failed to load team';
+      console.error('Error loading team:', e);
+    } finally {
+      loading = false;
+    }
+  }
+</script>
+
+<div class="p-8">
+  <h1 class="text-2xl font-bold mb-4">Team Data Debug</h1>
+  
+  <div class="space-y-4">
+    <div class="bg-gray-100 p-4 rounded">
+      <h2 class="font-semibold mb-2">Auth State</h2>
+      <pre class="text-sm">{JSON.stringify({
+        userId: auth.user?.uid,
+        email: auth.user?.email,
+        tenantId: tenant.current?.id,
+        tenantName: tenant.current?.name,
+        userRole: tenant.userRole
+      }, null, 2)}</pre>
+    </div>
+    
+    <div class="bg-gray-100 p-4 rounded">
+      <h2 class="font-semibold mb-2">Team Members ({tenant.team.length})</h2>
+      {#if loading}
+        <p>Loading...</p>
+      {:else if error}
+        <p class="text-red-600">Error: {error}</p>
+      {:else}
+        <pre class="text-sm">{JSON.stringify(tenant.team, null, 2)}</pre>
+      {/if}
+    </div>
+    
+    <div class="bg-gray-100 p-4 rounded">
+      <h2 class="font-semibold mb-2">Invites ({tenant.invites.length})</h2>
+      <pre class="text-sm">{JSON.stringify(tenant.invites.map(i => ({
+        id: i.id,
+        email: i.recipientEmail || i.email,
+        status: i.status,
+        createdAt: i.createdAt,
+        code: i.code
+      })), null, 2)}</pre>
+    </div>
+    
+    <button 
+      onclick={loadData} 
+      disabled={loading}
+      class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
+    >
+      {loading ? 'Loading...' : 'Reload Data'}
+    </button>
+  </div>
+</div>
