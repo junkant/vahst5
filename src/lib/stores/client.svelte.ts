@@ -320,7 +320,6 @@ class ClientStore {
     
     // Skip if already subscribed to the same tenant
     if (this.currentTenantId === tenantId && this.unsubscribeClients) {
-      console.log('Client store: Already subscribed to tenant', tenantId);
       return;
     }
     

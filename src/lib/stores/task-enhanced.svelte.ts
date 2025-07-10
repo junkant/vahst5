@@ -1,5 +1,5 @@
 // src/lib/stores/task-enhanced.svelte.ts
-// Enhanced task store with proper Firebase listener management and debugging
+// Enhanced task store with proper Firebase listener management
 
 import { 
   collection,
@@ -9,7 +9,6 @@ import {
   limit,
   onSnapshot,
   type Unsubscribe,
-  type DocumentSnapshot,
   type QueryDocumentSnapshot
 } from 'firebase/firestore';
 import { db } from '$lib/firebase/config';
@@ -30,43 +29,26 @@ import { useAuth } from './auth.svelte';
 import { useTenant } from './tenant.svelte';
 import { browser } from '$app/environment';
 
-interface DebugInfo {
-  listenerAttached: boolean;
-  listenerAttachedAt: string | null;
-  lastUpdateAt: string | null;
-  lastUpdateSource: 'cache' | 'server' | null;
-  taskCount: number;
-  errorLog: string[];
-}
-
 class EnhancedTaskStore {
   // State - wrapped in an object to maintain reactivity
   #state = $state({
     tasks: [] as Task[],
     isLoading: false,
     error: null as string | null,
-    isOffline: false,
-    debugInfo: {
-      listenerAttached: false,
-      listenerAttachedAt: null,
-      lastUpdateAt: null,
-      lastUpdateSource: null,
-      taskCount: 0,
-      errorLog: []
-    } as DebugInfo
+    isOffline: false
   });
   
   // Private fields
   #tenantListener: Unsubscribe | null = null;
   #clientListeners = new Map<string, Unsubscribe>();
   #currentTenantId: string | null = null;
+  #currentClientId: string | null = null;
   #auth = useAuth();
   #tenant = useTenant();
   
   constructor() {
     if (browser) {
       this.#initializeOfflineDetection();
-      this.#logDebug('TaskStore initialized');
     }
   }
   
@@ -76,35 +58,16 @@ class EnhancedTaskStore {
     
     window.addEventListener('online', () => {
       this.#state.isOffline = false;
-      this.#logDebug('Network: online');
     });
     
     window.addEventListener('offline', () => {
       this.#state.isOffline = true;
-      this.#logDebug('Network: offline');
     });
   }
   
-  // Debug logging
-  #logDebug(message: string, data?: any) {
-    const timestamp = new Date().toISOString();
-    const logEntry = `[${timestamp}] ${message}`;
-    
-    console.log(`🔍 TaskStore: ${message}`, data || '');
-    
-    // Keep last 50 log entries
-    this.#state.debugInfo.errorLog = [
-      logEntry,
-      ...this.#state.debugInfo.errorLog.slice(0, 49)
-    ];
-  }
-  
   // Normalize task fields to handle mismatches
-  #normalizeTask(doc: QueryDocumentSnapshot, source: 'cache' | 'server'): Task {
+  #normalizeTask(doc: QueryDocumentSnapshot): Task {
     const data = doc.data();
-    
-    // Log field names for debugging
-    this.#logDebug(`Task ${doc.id} fields from ${source}:`, Object.keys(data));
     
     // Normalize date fields
     const normalizedTask: Task = {
@@ -135,11 +98,8 @@ class EnhancedTaskStore {
   
   // Initialize tenant subscription
   async initializeTenant(tenantId: string | null) {
-    this.#logDebug('initializeTenant called', { tenantId });
-    
     // Skip if already initialized with same tenant
     if (this.#currentTenantId === tenantId && this.#tenantListener) {
-      this.#logDebug('Already initialized with this tenant, skipping');
       return;
     }
     
@@ -162,22 +122,18 @@ class EnhancedTaskStore {
       const cachedTasks = await localCache.getRecentTasks(tenantId, 30);
       if (cachedTasks.length > 0) {
         this.#state.tasks = cachedTasks;
-        this.#logDebug('Loaded cached tasks', { count: cachedTasks.length });
       }
       
-      // Set up real-time listener BEFORE any potential writes
+      // Set up real-time listener
       this.#setupTenantListener(tenantId);
       
     } catch (error) {
-      this.#logDebug('Error in initializeTenant', error);
       this.#state.error = error instanceof Error ? error.message : 'Failed to initialize';
     }
   }
   
   // Set up Firebase listener for all tenant tasks
   #setupTenantListener(tenantId: string) {
-    this.#logDebug('Setting up tenant listener', { tenantId });
-    
     const tasksRef = collection(db, `tenants/${tenantId}/tasks`);
     const q = query(
       tasksRef,
@@ -185,74 +141,41 @@ class EnhancedTaskStore {
       limit(100)
     );
     
-    this.#logDebug('Query created, attaching listener...');
-    
     this.#tenantListener = onSnapshot(
       q,
       { includeMetadataChanges: true },
       (snapshot) => {
-        const source = snapshot.metadata.fromCache ? 'cache' : 'server';
-        this.#logDebug(`Received snapshot from ${source}`, {
-          size: snapshot.size,
-          hasPendingWrites: snapshot.metadata.hasPendingWrites,
-          empty: snapshot.empty
-        });
-        
         // Process all tasks
         const tasks: Task[] = [];
         snapshot.docs.forEach(doc => {
-          tasks.push(this.#normalizeTask(doc, source));
+          tasks.push(this.#normalizeTask(doc));
         });
         
-        this.#logDebug('Tasks processed', { count: tasks.length });
-        
-        // Update state - replace entire array to trigger reactivity
+        // Update state
         this.#state.tasks = tasks;
         this.#state.isLoading = false;
         
-        // Update debug info
-        this.#state.debugInfo = {
-          ...this.#state.debugInfo,
-          listenerAttached: true,
-          listenerAttachedAt: this.#state.debugInfo.listenerAttachedAt || new Date().toISOString(),
-          lastUpdateAt: new Date().toISOString(),
-          lastUpdateSource: source,
-          taskCount: tasks.length
-        };
-        
         // Cache tasks in background
-        if (tasks.length > 0) {
+        if (tasks.length > 0 && !snapshot.metadata.fromCache) {
           this.#cacheTasks(tasks, tenantId);
         }
       },
       (error) => {
-        this.#logDebug('Listener error', error);
         this.#state.error = error.message;
         this.#state.isLoading = false;
-        
-        // Log specific Firebase errors
-        if (error.message?.includes('index')) {
-          this.#logDebug('Firebase index required. Please create the index using the link in the console.');
-        }
       }
     );
-    
-    this.#logDebug('Tenant listener attached');
   }
   
   // Subscribe to specific client's tasks
-  #currentClientId: string | null = null;
-  
   subscribeToClient(clientId: string) {
     if (!this.#currentTenantId || !clientId) return;
     
     // Skip if already subscribed to the same client
     if (this.#currentClientId === clientId && this.#clientListeners.has(clientId)) {
-      this.#logDebug('Already subscribed to client', { clientId });
       return;
     }
     
-    this.#logDebug('Subscribing to client tasks', { clientId });
     this.#currentClientId = clientId;
     
     // Clean up existing client listener
@@ -272,26 +195,15 @@ class EnhancedTaskStore {
       q,
       { includeMetadataChanges: true },
       (snapshot) => {
-        const source = snapshot.metadata.fromCache ? 'cache' : 'server';
-        this.#logDebug(`Client tasks snapshot from ${source}`, {
-          clientId,
-          size: snapshot.size
-        });
-        
         // Filter and update only this client's tasks
-        const clientTasks = snapshot.docs.map(doc => this.#normalizeTask(doc, source));
+        const clientTasks = snapshot.docs.map(doc => this.#normalizeTask(doc));
         
         // Merge with existing tasks
         const otherTasks = this.#state.tasks.filter(t => t.clientId !== clientId);
         this.#state.tasks = [...otherTasks, ...clientTasks];
-        
-        this.#logDebug('Updated tasks after client subscription', {
-          total: this.#state.tasks.length,
-          clientTasks: clientTasks.length
-        });
       },
       (error) => {
-        this.#logDebug('Client listener error', { clientId, error });
+        // Handle error silently or notify user through UI
       }
     );
     
@@ -303,8 +215,6 @@ class EnhancedTaskStore {
     if (!this.#currentTenantId || !this.#auth.user) {
       throw new Error('Not authenticated or no tenant selected');
     }
-    
-    this.#logDebug('Creating task', taskData);
     
     try {
       // Create optimistic task for immediate UI update
@@ -335,7 +245,6 @@ class EnhancedTaskStore {
       
       // Add optimistic update
       this.#state.tasks = [optimisticTask, ...this.#state.tasks];
-      this.#logDebug('Added optimistic task', { id: optimisticTask.id });
       
       // Create in Firebase
       const createdTask = await createTaskFirebase(
@@ -345,8 +254,6 @@ class EnhancedTaskStore {
         this.#auth.user.displayName || undefined
       );
       
-      this.#logDebug('Task created in Firebase', { id: createdTask.id });
-      
       // Remove optimistic task - real-time listener will add the actual task
       this.#state.tasks = this.#state.tasks.filter(t => t.id !== optimisticTask.id);
       
@@ -355,7 +262,6 @@ class EnhancedTaskStore {
     } catch (error) {
       // Remove optimistic task on error
       this.#state.tasks = this.#state.tasks.filter(t => !t.id.startsWith('temp_'));
-      this.#logDebug('Error creating task', error);
       throw error;
     }
   }
@@ -365,8 +271,6 @@ class EnhancedTaskStore {
     if (!this.#currentTenantId || !this.#auth.user) {
       throw new Error('Not authenticated');
     }
-    
-    this.#logDebug('Updating task', { taskId, updates });
     
     // Optimistic update
     this.#state.tasks = this.#state.tasks.map(task => 
@@ -385,8 +289,6 @@ class EnhancedTaskStore {
       // Real-time listener will update with server data
     } catch (error) {
       // Revert optimistic update on error
-      // In production, you might want to reload from server
-      this.#logDebug('Error updating task', error);
       throw error;
     }
   }
@@ -410,7 +312,7 @@ class EnhancedTaskStore {
         await localCache.setTask(task, tenantId);
       }
     } catch (error) {
-      this.#logDebug('Error caching tasks', error);
+      // Silent fail - caching is not critical
     }
   }
   
@@ -418,7 +320,6 @@ class EnhancedTaskStore {
   async loadMore(): Promise<void> {
     if (!this.#currentTenantId || this.#state.isLoading) return;
     
-    this.#logDebug('Loading more tasks');
     this.#state.isLoading = true;
     
     try {
@@ -435,10 +336,8 @@ class EnhancedTaskStore {
       
       if (newTasks.length > 0) {
         this.#state.tasks = [...this.#state.tasks, ...newTasks];
-        this.#logDebug('Loaded more tasks', { count: newTasks.length });
       }
     } catch (error) {
-      this.#logDebug('Error loading more tasks', error);
       this.#state.error = error instanceof Error ? error.message : 'Failed to load tasks';
     } finally {
       this.#state.isLoading = false;
@@ -447,8 +346,6 @@ class EnhancedTaskStore {
   
   // Cleanup listeners
   #cleanup() {
-    this.#logDebug('Cleaning up listeners');
-    
     if (this.#tenantListener) {
       this.#tenantListener();
       this.#tenantListener = null;
@@ -457,8 +354,6 @@ class EnhancedTaskStore {
     this.#clientListeners.forEach(unsubscribe => unsubscribe());
     this.#clientListeners.clear();
     this.#currentClientId = null;
-    
-    this.#state.debugInfo.listenerAttached = false;
   }
   
   // Public cleanup method
@@ -472,7 +367,6 @@ class EnhancedTaskStore {
   get isLoading() { return this.#state.isLoading; }
   get error() { return this.#state.error; }
   get isOffline() { return this.#state.isOffline; }
-  get debugInfo() { return this.#state.debugInfo; }
   
   // Derived getters
   get todayTasks() {

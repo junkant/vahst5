@@ -6,16 +6,11 @@
   import { goto } from '$app/navigation';
   import { onMount } from 'svelte';
   import Icon from '$lib/components/icons/Icon.svelte';
-  import { debugTaskQueries } from '$lib/firebase/debug-tasks';
-  import { checkTasksExist } from '$lib/firebase/debug-check-data';
   import { untrack } from 'svelte';
   
   const clients = useClients();
   const taskStore = useEnhancedTaskStore();
   const tenant = useTenant();
-  
-  // Debug flag
-  let showDebug = $state(true);
   
   // Filter states
   let filter = $state('all');
@@ -28,21 +23,17 @@
   
   // Initialize stores when component mounts
   onMount(() => {
-    console.log('Tasks page mounted');
-    
     // Initialize with current tenant
     const tenantId = untrack(() => tenant.current?.id);
     if (tenantId && !isInitialized) {
       isInitialized = true;
       currentTenantId = tenantId;
       
-      console.log('Initial setup for tenant:', tenantId);
       clients.subscribeTenant(tenantId);
       taskStore.initializeTenant(tenantId);
     }
     
     return () => {
-      console.log('Tasks page unmounting');
       // Clean up stores when unmounting
       taskStore.cleanup();
       clients.cleanup();
@@ -56,8 +47,6 @@
     
     // Only react to actual tenant changes after initialization
     if (isInitialized && newTenantId !== currentTenantId) {
-      console.log('Tenant changed:', { old: currentTenantId, new: newTenantId });
-      
       currentTenantId = newTenantId;
       currentClientId = null; // Reset client selection
       
@@ -83,7 +72,6 @@
     
     // Only react to actual client changes
     if (isInitialized && newClientId !== currentClientId) {
-      console.log('Client selection changed:', selectedClient?.name || 'None');
       currentClientId = newClientId;
       
       if (newClientId && currentTenantId) {
@@ -291,83 +279,8 @@
     }
   }
   
-  // Debug Firebase queries
-  async function debugFirebase() {
-    if (!tenant.current?.id) {
-      alert('No tenant selected');
-      return;
-    }
-    
-    console.log('Running Firebase debug...');
-    const results = await debugTaskQueries(tenant.current.id);
-    console.log('Debug results:', results);
-    
-    if (results.errors.length > 0) {
-      alert('Firebase errors found! Check console for details.');
-    } else {
-      alert('Firebase queries successful! Check console for results.');
-    }
-  }
-  
-  // Create a test task for debugging
-  async function createTestTask() {
-    if (!tenant.current?.id) {
-      alert('No tenant selected');
-      return;
-    }
-    
-    if (!clients.selectedClient) {
-      alert('Please select a client first');
-      return;
-    }
-    
-    try {
-      const testTask = {
-        clientId: clients.selectedClient.id,
-        title: 'Test Task ' + new Date().toLocaleTimeString(),
-        description: 'This is a test task created for debugging',
-        serviceType: 'General Maintenance',
-        priority: 'normal' as const,
-        scheduledStart: new Date(),
-        scheduledEnd: new Date(Date.now() + 2 * 60 * 60 * 1000), // 2 hours later
-        assignedTo: [],
-        address: {
-          street: '123 Test St',
-          city: 'Test City',
-          state: 'TS',
-          zip: '12345'
-        }
-      };
-      
-      const createdTask = await taskStore.createTask(testTask);
-      console.log('Created test task:', createdTask);
-      alert('Test task created successfully! Check the console for debug info.');
-    } catch (error) {
-      console.error('Error creating test task:', error);
-      alert('Error: ' + (error instanceof Error ? error.message : 'Unknown error'));
-    }
-  }
-  
   function viewTask(task: any) {
     goto(`/tasks/${task.id}`);
-  }
-  
-  // Check if tasks exist in Firebase
-  async function checkData() {
-    if (!tenant.current?.id) {
-      alert('No tenant selected');
-      return;
-    }
-    
-    console.log('Checking data...');
-    const results = await checkTasksExist(tenant.current.id);
-    console.log('Data check results:', results);
-    
-    if (results.error) {
-      alert('Error: ' + results.error);
-    } else {
-      alert(`Found ${results.taskCount} tasks. Check console for details.`);
-    }
   }
 </script>
 
@@ -382,29 +295,9 @@
       >
         New Task
       </button>
-      {#if import.meta.env.DEV}
-        <button 
-          onclick={createTestTask}
-          class="bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors ml-2"
-        >
-          Test Task
-        </button>
-        <button 
-          onclick={debugFirebase}
-          class="bg-purple-600 hover:bg-purple-700 text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors ml-2"
-        >
-          Debug FB
-        </button>
-        <button 
-          onclick={checkData}
-          class="bg-yellow-600 hover:bg-yellow-700 text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors ml-2"
-        >
-          Check Data
-        </button>
-      {/if}
     </div>
     
-    <!-- Selected Client Info - FIXED -->
+    <!-- Selected Client Info -->
     {#if clients.selectedClient}
       <div class="flex items-center justify-between bg-blue-50 border border-blue-200 rounded-lg px-3 py-2 mb-3">
         <div class="flex items-center space-x-2">
@@ -558,59 +451,4 @@
       </div>
     {/if}
   </div>
-  
-  <!-- Debug Panel -->
-  {#if showDebug && import.meta.env.DEV}
-    <div class="fixed bottom-20 right-4 w-96 max-h-96 overflow-auto bg-black text-green-400 p-4 rounded-lg shadow-xl font-mono text-xs">
-      <div class="flex justify-between items-center mb-2">
-        <h3 class="text-sm font-bold">🔍 Debug Info</h3>
-        <button onclick={() => showDebug = false} class="text-red-400 hover:text-red-300">✕</button>
-      </div>
-      
-      <div class="space-y-2">
-        <div>
-          <strong>Tenant:</strong> {tenant.current?.id || 'None'}
-        </div>
-        <div>
-          <strong>Client:</strong> {clients.selectedClient?.name || 'None'}
-        </div>
-        <div>
-          <strong>Tasks:</strong> {taskStore.tasks.length}
-        </div>
-        <div>
-          <strong>Loading:</strong> {taskStore.isLoading}
-        </div>
-        <div>
-          <strong>Error:</strong> {taskStore.error || 'None'}
-        </div>
-        <div>
-          <strong>Listener:</strong> {taskStore.debugInfo.listenerAttached ? '✅' : '❌'}
-        </div>
-        <div>
-          <strong>Last Update:</strong> {taskStore.debugInfo.lastUpdateAt || 'Never'}
-        </div>
-        <div>
-          <strong>Source:</strong> {taskStore.debugInfo.lastUpdateSource || 'None'}
-        </div>
-        
-        <details class="mt-2">
-          <summary class="cursor-pointer">Task IDs</summary>
-          <div class="mt-1 text-xs">
-            {#each taskStore.tasks as task}
-              <div>{task.id} - {task.title}</div>
-            {/each}
-          </div>
-        </details>
-        
-        <details class="mt-2">
-          <summary class="cursor-pointer">Error Log</summary>
-          <div class="mt-1 text-xs max-h-32 overflow-y-auto">
-            {#each taskStore.debugInfo.errorLog as log}
-              <div>{log}</div>
-            {/each}
-          </div>
-        </details>
-      </div>
-    </div>
-  {/if}
 </div>

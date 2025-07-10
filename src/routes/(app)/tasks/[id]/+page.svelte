@@ -22,42 +22,27 @@
   
   // Initialize store on mount
   onMount(() => {
-    console.log('Task detail page mounted, taskId:', taskId);
-    
     // Ensure store is initialized with current tenant
     if (tenant.current?.id && !isInitialized) {
-      console.log('Initializing task store for tenant:', tenant.current.id);
       taskStore.initializeTenant(tenant.current.id);
       isInitialized = true;
     }
     
     // Give the store time to load tasks
-    setTimeout(() => {
+    const timeoutId = setTimeout(() => {
       hasCheckedTask = true;
-    }, 2000);
+    }, 1500);
     
     return () => {
-      console.log('Task detail page unmounting');
+      clearTimeout(timeoutId);
     };
   });
   
   // Handle task not found after checking
   $effect(() => {
     if (hasCheckedTask && !task && !taskStore.isLoading) {
-      console.log('Task not found after check, redirecting to tasks list');
       goto('/tasks');
     }
-  });
-  
-  // Debug logging
-  $effect(() => {
-    console.log('Task detail state:', {
-      taskId,
-      taskFound: !!task,
-      isLoading: taskStore.isLoading,
-      totalTasks: taskStore.tasks.length,
-      hasCheckedTask
-    });
   });
 </script>
 
