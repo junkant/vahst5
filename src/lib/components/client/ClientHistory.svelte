@@ -5,7 +5,7 @@
   @usage <ClientHistory {client} />
 -->
 <script lang="ts">
-  import { useJobs } from '$lib/stores/jobs.svelte';
+  import { useJobStore } from '$lib/stores/task.svelte';
   import type { Client } from '$lib/stores/client.svelte';
   import Icon from '$lib/components/icons/Icon.svelte';
   
@@ -15,37 +15,42 @@
   
   let { client }: Props = $props();
   
-  const jobs = useJobs();
+  const taskStore = useJobStore();
   
-  // Get completed jobs for this client
+  // Subscribe to client tasks
+  $effect(() => {
+    taskStore.subscribeToClient(client.id);
+  });
+  
+  // Get completed tasks for this client
   const clientHistory = $derived(() => {
-    return jobs.jobs
-      .filter(job => job.clientId === client.id && job.status === 'completed')
+    return taskStore.getTasksForClient(client.id)
+      .filter(task => task.status === 'completed' || task.status === 'invoiced' || task.status === 'paid')
       .sort((a, b) => {
-        const dateA = new Date(a.completedDate || a.scheduledDate).getTime();
-        const dateB = new Date(b.completedDate || b.scheduledDate).getTime();
+        const dateA = (a.actualEnd || a.scheduledEnd || a.scheduledStart || new Date()).valueOf();
+        const dateB = (b.actualEnd || b.scheduledEnd || b.scheduledStart || new Date()).valueOf();
         return dateB - dateA; // Most recent first
       })
       .slice(0, 10); // Limit to last 10
   });
   
-  function formatDate(date: Date | string) {
-    return new Date(date).toLocaleDateString('en-US', {
+  function formatDate(date: Date | any) {
+    const d = date instanceof Date ? date : date?.toDate ? date.toDate() : new Date(date);
+    return d.toLocaleDateString('en-US', {
       month: 'short',
       day: 'numeric',
       year: 'numeric'
     });
   }
   
-  function formatDuration(start: Date, end: Date) {
-    const diff = new Date(end).getTime() - new Date(start).getTime();
-    const hours = Math.floor(diff / (1000 * 60 * 60));
-    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+  function formatDuration(minutes: number) {
+    const hours = Math.floor(minutes / 60);
+    const mins = minutes % 60;
     
     if (hours > 0) {
-      return `${hours}h ${minutes}m`;
+      return `${hours}h ${mins}m`;
     }
-    return `${minutes}m`;
+    return `${mins}m`;
   }
 </script>
 
@@ -57,43 +62,46 @@
     </div>
   {:else}
     <div class="space-y-2">
-      {#each clientHistory() as job (job.id)}
+      {#each clientHistory() as task (task.id)}
         <div class="bg-gray-50 rounded-lg p-3 hover:bg-gray-100 transition-colors">
           <div class="flex items-start justify-between">
             <div class="flex-1">
-              <h4 class="font-medium text-gray-900">{job.title}</h4>
+              <h4 class="font-medium text-gray-900">{task.title}</h4>
               <p class="text-sm text-gray-600 mt-1">
-                {formatDate(job.completedDate || job.scheduledDate)}
-                {#if job.actualStart && job.actualEnd}
-                  • {formatDuration(job.actualStart, job.actualEnd)}
+                {formatDate(task.actualEnd || task.scheduledEnd || task.scheduledStart)}
+                {#if task.duration}
+                  • {formatDuration(task.duration)}
                 {/if}
               </p>
-              {#if job.assignedTo?.length > 0}
+              {#if task.assignedToNames?.length > 0}
                 <p class="text-xs text-gray-500 mt-1">
-                  Technician: {job.assignedTo.join(', ')}
+                  Technician: {task.assignedToNames.join(', ')}
                 </p>
               {/if}
             </div>
-            <span class="px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800">
-              Completed
+            <span class="px-2 py-1 text-xs font-medium rounded-full 
+              {task.status === 'paid' ? 'bg-emerald-100 text-emerald-800' : 
+               task.status === 'invoiced' ? 'bg-purple-100 text-purple-800' :
+               'bg-green-100 text-green-800'}">
+              {task.status.replace('_', ' ')}
             </span>
           </div>
           
-          {#if job.notes}
+          {#if task.notes && task.notes.length > 0}
             <div class="mt-2 text-sm text-gray-600 bg-white rounded p-2">
-              {job.notes}
+              {task.notes[0].text}
             </div>
           {/if}
         </div>
       {/each}
     </div>
     
-    {#if jobs.jobs.filter(j => j.clientId === client.id && j.status === 'completed').length > 10}
+    {#if taskStore.getTasksForClient(client.id).filter(t => t.status === 'completed' || t.status === 'invoiced' || t.status === 'paid').length > 10}
       <button 
         class="w-full text-center text-sm text-blue-600 hover:text-blue-700 py-2"
         onclick={() => console.log('View all history')}
       >
-        View all service history ({jobs.jobs.filter(j => j.clientId === client.id && j.status === 'completed').length} total)
+        View all service history ({taskStore.getTasksForClient(client.id).filter(t => t.status === 'completed' || t.status === 'invoiced' || t.status === 'paid').length} total)
       </button>
     {/if}
   {/if}

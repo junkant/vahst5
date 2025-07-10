@@ -26,9 +26,14 @@
       color: 'bg-green-500',
       action: () => {
         if (clients.selectedClient) {
-          goto(`/jobs/new?client=${clients.selectedClient.id}`);
+          // If client is selected, go directly to new job for that client
+          goto(`/clients/${clients.selectedClient.id}/jobs/new`);
+        } else if (clients.clients.length > 0) {
+          // If no client selected but clients exist, show client selector first
+          goto('/clients?action=new-job');
         } else {
-          goto('/clients');
+          // No clients yet, prompt to create one first
+          goto('/clients/new');
         }
       }
     },

@@ -69,22 +69,6 @@ export function registerNavigationCommands() {
     availableOffline: true
   });
   
-  // Jobs navigation
-  registry.register({
-    id: 'nav.jobs',
-    category: 'navigation',
-    patterns: [
-      /show jobs|go to jobs|jobs|job list/i,
-      /show all jobs|view jobs|my jobs/i
-    ],
-    handler: async () => {
-      await goto('/jobs');
-    },
-    description: 'Navigate to Jobs',
-    examples: ['Show jobs', 'Go to jobs', 'Job list'],
-    availableOffline: true
-  });
-  
   // Settings navigation
   registry.register({
     id: 'nav.settings',

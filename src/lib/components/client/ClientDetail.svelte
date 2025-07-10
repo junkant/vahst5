@@ -241,7 +241,7 @@
             class="w-full flex items-center justify-between text-left mb-4"
           >
             <h3 class="text-lg font-medium text-gray-900">Basic Information</h3>
-            <Icon name="chevronDown" class="w-5 h-5 text-gray-400 transition-transform {expandedSections.info ? " />
+            <Icon name="chevronDown" class="w-5 h-5 text-gray-400 transition-transform {expandedSections.info ? 'rotate-180' : ''}" />
           </button>
           
           {#if expandedSections.info}
@@ -400,7 +400,7 @@
             aria-controls="client-history"
           >
             <h3 class="text-lg font-medium text-gray-900">Service History</h3>
-            <Icon name="chevronDown" class="w-5 h-5 text-gray-400 transition-transform {expandedSections.history ? " />
+            <Icon name="chevronDown" class="w-5 h-5 text-gray-400 transition-transform {expandedSections.history ? 'rotate-180' : ''}" />
           </button>
           
           <div id="client-history">
@@ -429,7 +429,7 @@
             aria-controls="client-jobs"
           >
             <h3 class="text-lg font-medium text-gray-900">Active Jobs</h3>
-            <Icon name="chevronDown" class="w-5 h-5 text-gray-400 transition-transform {expandedSections.jobs ? " />
+            <Icon name="chevronDown" class="w-5 h-5 text-gray-400 transition-transform {expandedSections.jobs ? 'rotate-180' : ''}" />
           </button>
           
           <div id="client-jobs">
@@ -457,7 +457,7 @@
             aria-controls="client-notes"
           >
             <h3 class="text-lg font-medium text-gray-900">Notes</h3>
-            <Icon name="chevronDown" class="w-5 h-5 text-gray-400 transition-transform {expandedSections.notes ? " />
+            <Icon name="chevronDown" class="w-5 h-5 text-gray-400 transition-transform {expandedSections.notes ? 'rotate-180' : ''}" />
           </button>
           
           <div id="client-notes">

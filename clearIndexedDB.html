@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Clear IndexedDB</title>
+</head>
+<body>
+    <h1>Clear VAHST IndexedDB</h1>
+    <button onclick="clearDB()">Clear Database</button>
+    <div id="status"></div>
+    
+    <script>
+        async function clearDB() {
+            const status = document.getElementById('status');
+            try {
+                // Delete the database
+                const deleteReq = indexedDB.deleteDatabase('vahst-offline-db');
+                
+                deleteReq.onsuccess = () => {
+                    status.innerHTML = '<p style="color: green;">Database cleared successfully! Please refresh your VAHST app.</p>';
+                };
+                
+                deleteReq.onerror = () => {
+                    status.innerHTML = '<p style="color: red;">Error clearing database</p>';
+                };
+                
+                deleteReq.onblocked = () => {
+                    status.innerHTML = '<p style="color: orange;">Database delete blocked. Please close all VAHST tabs and try again.</p>';
+                };
+            } catch (error) {
+                status.innerHTML = `<p style="color: red;">Error: ${error.message}</p>`;
+            }
+        }
+    </script>
+</body>
+</html>

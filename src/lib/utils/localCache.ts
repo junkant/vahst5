@@ -1,6 +1,5 @@
 // src/lib/utils/localCache.ts
-import type { Client } from '$lib/firebase/firestore';
-import type { Job } from '$lib/firebase/firestore';
+import type { Client, Job, Task } from '$lib/firebase/firestore';
 import { imageCompressor } from './imageCompressor';
 
 const DB_NAME = 'vahst-offline-db';
@@ -39,7 +38,7 @@ class LocalCache {
         const db = (event.target as IDBOpenDBRequest).result;
 
         // Create object stores for different data types
-        const stores = ['clients', 'jobs', 'invoices', 'team', 'images'];
+        const stores = ['clients', 'jobs', 'tasks', 'invoices', 'team', 'images'];
         
         stores.forEach(storeName => {
           let store: IDBObjectStore;
@@ -58,9 +57,14 @@ class LocalCache {
             store.createIndex('timestamp', 'timestamp', { unique: false });
           }
           
-          // Add date index for jobs
-          if (storeName === 'jobs' && !store.indexNames.contains('scheduledDate')) {
+          // Add date index for jobs and tasks
+          if ((storeName === 'jobs' || storeName === 'tasks') && !store.indexNames.contains('scheduledDate')) {
             store.createIndex('scheduledDate', 'data.scheduledDate', { unique: false });
+          }
+          
+          // Add priority index for tasks
+          if (storeName === 'tasks' && !store.indexNames.contains('priority')) {
+            store.createIndex('priority', 'data.priority', { unique: false });
           }
         });
       };
@@ -277,6 +281,27 @@ class LocalCache {
     }
   }
 
+  // Helper to convert any date format to Date object
+  private toDate(date: any): Date {
+    if (!date) return new Date();
+    if (date instanceof Date) return date;
+    if (date?.toDate && typeof date.toDate === 'function') return date.toDate();
+    if (date?.seconds) return new Date(date.seconds * 1000); // Firestore timestamp
+    if (typeof date === 'string') return new Date(date);
+    return new Date(date);
+  }
+
+  // Helper to ensure dates are serializable
+  private serializeDate(date: any): string | null {
+    if (!date) return null;
+    try {
+      const d = this.toDate(date);
+      return d.toISOString();
+    } catch {
+      return null;
+    }
+  }
+
   // ✅ ENHANCED: Job-specific methods with 30-day limit and Date handling
   async setJob(job: Job, tenantId: string): Promise<void> {
     try {
@@ -307,6 +332,104 @@ class LocalCache {
       })) as Job[];
     } catch (error) {
       console.warn('Failed to load cached jobs:', error);
+      return [];
+    }
+  }
+
+  // ✅ NEW: Task-specific methods with 30-day limit and Date handling
+  async setTask(task: Task, tenantId: string): Promise<void> {
+    try {
+      // Create a serializable version of the task
+      const serializableTask = this.makeSerializable({
+        ...task,
+        scheduledStart: this.serializeDate(task.scheduledStart),
+        scheduledEnd: this.serializeDate(task.scheduledEnd),
+        actualStart: this.serializeDate(task.actualStart),
+        actualEnd: this.serializeDate(task.actualEnd),
+        createdAt: this.serializeDate(task.createdAt),
+        updatedAt: this.serializeDate(task.updatedAt),
+        // Handle nested dates in arrays
+        statusHistory: task.statusHistory?.map(sh => ({
+          ...sh,
+          changedAt: this.serializeDate(sh.changedAt)
+        })),
+        notes: task.notes?.map(note => ({
+          ...note,
+          createdAt: this.serializeDate(note.createdAt)
+        })),
+        photos: task.photos?.map(photo => ({
+          ...photo,
+          takenAt: this.serializeDate(photo.takenAt)
+        })),
+        priority: task.priority || 'normal'
+      });
+      
+      return this.set('tasks', task.id, serializableTask, tenantId);
+    } catch (error) {
+      console.warn('Failed to cache task:', error);
+      throw error;
+    }
+  }
+
+  async getTask(id: string): Promise<Task | null> {
+    const task = await this.get<any>('tasks', id);
+    if (!task) return null;
+
+    // Convert back to proper Task object with Date instances
+    return {
+      ...task,
+      scheduledStart: task.scheduledStart ? new Date(task.scheduledStart) : new Date(),
+      scheduledEnd: task.scheduledEnd ? new Date(task.scheduledEnd) : new Date(),
+      actualStart: task.actualStart ? new Date(task.actualStart) : undefined,
+      actualEnd: task.actualEnd ? new Date(task.actualEnd) : undefined,
+      createdAt: task.createdAt ? new Date(task.createdAt) : new Date(),
+      updatedAt: task.updatedAt ? new Date(task.updatedAt) : new Date(),
+      // Handle nested dates
+      statusHistory: task.statusHistory?.map((sh: any) => ({
+        ...sh,
+        changedAt: sh.changedAt ? new Date(sh.changedAt) : new Date()
+      })),
+      notes: task.notes?.map((note: any) => ({
+        ...note,
+        createdAt: note.createdAt ? new Date(note.createdAt) : new Date()
+      })),
+      photos: task.photos?.map((photo: any) => ({
+        ...photo,
+        takenAt: photo.takenAt ? new Date(photo.takenAt) : new Date()
+      }))
+    } as Task;
+  }
+
+  async getRecentTasks(tenantId: string, days: number = 30): Promise<Task[]> {
+    try {
+      const maxAge = days * 24 * 60 * 60 * 1000;
+      const cachedTasks = await this.getAll<any>('tasks', tenantId, { maxAge });
+      
+      // Convert back to proper Task objects with Date instances
+      return cachedTasks.map(task => ({
+        ...task,
+        scheduledStart: task.scheduledStart ? new Date(task.scheduledStart) : new Date(),
+        scheduledEnd: task.scheduledEnd ? new Date(task.scheduledEnd) : new Date(),
+        actualStart: task.actualStart ? new Date(task.actualStart) : undefined,
+        actualEnd: task.actualEnd ? new Date(task.actualEnd) : undefined,
+        createdAt: task.createdAt ? new Date(task.createdAt) : new Date(),
+        updatedAt: task.updatedAt ? new Date(task.updatedAt) : new Date(),
+        // Handle nested dates
+        statusHistory: task.statusHistory?.map((sh: any) => ({
+          ...sh,
+          changedAt: sh.changedAt ? new Date(sh.changedAt) : new Date()
+        })),
+        notes: task.notes?.map((note: any) => ({
+          ...note,
+          createdAt: note.createdAt ? new Date(note.createdAt) : new Date()
+        })),
+        photos: task.photos?.map((photo: any) => ({
+          ...photo,
+          takenAt: photo.takenAt ? new Date(photo.takenAt) : new Date()
+        }))
+      })) as Task[];
+    } catch (error) {
+      console.warn('Failed to load cached tasks:', error);
       return [];
     }
   }
@@ -366,7 +489,7 @@ class LocalCache {
     onProgress?: (progress: number, store: string) => void
   ): Promise<number> {
     const db = await this.getDb();
-    const stores = ['clients', 'jobs', 'invoices', 'team', 'images'];
+    const stores = ['clients', 'jobs', 'tasks', 'invoices', 'team', 'images'];
     let totalDeleted = 0;
 
     for (let i = 0; i < stores.length; i++) {
@@ -459,7 +582,8 @@ class LocalCache {
   private getMaxAge(storeName: string): number {
     switch (storeName) {
       case 'jobs':
-        return this.JOB_MAX_AGE; // 30 days for jobs
+      case 'tasks':
+        return this.JOB_MAX_AGE; // 30 days for jobs/tasks
       case 'images':
         return 14 * 24 * 60 * 60 * 1000; // 14 days for images
       default:

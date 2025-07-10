@@ -4,8 +4,9 @@
   import { page } from '$app/stores';
   import { goto } from '$app/navigation';
   import { useAuth } from '$lib/stores/auth.svelte';
-  import { initializeClientStore, updateClientJobsSubscription, useClients } from '$lib/stores/client.svelte';
-  import { initializeJobStore, cleanupJobStore } from '$lib/stores/jobs.svelte';
+  import { initializeClientStore, useClients } from '$lib/stores/client.svelte';
+  // import { initializeJobStore, cleanupJobStore } from '$lib/stores/jobs.svelte'; // Removed - using tasks now
+  import { useEnhancedTaskStore, cleanupEnhancedTaskStore } from '$lib/stores/task-enhanced.svelte';
   import { useOffline } from '$lib/stores/offline.svelte';
   import TopBar from '$lib/components/common/TopBar.svelte';
   import BottomNav from '$lib/components/common/BottomNav.svelte';
@@ -20,6 +21,7 @@
   
   const auth = useAuth();
   const clients = useClients();
+  const taskStore = useEnhancedTaskStore();
   const offline = useOffline();
   
   // List of routes that don't require authentication
@@ -89,6 +91,26 @@
     if ($page.route.id) {
       hasCheckedAuth = false;
     }
+  });
+  
+  // Initialize task store with tenant
+  let lastInitializedTenantId = $state<string | null>(null);
+  
+  $effect(() => {
+    const currentTenantId = auth.tenant?.id;
+    
+    // Only initialize if tenant changed and we have a tenant
+    if (currentTenantId && currentTenantId !== lastInitializedTenantId) {
+      lastInitializedTenantId = currentTenantId;
+      taskStore.initializeTenant(currentTenantId);
+    }
+  });
+  
+  // Cleanup on unmount
+  $effect(() => {
+    return () => {
+      cleanupEnhancedTaskStore();
+    };
   });
 </script>
 

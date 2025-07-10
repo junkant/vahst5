@@ -50,12 +50,13 @@ export interface Client {
   customFields?: Record<string, any>;
 }
 
-export interface Job {
+export interface Task {
   id: string;
   clientId: string;
   title: string;
   status: string;
-  scheduledDate?: Date;
+  scheduledStart?: Date;
+  scheduledDate?: Date; // For backward compatibility
   completedDate?: Date;
 }
 
@@ -109,7 +110,7 @@ class ClientStore {
   // State
   clients = $state<Client[]>([]);
   selectedClient = $state<Client | null>(null);
-  clientJobs = $state<Job[]>([]);
+  clientTasks = $state<Task[]>([]);
   isLoadingClients = $state(false);
   isLoadingJobs = $state(false);
   error = $state<string | null>(null);
@@ -126,7 +127,7 @@ class ClientStore {
 
   // Subscriptions
   private unsubscribeClients: Unsubscribe | null = null;
-  private unsubscribeJobs: Unsubscribe | null = null;
+  private unsubscribeTasks: Unsubscribe | null = null;
 
   // Performance: Per-business client selection memory
   private businessClientMap = new Map<string, string>(); // tenantId -> clientId
@@ -317,13 +318,21 @@ class ClientStore {
       return;
     }
     
-    // Clean up previous subscriptions
-    this.cleanup();
+    // Skip if already subscribed to the same tenant
+    if (this.currentTenantId === tenantId && this.unsubscribeClients) {
+      console.log('Client store: Already subscribed to tenant', tenantId);
+      return;
+    }
+    
+    // Clean up previous subscriptions only if tenant is changing
+    if (this.currentTenantId !== tenantId) {
+      this.cleanup();
+    }
     
     if (!tenantId) {
       this.clients = [];
       this.selectedClient = null;
-      this.clientJobs = [];
+      this.clientTasks = [];
       this.currentTenantId = null;
       return;
     }
@@ -393,55 +402,63 @@ class ClientStore {
     }
   }
 
-  // Subscribe to client jobs
-  subscribeToClientJobs(clientId: string) {
-    // Unsubscribe from previous jobs subscription
-    if (this.unsubscribeJobs) {
-      this.unsubscribeJobs();
-      this.unsubscribeJobs = null;
+  // Subscribe to client tasks
+  subscribeToClientTasks(clientId: string) {
+    // Unsubscribe from previous tasks subscription
+    if (this.unsubscribeTasks) {
+      this.unsubscribeTasks();
+      this.unsubscribeTasks = null;
     }
     
     if (!this.currentTenantId || !clientId) {
-      this.clientJobs = [];
+      this.clientTasks = [];
       return;
     }
     
     this.isLoadingJobs = true;
     
     try {
-      const jobsRef = collection(db, `tenants/${this.currentTenantId}/jobs`);
-      const jobsQuery = query(
-        jobsRef,
+      const tasksRef = collection(db, `tenants/${this.currentTenantId}/tasks`);
+      const tasksQuery = query(
+        tasksRef,
         where('clientId', '==', clientId),
-        orderBy('scheduledDate', 'desc'),
+        orderBy('scheduledStart', 'desc'),
         limit(50)
       );
       
-      this.unsubscribeJobs = onSnapshot(
-        jobsQuery,
+      this.unsubscribeTasks = onSnapshot(
+        tasksQuery,
         (snapshot) => {
-          const jobs: Job[] = [];
+          const tasks: Task[] = [];
           snapshot.forEach((doc) => {
             const data = doc.data();
-            jobs.push({
+            tasks.push({
               id: doc.id,
               ...data,
-              scheduledDate: data.scheduledDate?.toDate(),
-              completedDate: data.completedDate?.toDate()
-            } as Job);
+              scheduledStart: data.scheduledStart?.toDate ? data.scheduledStart.toDate() : data.scheduledStart,
+              scheduledDate: data.scheduledDate?.toDate ? data.scheduledDate.toDate() : data.scheduledDate,
+              completedDate: data.completedDate?.toDate ? data.completedDate.toDate() : data.completedDate
+            } as Task);
           });
           
-          this.clientJobs = jobs;
+          this.clientTasks = tasks;
           this.isLoadingJobs = false;
         },
         (error) => {
-          console.error('Error fetching jobs:', error);
+          console.error('Error fetching tasks:', error);
           this.isLoadingJobs = false;
+          
+          // If it's an index error, just set tasks to empty and continue
+          if (error.message?.includes('requires an index')) {
+            this.clientTasks = [];
+            console.info('Tasks query requires a Firebase index. Please create the index using the link in the console.');
+          }
         }
       );
     } catch (error) {
-      console.error('Error setting up jobs subscription:', error);
+      console.error('Error setting up tasks subscription:', error);
       this.isLoadingJobs = false;
+      this.clientTasks = [];
     }
   }
 
@@ -461,7 +478,7 @@ class ClientStore {
     // Clear selection
     if (!client) {
       this.selectedClient = null;
-      this.clientJobs = [];
+      this.clientTasks = [];
       
       // Clear from business map
       if (this.currentTenantId) {
@@ -503,8 +520,8 @@ class ClientStore {
         localStorage.setItem('selectedClientTenant', this.currentTenantId);
       }
       
-      // Subscribe to client's jobs
-      this.subscribeToClientJobs(client.id);
+      // Subscribe to client's tasks
+      this.subscribeToClientTasks(client.id);
     }
   }
 
@@ -843,9 +860,9 @@ class ClientStore {
       this.unsubscribeClients = null;
     }
     
-    if (this.unsubscribeJobs) {
-      this.unsubscribeJobs();
-      this.unsubscribeJobs = null;
+    if (this.unsubscribeTasks) {
+      this.unsubscribeTasks();
+      this.unsubscribeTasks = null;
     }
     
     if (this.syncInterval) {
@@ -898,10 +915,10 @@ export function initializeClientStore(tenantId: string) {
   store.subscribeTenant(tenantId);
 }
 
-// Update client jobs subscription
-export function updateClientJobsSubscription(tenantId: string, clientId: string) {
+// Update client tasks subscription
+export function updateClientTasksSubscription(tenantId: string, clientId: string) {
   const store = useClients();
   if (store.currentTenantId === tenantId) {
-    store.subscribeToClientJobs(clientId);
+    store.subscribeToClientTasks(clientId);
   }
 }

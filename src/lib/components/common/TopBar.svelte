@@ -21,7 +21,7 @@
   let showInlineSearch = $state(false);
   let searchQuery = $state('');
   let ClientSelector = $state<any>(null);
-  let searchInputRef: HTMLInputElement;
+  let searchInputRef = $state<HTMLInputElement | null>(null);
   
   // Track tenant changes for cleanup
   let lastTenantId = $state<string | null>(null);

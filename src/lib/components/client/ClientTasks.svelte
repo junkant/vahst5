@@ -1,11 +1,11 @@
-<!-- src/lib/components/client/ClientJobs.svelte -->
+<!-- src/lib/components/client/ClientTasks.svelte -->
 <!--
-  @component ClientJobs
-  @description Displays active and upcoming jobs for a client
-  @usage <ClientJobs {client} />
+  @component ClientTasks
+  @description Displays active and upcoming tasks for a client
+  @usage <ClientTasks {client} />
 -->
 <script lang="ts">
-  import { useJobs } from '$lib/stores/jobs.svelte';
+  import { useJobStore } from '$lib/stores/task.svelte';
   import { goto } from '$app/navigation';
   import type { Client } from '$lib/stores/client.svelte';
   import Icon from '$lib/components/icons/Icon.svelte';
@@ -16,24 +16,29 @@
   
   let { client }: Props = $props();
   
-  const jobs = useJobs();
+  const taskStore = useJobStore();
   
-  // Get active jobs for this client
-  const activeJobs = $derived(() => {
-    return jobs.jobs
-      .filter(job => 
-        job.clientId === client.id && 
-        ['scheduled', 'in_progress', 'draft'].includes(job.status)
+  // Subscribe to client tasks
+  $effect(() => {
+    taskStore.subscribeToClient(client.id);
+  });
+  
+  // Get active tasks for this client
+  const activeTasks = $derived(() => {
+    return taskStore.getTasksForClient(client.id)
+      .filter(task => 
+        ['scheduled', 'in_progress', 'draft'].includes(task.status)
       )
       .sort((a, b) => {
-        const dateA = new Date(a.scheduledDate || Date.now()).getTime();
-        const dateB = new Date(b.scheduledDate || Date.now()).getTime();
+        const dateA = (a.scheduledStart instanceof Date ? a.scheduledStart : a.scheduledStart?.toDate?.() || new Date()).getTime();
+        const dateB = (b.scheduledStart instanceof Date ? b.scheduledStart : b.scheduledStart?.toDate?.() || new Date()).getTime();
         return dateA - dateB; // Earliest first
       });
   });
   
-  function formatDate(date: Date | string) {
-    return new Date(date).toLocaleDateString('en-US', {
+  function formatDate(date: Date | any) {
+    const d = date instanceof Date ? date : date?.toDate ? date.toDate() : new Date(date);
+    return d.toLocaleDateString('en-US', {
       weekday: 'short',
       month: 'short',
       day: 'numeric',
@@ -55,62 +60,62 @@
     }
   }
   
-  function navigateToJob(jobId: string) {
-    goto(`/jobs/${jobId}`);
+  function navigateToTask(taskId: string) {
+    goto(`/tasks/${taskId}`);
   }
   
-  function createNewJob() {
-    goto(`/jobs/new?clientId=${client.id}`);
+  function createNewTask() {
+    goto(`/tasks/new?client=${client.id}`);
   }
 </script>
 
 <div>
-  {#if activeJobs().length === 0}
+  {#if activeTasks().length === 0}
     <div class="text-center py-8">
       <Icon name="clipboard" class="w-12 h-12 text-gray-400 mx-auto mb-3" />
-      <p class="text-gray-500 mb-4">No active jobs</p>
+      <p class="text-gray-500 mb-4">No active tasks</p>
       <button
-        onclick={createNewJob}
+        onclick={createNewTask}
         class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
       >
-        Create New Job
+        Create New Task
       </button>
     </div>
   {:else}
     <div class="space-y-3">
-      {#each activeJobs() as job (job.id)}
+      {#each activeTasks() as task (task.id)}
         <div 
           class="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow cursor-pointer"
-          onclick={() => navigateToJob(job.id)}
-          onkeydown={(e) => e.key === 'Enter' && navigateToJob(job.id)}
+          onclick={() => navigateToTask(task.id)}
+          onkeydown={(e) => e.key === 'Enter' && navigateToTask(task.id)}
           role="button"
           tabindex="0"
         >
           <div class="flex items-start justify-between">
             <div class="flex-1">
-              <h4 class="font-medium text-gray-900">{job.title}</h4>
-              {#if job.scheduledDate}
+              <h4 class="font-medium text-gray-900">{task.title}</h4>
+              {#if task.scheduledStart}
                 <p class="text-sm text-gray-600 mt-1">
-                  {formatDate(job.scheduledDate)}
+                  {formatDate(task.scheduledStart)}
                 </p>
               {/if}
-              {#if job.description}
+              {#if task.description}
                 <p class="text-sm text-gray-500 mt-2 line-clamp-2">
-                  {job.description}
+                  {task.description}
                 </p>
               {/if}
-              {#if job.assignedTo?.length > 0}
+              {#if task.assignedTo?.length > 0}
                 <div class="flex items-center gap-2 mt-2">
                   <Icon name="user" class="w-4 h-4 text-gray-400" />
                   <span class="text-xs text-gray-500">
-                    {job.assignedTo.join(', ')}
+                    {task.assignedToNames?.join(', ') || task.assignedTo.join(', ')}
                   </span>
                 </div>
               {/if}
             </div>
             <div class="flex flex-col items-end gap-2">
-              <span class="px-2 py-1 text-xs font-medium rounded-full {getStatusColor(job.status)}">
-                {job.status.replace('_', ' ')}
+              <span class="px-2 py-1 text-xs font-medium rounded-full {getStatusColor(task.status)}">
+                {task.status.replace('_', ' ')}
               </span>
               <Icon name="chevronRight" class="w-5 h-5 text-gray-400" />
             </div>
@@ -119,13 +124,13 @@
       {/each}
       
       <button
-        onclick={createNewJob}
+        onclick={createNewTask}
         class="w-full py-3 border-2 border-dashed border-gray-300 rounded-lg text-gray-600 
                hover:border-gray-400 hover:text-gray-700 transition-colors flex items-center 
                justify-center gap-2"
       >
         <Icon name="plus" class="w-5 h-5" />
-        Add New Job
+        Add New Task
       </button>
     </div>
   {/if}

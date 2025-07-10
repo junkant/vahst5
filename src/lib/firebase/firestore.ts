@@ -35,6 +35,31 @@ export interface Job extends JobData {
   id: string;
 }
 
+// Task interface (replacing Job)
+export interface Task extends JobData {
+  id: string;
+  // Task-specific fields
+  title?: string;
+  description?: string;
+  taskType?: 'service' | 'maintenance' | 'installation' | 'inspection' | 'other';
+  serviceType?: string;
+  priority?: 'low' | 'medium' | 'high' | 'urgent' | 'normal';
+  estimatedDuration?: number; // in minutes
+  completedDuration?: number; // in minutes
+  scheduledDate?: any; // For backward compatibility
+  scheduledStart?: any; // New field for tasks
+  duration?: number;
+  status?: string;
+  client?: {
+    id: string;
+    name: string;
+  };
+  assignedTo?: string[];
+}
+
+// Alias for backward compatibility during migration
+export type TaskData = JobData;
+
 export function getTenantPath(tenantId: string, collectionName: string) {
   return `tenants/${tenantId}/${collectionName}`;
 }
@@ -112,6 +137,36 @@ export async function createJob(tenantId: string, jobData: JobData) {
   return { id: jobRef.id, ...job };
 }
 
+// Task-specific functions
+export async function createTask(tenantId: string, taskData: TaskData) {
+  const taskRef = doc(collection(db, getTenantPath(tenantId, 'tasks')));
+  const task = {
+    ...taskData,
+    status: taskData.status || 'scheduled',
+    priority: taskData.priority || 'medium',
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp()
+  };
+
+  await setDoc(taskRef, task);
+  return { id: taskRef.id, ...task };
+}
+
+export async function updateTask(tenantId: string, taskId: string, updates: Partial<TaskData>) {
+  const taskRef = doc(db, getTenantPath(tenantId, 'tasks'), taskId);
+  await updateDoc(taskRef, {
+    ...updates,
+    updatedAt: serverTimestamp()
+  });
+}
+
+export async function getTask(tenantId: string, taskId: string) {
+  const taskRef = doc(db, getTenantPath(tenantId, 'tasks'), taskId);
+  const taskSnap = await getDoc(taskRef);
+
+  return taskSnap.exists() ? { id: taskSnap.id, ...taskSnap.data() } as Task : null;
+}
+
 export function subscribeToClientJobs(
   tenantId: string,
   clientId: string,
@@ -136,6 +191,40 @@ export function subscribeToClientJobs(
         onError(error);
       } else {
         console.error('Error in subscribeToClientJobs:', error);
+      }
+    }
+  );
+}
+
+// Subscribe to all tasks for a tenant
+export function subscribeToTenantTasks(
+  tenantId: string,
+  callback: (tasks: Task[]) => void,
+  onError?: (error: Error) => void
+) {
+  const tasksRef = collection(db, getTenantPath(tenantId, 'tasks'));
+  
+  // Query tasks ordered by scheduled date, limited to reasonable number
+  const q = query(
+  tasksRef,
+  orderBy('scheduledStart', 'desc'),
+  limit(100)
+  );
+
+  return onSnapshot(
+    q,
+    (snapshot) => {
+      const tasks = snapshot.docs.map(doc => ({ 
+        id: doc.id, 
+        ...doc.data() 
+      } as Task));
+      callback(tasks);
+    },
+    (error) => {
+      if (onError) {
+        onError(error);
+      } else {
+        console.error('Error in subscribeToTenantTasks:', error);
       }
     }
   );
@@ -174,6 +263,38 @@ export function subscribeToTenantJobs(
     }
   );
 }
+
+// Subscribe to client tasks
+export function subscribeToClientTasks(
+  tenantId: string,
+  clientId: string,
+  callback: (tasks: Task[]) => void,
+  onError?: (error: Error) => void
+) {
+  const tasksRef = collection(db, getTenantPath(tenantId, 'tasks'));
+  const q = query(
+  tasksRef,
+  where('clientId', '==', clientId),
+  orderBy('scheduledStart', 'desc')
+  );
+
+  return onSnapshot(
+    q,
+    (snapshot) => {
+      const tasks = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Task));
+      callback(tasks);
+    },
+    (error) => {
+      if (onError) {
+        onError(error);
+      } else {
+        console.error('Error in subscribeToClientTasks:', error);
+      }
+    }
+  );
+}
+
+
 
 export async function createTenant(tenantData: TenantData) {
   const tenantRef = doc(collection(db, 'tenants'));

@@ -3,10 +3,13 @@
   import { page } from '$app/stores';
   import { goto } from '$app/navigation';
   import { useClients } from '$lib/stores/client.svelte';
+  import { useJobStore } from '$lib/stores/task.svelte';
   import { onMount } from 'svelte';
   import Icon from '$lib/components/icons/Icon.svelte';
+  import ClientTasks from '$lib/components/client/ClientTasks.svelte';
   
   const clients = useClients();
+  const jobStore = useJobStore();
   
   // Get client ID from route params
   const clientId = $derived($page.params.id);
@@ -176,7 +179,11 @@
   }
   
   function startJob() {
-    goto(`/jobs/new?client=${client.id}`);
+    goto(`/clients/${client.id}/jobs/new`);
+  }
+  
+  function viewAllJobs() {
+    goto(`/clients/${client.id}/jobs`);
   }
 </script>
 
@@ -511,8 +518,16 @@
         <!-- Job History -->
         {#if !isEditing}
           <div class="bg-white rounded-lg p-4">
-            <h2 class="font-semibold text-gray-900 mb-3">Recent Jobs</h2>
-            <p class="text-sm text-gray-500">No jobs yet</p>
+            <div class="flex items-center justify-between mb-3">
+              <h2 class="font-semibold text-gray-900">Active Jobs</h2>
+              <button
+                onclick={viewAllJobs}
+                class="text-sm text-blue-600 hover:text-blue-700 font-medium"
+              >
+                View all
+              </button>
+            </div>
+            <ClientJobs {client} />
           </div>
         {/if}
       </div>

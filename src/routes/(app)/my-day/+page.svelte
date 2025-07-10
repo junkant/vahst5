@@ -1,13 +1,13 @@
 <!-- src/routes/(app)/my-day/+page.svelte -->
 <script lang="ts">
   import { useClients } from '$lib/stores/client.svelte';
-  import { useJobs } from '$lib/stores/jobs.svelte';
+  import { useTasks } from '$lib/stores/tasks.svelte';
   import { useTenant } from '$lib/stores/tenant.svelte';
   import { goto } from '$app/navigation';
   import Icon from '$lib/components/icons/Icon.svelte';
   
   const clients = useClients();
-  const jobs = useJobs();
+  const tasks = useTasks();
   const tenant = useTenant();
   
   // Get today's date info
@@ -20,21 +20,25 @@
   });
   
   // Computed values from stores
-  const todayJobs = $derived(jobs.todayJobs);
-  const overdueJobs = $derived(jobs.overdueJobs);
-  const upcomingJobs = $derived(jobs.upcomingJobs.slice(0, 3)); // Next 3 upcoming
+  const todayTasks = $derived(tasks.todayTasks);
+  const overdueTasks = $derived(tasks.overdueTasks);
+  const upcomingTasks = $derived(tasks.upcomingTasks.slice(0, 3)); // Next 3 upcoming
   const recentClients = $derived(clients.recentClients?.slice(0, 5) || []); // Recent 5 clients
   
-  function createNewJob() {
+  function createNewTask() {
     if (clients.selectedClient) {
-      goto(`/jobs/new?client=${clients.selectedClient.id}`);
+      goto(`/tasks/new?client=${clients.selectedClient.id}`);
+    } else if (clients.clients.length > 0) {
+      // Show clients list with instruction to select one
+      goto('/clients?action=new-task');
     } else {
-      goto('/clients');
+      // No clients yet, create one first
+      goto('/clients/new');
     }
   }
   
-  function viewAllJobs() {
-    goto('/jobs');
+  function viewAllTasks() {
+    goto('/tasks');
   }
   
   function viewAllClients() {
@@ -52,7 +56,7 @@
     goto(`/clients/${client.id}`);
   }
   
-  function getJobStatusColor(status: string) {
+  function getTaskStatusColor(status: string) {
     switch (status) {
       case 'in_progress':
         return 'bg-blue-100 text-blue-800';
@@ -62,6 +66,21 @@
         return 'bg-gray-100 text-gray-800';
       case 'overdue':
         return 'bg-red-100 text-red-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
+    }
+  }
+  
+  function getPriorityColor(priority?: string) {
+    switch (priority) {
+      case 'urgent':
+        return 'bg-red-100 text-red-800';
+      case 'high':
+        return 'bg-orange-100 text-orange-800';
+      case 'medium':
+        return 'bg-yellow-100 text-yellow-800';
+      case 'low':
+        return 'bg-gray-100 text-gray-800';
       default:
         return 'bg-gray-100 text-gray-800';
     }
@@ -118,63 +137,70 @@
       </div>
     {/if}
     
-    <!-- Overdue Jobs Alert -->
-    {#if overdueJobs.length > 0}
+    <!-- Overdue Tasks Alert -->
+    {#if overdueTasks.length > 0}
       <div class="bg-red-50 border border-red-200 rounded-lg p-3">
         <div class="flex items-center space-x-2">
           <Icon name="warning" class="w-5 h-5 text-red-600" />
           <span class="text-sm text-red-800 font-medium">
-            {overdueJobs.length} overdue job{overdueJobs.length > 1 ? 's' : ''} need attention
+            {overdueTasks.length} overdue task{overdueTasks.length > 1 ? 's' : ''} need attention
           </span>
         </div>
       </div>
     {/if}
     
-    <!-- Today's Jobs -->
+    <!-- Today's Tasks -->
     <div class="bg-white rounded-lg p-4">
       <div class="flex items-center justify-between mb-3">
-        <h2 class="font-semibold text-gray-900">Today's Jobs</h2>
+        <h2 class="font-semibold text-gray-900">Today's Tasks</h2>
         <button 
-          onclick={viewAllJobs}
+          onclick={viewAllTasks}
           class="text-sm text-blue-600 hover:text-blue-700"
         >
           View All
         </button>
       </div>
       
-      {#if jobs.isLoading}
+      {#if tasks.isLoading}
         <div class="flex items-center justify-center py-8">
           <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
         </div>
-      {:else if todayJobs.length === 0}
+      {:else if todayTasks.length === 0}
         <div class="text-center py-8">
           <Icon name="calendar" class="w-12 h-12 text-gray-400 mx-auto mb-3" size={2} />
-          <h3 class="text-lg font-medium text-gray-900 mb-1">No jobs scheduled for today</h3>
+          <h3 class="text-lg font-medium text-gray-900 mb-1">No tasks scheduled for today</h3>
           <p class="text-gray-500 mb-4">Looks like you have a light day ahead!</p>
           <button 
-            onclick={createNewJob}
+            onclick={createNewTask}
             class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
           >
-            Schedule a Job
+            Schedule a Task
           </button>
         </div>
       {:else}
         <div class="space-y-3">
-          {#each todayJobs as job (job.id)}
+          {#each todayTasks as task (task.id)}
             <div class="border border-gray-200 rounded-lg p-3 hover:bg-gray-50 transition-colors">
               <div class="flex items-start justify-between">
                 <div>
-                  <h4 class="font-medium text-gray-900">{job.title}</h4>
-                  <p class="text-sm text-gray-600 mt-1">{job.client?.name || 'No client assigned'}</p>
-                  {#if job.scheduledDate}
+                  <h4 class="font-medium text-gray-900">{task.title}</h4>
+                  <p class="text-sm text-gray-600 mt-1">{task.client?.name || 'No client assigned'}</p>
+                  {#if task.scheduledDate}
                     <p class="text-xs text-gray-500 mt-1">
-                      {formatTime(new Date(job.scheduledDate))}
+                      {formatTime(new Date(task.scheduledDate))}
                     </p>
                   {/if}
                 </div>
-                <span class="px-2 py-1 rounded-full text-xs {getJobStatusColor(job.status)}">
-                  {job.status}
-                </span>
+                <div class="flex flex-col items-end space-y-1">
+                  {#if task.priority && task.priority !== 'medium'}
+                    <span class="px-2 py-1 rounded-full text-xs {getPriorityColor(task.priority)}">
+                      {task.priority}
+                    </span>
+                  {/if}
+                  <span class="px-2 py-1 rounded-full text-xs {getTaskStatusColor(task.status)}">
+                    {task.status}
+                  </span>
+                </div>
               </div>
             </div>
           {/each}
@@ -182,21 +208,21 @@
       {/if}
     </div>
     
-    <!-- Upcoming Jobs -->
-    {#if upcomingJobs.length > 0}
+    <!-- Upcoming Tasks -->
+    {#if upcomingTasks.length > 0}
       <div class="bg-white rounded-lg p-4">
-        <h2 class="font-semibold text-gray-900 mb-3">Upcoming Jobs</h2>
+        <h2 class="font-semibold text-gray-900 mb-3">Upcoming Tasks</h2>
         
         <div class="space-y-2">
-          {#each upcomingJobs as job (job.id)}
+          {#each upcomingTasks as task (task.id)}
             <div class="flex items-center justify-between p-2 hover:bg-gray-50 rounded">
               <div class="flex-1">
-                <p class="font-medium text-gray-900 text-sm">{job.title}</p>
-                <p class="text-xs text-gray-500">{job.client?.name}</p>
+                <p class="font-medium text-gray-900 text-sm">{task.title}</p>
+                <p class="text-xs text-gray-500">{task.client?.name}</p>
               </div>
-              {#if job.scheduledDate}
+              {#if task.scheduledDate}
                 <p class="text-xs text-gray-500">
-                  {new Date(job.scheduledDate).toLocaleDateString('en-US', { 
+                  {new Date(task.scheduledDate).toLocaleDateString('en-US', { 
                     month: 'short', 
                     day: 'numeric' 
                   })}
@@ -276,10 +302,10 @@
     </div>
     
     <!-- Error Display -->
-    {#if jobs.error || clients.error}
+    {#if tasks.error || clients.error}
       <div class="bg-red-50 border border-red-200 rounded-lg p-4">
         <p class="text-sm text-red-800">
-          {jobs.error || clients.error}
+          {tasks.error || clients.error}
         </p>
       </div>
     {/if}
