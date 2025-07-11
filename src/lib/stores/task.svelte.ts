@@ -458,6 +458,41 @@ class TaskStore extends BaseStore {
     }
   }
   
+  // Delete task
+  async deleteTask(taskId: string): Promise<void> {
+    if (!this.currentTenantId || !this.auth.user) {
+      throw new Error('Not authenticated');
+    }
+    
+    try {
+      if (this.state.isOffline) {
+        // Add to offline queue
+        await offlineQueue.addOperation({
+          type: 'delete',
+          collection: 'tasks',
+          documentId: taskId
+        });
+        
+        // Remove from local state
+        this.state.tasks = this.state.tasks.filter(task => task.id !== taskId);
+        this.updateDerivedTasks();
+      } else {
+        // Delete online
+        await deleteTaskFirebase(
+          this.currentTenantId,
+          taskId
+        );
+        
+        // Remove from local state
+        this.state.tasks = this.state.tasks.filter(task => task.id !== taskId);
+        this.updateDerivedTasks();
+      }
+    } catch (error) {
+      console.error('Error deleting task:', error);
+      throw error;
+    }
+  }
+  
   // Update task status with transition validation
   async updateTaskStatus(taskId: string, newStatus: TaskStatus, reason?: string): Promise<void> {
     const task = this.getTaskById(taskId);

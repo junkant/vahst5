@@ -2,15 +2,15 @@
   import { createDatePicker, melt } from '@melt-ui/svelte';
   import { 
     calendarSettings, 
-    scheduledTasks, 
-    generateTimeSlots,
-    getBusinessHoursForDate,
-    type ScheduledTask 
+    getBusinessHoursForDate
   } from '$lib/stores/calendar.svelte';
   import { fade, slide } from 'svelte/transition';
   import SchedulingModal from './SchedulingModal.svelte';
   import { createDragHandlers } from '$lib/utils/calendar-drag';
   import { get } from 'svelte/store';
+  import { useJobStore } from '$lib/stores/task.svelte';
+  import { useClients } from '$lib/stores/client.svelte';
+  import type { Task } from '$lib/types/task';
   
   interface Props {
     viewType?: 'day' | 'week' | 'month';
@@ -20,20 +20,33 @@
   
   // Store values
   let settings = $state(get(calendarSettings));
-  let tasks = $state(get(scheduledTasks));
+  const taskStore = useJobStore();
+  const clients = useClients();
+  
+  // Get tasks filtered by selected client and scheduled status
+  let filteredTasks = $derived(
+    taskStore.tasks.filter(task => {
+      // Must have a scheduled start date
+      if (!task.scheduledStart) return false;
+      
+      // Filter by client if one is selected
+      if (clients.selectedClient && task.clientId !== clients.selectedClient.id) {
+        return false;
+      }
+      
+      // Include all statuses that should show on calendar
+      return ['scheduled', 'in_progress', 'completed'].includes(task.status);
+    })
+  );
   
   // Subscribe to store changes
   $effect(() => {
     const unsubSettings = calendarSettings.subscribe(value => {
       settings = value;
     });
-    const unsubTasks = scheduledTasks.subscribe(value => {
-      tasks = value;
-    });
     
     return () => {
       unsubSettings();
-      unsubTasks();
     };
   });
   
@@ -41,24 +54,35 @@
   let showModal = $state(false);
   let selectedDate = $state('');
   let selectedTime = $state('');
-  let selectedTask = $state<ScheduledTask | null>(null);
+  let selectedTask = $state<Task | null>(null);
   
   // Drag and drop handlers
-  const dragHandlers = createDragHandlers((task, newDate, newTime) => {
+  const dragHandlers = createDragHandlers(async (task: Task, newDate: string, newTime: string) => {
     // Update task with new date/time
-    scheduledTasks.update(tasks => 
-      tasks.map(t => 
-        t.id === task.id 
-          ? { ...t, scheduledDate: newDate, scheduledTime: newTime }
-          : t
-      )
-    );
+    const scheduledStart = new Date(`${newDate}T${newTime}`);
+    const duration = task.scheduledEnd && task.scheduledStart
+      ? (task.scheduledEnd instanceof Date ? task.scheduledEnd.getTime() : task.scheduledEnd.toDate().getTime()) -
+        (task.scheduledStart instanceof Date ? task.scheduledStart.getTime() : task.scheduledStart.toDate().getTime())
+      : 60 * 60 * 1000; // default 1 hour
+    
+    const scheduledEnd = new Date(scheduledStart.getTime() + duration);
+    
+    await taskStore.updateTask(task.id, {
+      scheduledStart,
+      scheduledEnd
+    });
   });
   
   // Simple date state for navigation
   let currentDate = $state(new Date());
-  let currentMonth = $state(currentDate.getMonth());
-  let currentYear = $state(currentDate.getFullYear());
+  let currentMonth = $state(new Date().getMonth());
+  let currentYear = $state(new Date().getFullYear());
+  
+  // Update month/year when date changes
+  $effect(() => {
+    currentMonth = currentDate.getMonth();
+    currentYear = currentDate.getFullYear();
+  });
   
   // Navigation functions
   function goToPrevious() {
@@ -95,10 +119,48 @@
   let timeSlots = $derived(generateTimeSlots(settings.timeSlotDuration, 6, 20)); // 6 AM to 8 PM
   let weekDates = $derived(getWeekDates(currentDate));
   
-  // Get tasks for a specific date
-  function getTasksForDate(date: Date): ScheduledTask[] {
+  // Get tasks for a specific date and time
+  function getTasksForDateTime(date: Date, time: string): Task[] {
     const dateStr = date.toISOString().split('T')[0];
-    return tasks.filter(task => task.scheduledDate === dateStr);
+    return filteredTasks.filter(task => {
+      const taskDate = task.scheduledStart instanceof Date 
+        ? task.scheduledStart 
+        : task.scheduledStart.toDate();
+      
+      const taskDateStr = taskDate.toISOString().split('T')[0];
+      const taskTime = taskDate.toTimeString().slice(0, 5);
+      
+      return taskDateStr === dateStr && taskTime === time;
+    });
+  }
+  
+  // Get tasks for a specific date (month view)
+  function getTasksForDate(date: Date): Task[] {
+    const dateStr = date.toISOString().split('T')[0];
+    return filteredTasks.filter(task => {
+      const taskDate = task.scheduledStart instanceof Date 
+        ? task.scheduledStart 
+        : task.scheduledStart.toDate();
+      
+      const taskDateStr = taskDate.toISOString().split('T')[0];
+      return taskDateStr === dateStr;
+    });
+  }
+  
+  // Generate time slots
+  function generateTimeSlots(duration: number, startHour: number, endHour: number): string[] {
+    const slots: string[] = [];
+    const totalMinutes = (endHour - startHour) * 60;
+    const numSlots = Math.floor(totalMinutes / duration);
+    
+    for (let i = 0; i < numSlots; i++) {
+      const minutes = startHour * 60 + i * duration;
+      const hours = Math.floor(minutes / 60);
+      const mins = minutes % 60;
+      slots.push(`${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`);
+    }
+    
+    return slots;
   }
   
   // Get week dates
@@ -161,10 +223,13 @@
   }
   
   // Handle task click
-  function handleTaskClick(task: ScheduledTask) {
+  function handleTaskClick(task: Task) {
     selectedTask = task;
-    selectedDate = task.scheduledDate;
-    selectedTime = task.scheduledTime;
+    const taskDate = task.scheduledStart instanceof Date 
+      ? task.scheduledStart 
+      : task.scheduledStart.toDate();
+    selectedDate = taskDate.toISOString().split('T')[0];
+    selectedTime = taskDate.toTimeString().slice(0, 5);
     showModal = true;
   }
   
@@ -178,6 +243,34 @@
   
   // Month view data
   let monthWeeks = $derived(getMonthDays(currentDate));
+  
+  // Get task duration in minutes
+  function getTaskDuration(task: Task): number {
+    if (!task.scheduledStart || !task.scheduledEnd) return 60;
+    
+    const start = task.scheduledStart instanceof Date 
+      ? task.scheduledStart 
+      : task.scheduledStart.toDate();
+    const end = task.scheduledEnd instanceof Date 
+      ? task.scheduledEnd 
+      : task.scheduledEnd.toDate();
+      
+    return Math.round((end.getTime() - start.getTime()) / 60000);
+  }
+  
+  // Get color based on task status
+  function getTaskColor(task: Task): string {
+    switch (task.status) {
+      case 'completed':
+      case 'paid':
+        return 'bg-green-500 hover:bg-green-600';
+      case 'in_progress':
+        return 'bg-yellow-500 hover:bg-yellow-600';
+      case 'scheduled':
+      default:
+        return 'bg-blue-500 hover:bg-blue-600';
+    }
+  }
 </script>
 
 <div class="h-full flex flex-col bg-white">
@@ -193,13 +286,20 @@
       </svg>
     </button>
     
-    <h2 class="text-lg font-semibold">
-      {currentDate.toLocaleDateString('en-US', { 
-        month: 'long', 
-        year: 'numeric',
-        ...(viewType === 'day' && { day: 'numeric' })
-      })}
-    </h2>
+    <div class="text-center">
+      <h2 class="text-lg font-semibold">
+        {currentDate.toLocaleDateString('en-US', { 
+          month: 'long', 
+          year: 'numeric',
+          ...(viewType === 'day' && { day: 'numeric' })
+        })}
+      </h2>
+      {#if clients.selectedClient}
+        <p class="text-sm text-gray-500">Client: {clients.selectedClient.name}</p>
+      {:else}
+        <p class="text-sm text-gray-500">All Clients</p>
+      {/if}
+    </div>
     
     <button
       onclick={goToNext}
@@ -251,7 +351,7 @@
               
               <!-- Day Slots -->
               {#each weekDates as date}
-                {@const dayTasks = getTasksForDate(date).filter(t => t.scheduledTime === time)}
+                {@const dayTasks = getTasksForDateTime(date, time)}
                 {@const isBusinessHours = isWithinBusinessHours(date, time)}
                 
                 <div
@@ -270,8 +370,8 @@
                 >
                   {#each dayTasks as task}
                     <div
-                      class="absolute inset-x-1 bg-blue-500 text-white text-xs p-1 rounded cursor-move hover:bg-blue-600 transition-colors"
-                      style="height: {(task.duration / settings.timeSlotDuration) * 60}px"
+                      class="absolute inset-x-1 text-white text-xs p-1 rounded cursor-move transition-colors {getTaskColor(task)}"
+                      style="height: {(getTaskDuration(task) / settings.timeSlotDuration) * 60}px"
                       draggable="true"
                       data-task={JSON.stringify(task)}
                       onclick={(e) => { e.stopPropagation(); handleTaskClick(task); }}
@@ -282,9 +382,16 @@
                       tabindex="0"
                       aria-label="{task.title} at {formatTime(time)}"
                     >
-                      <div class="font-medium truncate">{task.title}</div>
-                      {#if task.clientName}
-                        <div class="truncate opacity-90">{task.clientName}</div>
+                      <div class="flex items-center gap-1">
+                        <div class="font-medium truncate flex-1">{task.title}</div>
+                        {#if task.priority === 'emergency'}
+                          <svg class="w-3 h-3 text-red-200" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+                          </svg>
+                        {/if}
+                      </div>
+                      {#if task.client?.name}
+                        <div class="truncate opacity-90">{task.client.name}</div>
                       {/if}
                     </div>
                   {/each}
@@ -300,7 +407,7 @@
       <div class="max-w-2xl mx-auto p-4">
         <div class="space-y-2">
           {#each timeSlots as time}
-            {@const dayTasks = getTasksForDate(currentDate).filter(t => t.scheduledTime === time)}
+            {@const dayTasks = getTasksForDateTime(currentDate, time)}
             {@const isBusinessHours = isWithinBusinessHours(currentDate, time)}
             
             <div class="flex gap-4 {!isBusinessHours ? 'opacity-50' : ''}">
@@ -325,7 +432,7 @@
                 {#if dayTasks.length > 0}
                   {#each dayTasks as task}
                     <div
-                      class="bg-blue-500 text-white p-2 rounded mb-2 cursor-move hover:bg-blue-600 transition-colors"
+                      class="text-white p-2 rounded mb-2 cursor-move transition-colors {getTaskColor(task)}"
                       draggable="true"
                       data-task={JSON.stringify(task)}
                       onclick={(e) => { e.stopPropagation(); handleTaskClick(task); }}
@@ -337,8 +444,8 @@
                       aria-label="{task.title} at {formatTime(time)}"
                     >
                       <div class="font-medium">{task.title}</div>
-                      {#if task.clientName}
-                        <div class="text-sm opacity-90">{task.clientName}</div>
+                      {#if task.client?.name}
+                        <div class="text-sm opacity-90">{task.client.name}</div>
                       {/if}
                     </div>
                   {/each}
@@ -367,8 +474,9 @@
             {#each week as day}
               {@const dayTasks = getTasksForDate(day)}
               {@const isCurrentMonth = day.getMonth() === currentDate.getMonth()}
-              <div
-                class="p-2 text-center rounded-lg hover:bg-gray-100 cursor-pointer min-h-[80px]
+              <button
+                type="button"
+                class="w-full p-2 text-center rounded-lg hover:bg-gray-100 cursor-pointer min-h-[80px]
                   {!isCurrentMonth ? 'text-gray-400' : ''}
                   {day.toDateString() === new Date().toDateString() ? 'bg-blue-50' : ''}"
                 onclick={() => handleTimeSlotClick(day, '09:00')}
@@ -381,7 +489,7 @@
                     </div>
                   </div>
                 {/if}
-              </div>
+              </button>
             {/each}
           {/each}
         </div>

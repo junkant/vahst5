@@ -34,6 +34,14 @@
       .sort((a, b) => a.scheduledTime.localeCompare(b.scheduledTime));
   })());
   
+  // Check if appointment exists as task
+  function getTaskForAppointment(appointmentId: string) {
+    return tasks.todayTasks.find(t => 
+      t.customFields?.calendarId === appointmentId || 
+      t.id === appointmentId
+    );
+  }
+  
   function createNewTask() {
     if (clients.selectedClient) {
       goto(`/tasks/new?client=${clients.selectedClient.id}`);
@@ -163,8 +171,18 @@
           {/if}
           
           {#if todayScheduled.length > 0}
+            {@const nextAppointment = todayScheduled[0]}
+            {@const taskStatus = getTaskForAppointment(nextAppointment.id)?.status}
             <div class="mt-2 text-sm">
-              <p class="text-blue-100">Next: <span class="font-medium">{todayScheduled[0].title}</span> at {formatTime(new Date(`2000-01-01T${todayScheduled[0].scheduledTime}`))}</p>
+              <p class="text-blue-100">
+                Next: <span class="font-medium">{nextAppointment.title}</span> 
+                at {formatTime(new Date(`2000-01-01T${nextAppointment.scheduledTime}`))}
+                {#if taskStatus}
+                  <span class="ml-1 text-xs bg-white/20 px-2 py-0.5 rounded-full">
+                    {taskStatus}
+                  </span>
+                {/if}
+              </p>
             </div>
           {/if}
         </div>

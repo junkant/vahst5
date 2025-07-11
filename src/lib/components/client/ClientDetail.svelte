@@ -29,7 +29,7 @@
   
   // Lazy loaded components with proper typing
   let ClientHistory = $state<any>(null);
-  let ClientJobs = $state<any>(null);
+  let ClientTasks = $state<any>(null);
   let ClientNotes = $state<any>(null);
   
   // Track expanded sections with only info open by default
@@ -125,9 +125,9 @@
             }
             break;
           case 'jobs':
-            if (!ClientJobs) {
-              const module = await import('./ClientJobs.svelte');
-              ClientJobs = module.default;
+            if (!ClientTasks) {
+              const module = await import('./ClientTasks.svelte');
+              ClientTasks = module.default;
             }
             break;
           case 'notes':
@@ -428,15 +428,15 @@
             aria-expanded={expandedSections.jobs}
             aria-controls="client-jobs"
           >
-            <h3 class="text-lg font-medium text-gray-900">Active Jobs</h3>
+            <h3 class="text-lg font-medium text-gray-900">Active Tasks</h3>
             <Icon name="chevronDown" class="w-5 h-5 text-gray-400 transition-transform {expandedSections.jobs ? 'rotate-180' : ''}" />
           </button>
           
           <div id="client-jobs">
             {#if expandedSections.jobs}
-              {#if ClientJobs}
+              {#if ClientTasks}
                 <div class="mt-4 animate-expand">
-                  <ClientJobs {client} />
+                  <ClientTasks {client} />
                 </div>
               {:else}
                 <div class="mt-4 space-y-2">

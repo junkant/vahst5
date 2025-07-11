@@ -8,6 +8,7 @@
   // import { initializeJobStore, cleanupJobStore } from '$lib/stores/jobs.svelte'; // Removed - using tasks now
   import { useJobStore, cleanupJobStore } from '$lib/stores/task.svelte';
   import { useOffline } from '$lib/stores/offline.svelte';
+  import { getCalendarTaskSync, destroyCalendarTaskSync } from '$lib/services/calendar-task-sync';
   import TopBar from '$lib/components/layout/TopBar.svelte';
   import BottomNav from '$lib/components/layout/BottomNav.svelte';
   import LandingBottomNav from '$lib/components/layout/LandingBottomNav.svelte';
@@ -106,10 +107,21 @@
     }
   });
   
+  // Initialize calendar-task sync when tenant is set
+  $effect(() => {
+    const currentTenantId = auth.tenant?.id;
+    
+    if (currentTenantId && !isPublicPage) {
+      // Initialize sync service
+      getCalendarTaskSync();
+    }
+  });
+  
   // Cleanup on unmount
   $effect(() => {
     return () => {
       cleanupJobStore();
+      destroyCalendarTaskSync();
     };
   });
 </script>

@@ -1,14 +1,14 @@
 // Drag and drop utilities for calendar
-import type { ScheduledTask } from '$lib/stores/calendar.svelte';
+import type { Task } from '$lib/types/task';
 
 export interface DragState {
-  task: ScheduledTask | null;
+  task: Task | null;
   sourceDate: string;
   sourceTime: string;
 }
 
 export function createDragHandlers(
-  onDrop: (task: ScheduledTask, newDate: string, newTime: string) => void
+  onDrop: (task: Task, newDate: string, newTime: string) => void
 ) {
   let dragState: DragState = {
     task: null,
@@ -16,11 +16,15 @@ export function createDragHandlers(
     sourceTime: ''
   };
 
-  function handleDragStart(e: DragEvent, task: ScheduledTask) {
+  function handleDragStart(e: DragEvent, task: Task) {
+    const taskDate = task.scheduledStart instanceof Date 
+      ? task.scheduledStart 
+      : task.scheduledStart.toDate();
+    
     dragState = {
       task,
-      sourceDate: task.scheduledDate,
-      sourceTime: task.scheduledTime
+      sourceDate: taskDate.toISOString().split('T')[0],
+      sourceTime: taskDate.toTimeString().slice(0, 5)
     };
     
     // Set drag data
