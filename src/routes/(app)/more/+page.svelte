@@ -2,6 +2,9 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
   import Icon from '$lib/components/icons/Icon.svelte';
+  import { useAuth } from '$lib/stores/auth.svelte';
+  
+  const auth = useAuth();
   
   const accountItems = [
     { icon: 'user', label: 'Profile Settings', path: '/settings/profile' },
@@ -23,6 +26,23 @@
   
   function navigate(path: string) {
     goto(path);
+  }
+  
+  async function handleSignOut() {
+    try {
+      console.log('Starting sign out...');
+      const result = await auth.signOut();
+      console.log('Sign out result:', result);
+      
+      if (result.error) {
+        console.error('Sign out error:', result.error);
+      } else {
+        console.log('Sign out successful, navigating to home...');
+        goto('/');
+      }
+    } catch (error) {
+      console.error('Unexpected sign out error:', error);
+    }
   }
 </script>
 
@@ -97,6 +117,17 @@
     <div class="text-center py-8">
       <p class="text-sm text-gray-500">VAHST v1.0.0</p>
       <p class="text-xs text-gray-400 mt-1">© 2025 VAHST LLC</p>
+    </div>
+    
+    <!-- Sign Out Button -->
+    <div class="px-4">
+      <button
+        onclick={handleSignOut}
+        class="w-full p-4 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors flex items-center justify-center space-x-2"
+      >
+        <Icon name="logout" class="w-5 h-5" />
+        <span class="font-medium">Sign Out</span>
+      </button>
     </div>
   </div>
 </div>

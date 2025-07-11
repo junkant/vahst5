@@ -5,6 +5,7 @@
   import { useTenant } from '$lib/stores/tenant.svelte';
   import { goto } from '$app/navigation';
   import Icon from '$lib/components/icons/Icon.svelte';
+  import { scheduledTasks } from '$lib/stores/calendar.svelte';
   
   const clients = useClients();
   const tasks = useJobStore();
@@ -24,6 +25,14 @@
   const overdueTasks = $derived(tasks.overdueTasks);
   const upcomingTasks = $derived(tasks.upcomingTasks.slice(0, 3)); // Next 3 upcoming
   const recentClients = $derived(clients.recentClients?.slice(0, 5) || []); // Recent 5 clients
+  
+  // Get today's scheduled appointments from calendar
+  const todayScheduled = $derived((() => {
+    const todayStr = today.toISOString().split('T')[0];
+    return $scheduledTasks
+      .filter(task => task.scheduledDate === todayStr && task.tenantId === tenant.current?.id)
+      .sort((a, b) => a.scheduledTime.localeCompare(b.scheduledTime));
+  })());
   
   function createNewTask() {
     if (clients.selectedClient) {
@@ -136,6 +145,38 @@
         </div>
       </div>
     {/if}
+    
+    <!-- Calendar CTA Section -->
+    <div class="bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg p-4 text-white">
+      <div class="flex items-center justify-between">
+        <div class="flex-1">
+          <div class="flex items-center space-x-2 mb-2">
+            <Icon name="calendar" class="w-6 h-6" />
+            <h2 class="text-lg font-semibold">Today's Schedule</h2>
+          </div>
+          {#if todayScheduled.length === 0}
+            <p class="text-blue-100">No appointments scheduled for today</p>
+          {:else if todayScheduled.length === 1}
+            <p class="text-blue-100">1 appointment scheduled</p>
+          {:else}
+            <p class="text-blue-100">{todayScheduled.length} appointments scheduled</p>
+          {/if}
+          
+          {#if todayScheduled.length > 0}
+            <div class="mt-2 text-sm">
+              <p class="text-blue-100">Next: <span class="font-medium">{todayScheduled[0].title}</span> at {formatTime(new Date(`2000-01-01T${todayScheduled[0].scheduledTime}`))}</p>
+            </div>
+          {/if}
+        </div>
+        <button
+          onclick={() => goto('/calendar')}
+          class="bg-white text-blue-600 px-4 py-2 rounded-lg font-medium hover:bg-blue-50 transition-colors flex items-center space-x-2"
+        >
+          <span>View Calendar</span>
+          <Icon name="chevronRight" class="w-4 h-4" />
+        </button>
+      </div>
+    </div>
     
     <!-- Overdue Tasks Alert -->
     {#if overdueTasks.length > 0}

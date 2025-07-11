@@ -7,9 +7,22 @@
   const auth = useAuth();
   
   async function handleSignOut() {
-    await auth.signOut();
-    // After sign out, go to home page, not login
-    goto('/');
+    try {
+      console.log('Starting sign out...');
+      const result = await auth.signOut();
+      console.log('Sign out result:', result);
+      
+      if (result.error) {
+        console.error('Sign out error:', result.error);
+        // You might want to show an error toast here
+      } else {
+        console.log('Sign out successful, navigating to home...');
+        // After sign out, go to home page, not login
+        goto('/');
+      }
+    } catch (error) {
+      console.error('Unexpected sign out error:', error);
+    }
   }
 </script>
 
