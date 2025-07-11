@@ -2,10 +2,9 @@
 import type { Handle } from '@sveltejs/kit';
 
 export const handle: Handle = async ({ event, resolve }) => {
-  // Redirect old job URLs to new task URLs
   const { pathname } = event.url;
   
-  // Handle various job URL patterns
+  // Handle old job URLs redirect
   if (pathname.includes('/jobs')) {
     let newPath = pathname;
     
@@ -17,13 +16,11 @@ export const handle: Handle = async ({ event, resolve }) => {
     
     // Handle specific patterns
     if (pathname.match(/\/clients\/[^\/]+\/jobs\/new/)) {
-      // Extract client ID and redirect to new task creation with client param
       const match = pathname.match(/\/clients\/([^\/]+)\/jobs\/new/);
       if (match && match[1]) {
         newPath = `/tasks/new?client=${match[1]}`;
       }
     } else if (pathname.match(/\/clients\/[^\/]+\/jobs\/[^\/]+/)) {
-      // Extract task ID from client job detail page
       const match = pathname.match(/\/clients\/[^\/]+\/jobs\/([^\/]+)/);
       if (match && match[1]) {
         newPath = `/tasks/${match[1]}`;
@@ -33,6 +30,9 @@ export const handle: Handle = async ({ event, resolve }) => {
     // Perform redirect
     return Response.redirect(`${event.url.origin}${newPath}`, 301);
   }
+  
+  // For now, let client-side handle authentication
+  // Server-side auth will be implemented when Firebase Admin SDK is set up
   
   return resolve(event);
 };

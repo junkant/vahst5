@@ -148,14 +148,15 @@ export function createSwipeable(
 
 // Directive for use with Svelte's use: syntax
 export function swipe(node: HTMLElement, options: SwipeOptions) {
-  const { destroy } = createSwipeable(node, options);
+  let swipeableInstance = createSwipeable(node, options);
   
   return {
-    destroy,
+    destroy() {
+      swipeableInstance.destroy();
+    },
     update(newOptions: SwipeOptions) {
-      destroy();
-      const updated = createSwipeable(node, newOptions);
-      destroy = updated.destroy;
+      swipeableInstance.destroy();
+      swipeableInstance = createSwipeable(node, newOptions);
     }
   };
 }

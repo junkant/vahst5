@@ -1,7 +1,7 @@
 <!-- src/routes/(app)/tasks/+page.svelte -->
 <script lang="ts">
   import { useClients } from '$lib/stores/client.svelte';
-  import { useEnhancedTaskStore } from '$lib/stores/task-enhanced.svelte';
+  import { useJobStore } from '$lib/stores/task.svelte';
   import { useTenant } from '$lib/stores/tenant.svelte';
   import { goto } from '$app/navigation';
   import { onMount } from 'svelte';
@@ -9,7 +9,7 @@
   import { untrack } from 'svelte';
   
   const clients = useClients();
-  const taskStore = useEnhancedTaskStore();
+  const taskStore = useJobStore();
   const tenant = useTenant();
   
   // Filter states
@@ -30,13 +30,23 @@
       currentTenantId = tenantId;
       
       clients.subscribeTenant(tenantId);
-      taskStore.initializeTenant(tenantId);
+      taskStore.setTenant(tenantId);
     }
     
     return () => {
       // Clean up stores when unmounting
-      taskStore.cleanup();
-      clients.cleanup();
+      try {
+        console.log('Cleaning up task store:', taskStore);
+        console.log('TaskStore methods:', Object.getOwnPropertyNames(Object.getPrototypeOf(taskStore)));
+        if (typeof taskStore.cleanup === 'function') {
+          taskStore.cleanup();
+        } else {
+          console.error('taskStore.cleanup is not a function', taskStore);
+        }
+        clients.cleanup();
+      } catch (error) {
+        console.error('Error during cleanup:', error);
+      }
       isInitialized = false;
     };
   });
@@ -60,7 +70,7 @@
         
         // Re-initialize stores
         clients.subscribeTenant(newTenantId);
-        taskStore.initializeTenant(newTenantId);
+        taskStore.setTenant(newTenantId);
       }
     }
   });

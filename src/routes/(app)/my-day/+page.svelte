@@ -1,13 +1,13 @@
 <!-- src/routes/(app)/my-day/+page.svelte -->
 <script lang="ts">
   import { useClients } from '$lib/stores/client.svelte';
-  import { useTasks } from '$lib/stores/tasks.svelte';
+  import { useJobStore } from '$lib/stores/task.svelte';
   import { useTenant } from '$lib/stores/tenant.svelte';
   import { goto } from '$app/navigation';
   import Icon from '$lib/components/icons/Icon.svelte';
   
   const clients = useClients();
-  const tasks = useTasks();
+  const tasks = useJobStore();
   const tenant = useTenant();
   
   // Get today's date info

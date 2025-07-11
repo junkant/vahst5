@@ -1,4 +1,5 @@
 // src/lib/stores/client.svelte.ts - Enhanced version with security & performance
+import { BaseStore } from './base.store';
 import { 
   collection,
   doc,
@@ -106,7 +107,7 @@ function sanitizeString(str: string): string {
     .trim();
 }
 
-class ClientStore {
+class ClientStore extends BaseStore {
   // State
   clients = $state<Client[]>([]);
   selectedClient = $state<Client | null>(null);
@@ -140,10 +141,35 @@ class ClientStore {
   private failedOperations = new Map<string, number>(); // operationId -> retryCount
 
   constructor() {
+    super();
     this.loadBusinessClientMap();
     this.loadRecentClientIds();
     this.initializeOfflineDetection();
     this.startPeriodicCacheCleanup();
+  }
+  
+  // Initialize the store
+  init() {
+    if (this.initialized) return;
+    this.initialized = true;
+    // Initialization is handled in constructor and subscribeTenant
+  }
+  
+  // Reset the store state
+  reset() {
+    this.clients = [];
+    this.selectedClient = null;
+    this.clientTasks = [];
+    this.isLoadingClients = false;
+    this.isLoadingJobs = false;
+    this.error = null;
+    this.recentClientIds = [];
+    this.isOffline = false;
+    this.currentTenantId = null;
+    this.cachedClients = [];
+    this.lastSync = 0;
+    this.businessClientMap.clear();
+    this.failedOperations.clear();
   }
 
   // Load business-client mapping from localStorage
@@ -179,20 +205,8 @@ class ClientStore {
     
     this.isOffline = !navigator.onLine;
     
-    window.addEventListener('online', () => {
-      this.isOffline = false;
-      if (this.currentTenantId) {
-        // Debounce sync to prevent rapid fire
-        this.debouncedSync();
-      }
-    });
-    
-    window.addEventListener('offline', () => {
-      this.isOffline = true;
-      if (this.currentTenantId) {
-        this.loadFromCache();
-      }
-    });
+    window.addEventListener('online', this.handleOnline);
+    window.addEventListener('offline', this.handleOffline);
   }
 
   // Debounced sync with server
@@ -324,8 +338,16 @@ class ClientStore {
     }
     
     // Clean up previous subscriptions only if tenant is changing
-    if (this.currentTenantId !== tenantId) {
-      this.cleanup();
+    if (this.currentTenantId !== tenantId && this.currentTenantId !== null) {
+      // Call the instance method, not this.cleanup()
+      if (this.unsubscribeClients) {
+        this.unsubscribeClients();
+        this.unsubscribeClients = null;
+      }
+      if (this.unsubscribeTasks) {
+        this.unsubscribeTasks();
+        this.unsubscribeTasks = null;
+      }
     }
     
     if (!tenantId) {
@@ -852,7 +874,7 @@ class ClientStore {
     this.saveRecentClientIds();
   }
 
-  // Cleanup subscriptions
+  // Cleanup subscriptions and timers
   cleanup() {
     if (this.unsubscribeClients) {
       this.unsubscribeClients();
@@ -878,7 +900,28 @@ class ClientStore {
       clearTimeout(this.syncDebounceTimer);
       this.syncDebounceTimer = null;
     }
+    
+    // Add cleanup functions to base store
+    this.addCleanup(() => {
+      window.removeEventListener('online', this.handleOnline);
+      window.removeEventListener('offline', this.handleOffline);
+    });
   }
+  
+  // Event handlers for offline detection
+  private handleOnline = () => {
+    this.isOffline = false;
+    if (this.currentTenantId) {
+      this.debouncedSync();
+    }
+  };
+  
+  private handleOffline = () => {
+    this.isOffline = true;
+    if (this.currentTenantId) {
+      this.loadFromCache();
+    }
+  };
 
   // Computed properties
   get hasClients() {

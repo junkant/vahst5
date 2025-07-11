@@ -22,6 +22,20 @@ function getCertificates() {
 export default defineConfig({
   plugins: [sveltekit()],
   
+  resolve: {
+    alias: {
+      $lib: path.resolve('./src/lib'),
+      $components: path.resolve('./src/lib/components'),
+      $stores: path.resolve('./src/lib/stores'),
+      $utils: path.resolve('./src/lib/utils'),
+      $types: path.resolve('./src/lib/types'),
+      $firebase: path.resolve('./src/lib/firebase'),
+      $ai: path.resolve('./src/lib/ai'),
+      $voice: path.resolve('./src/lib/voice'),
+      $constants: path.resolve('./src/lib/constants')
+    }
+  },
+  
   server: {
     // Try to use custom certificates first, otherwise let Vite handle it
     https: getCertificates() || true,
@@ -34,8 +48,8 @@ export default defineConfig({
       clientFiles: [
         './src/app.html',
         './src/routes/+layout.svelte',
-        './src/lib/components/common/BottomNav.svelte',
-        './src/lib/components/common/TopBar.svelte'
+        './src/lib/components/layout/BottomNav.svelte',
+        './src/lib/components/layout/TopBar.svelte'
       ]
     }
   },
@@ -142,8 +156,6 @@ export default defineConfig({
       '@floating-ui/core',
       '@floating-ui/dom',
       '@internationalized/date',
-      'lucide-svelte',
-      'date-fns',
       'dequal',
       'focus-trap',
       'nanoid/non-secure'

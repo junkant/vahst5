@@ -10,7 +10,7 @@
   import { useVoice } from '$lib/stores/voice.svelte';
   import { useNetwork } from '$lib/stores/network.svelte.ts';
   import Icon from '$lib/components/icons/Icon.svelte';
-  import QuickActionsMenu from './QuickActionsMenu.svelte';
+  import QuickActionsMenu from '../common/QuickActionsMenu.svelte';
   
   const auth = useAuth();
   const network = useNetwork();

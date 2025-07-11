@@ -91,6 +91,66 @@ service cloud.firestore {
                        canManageTenant(request.auth.uid, tenantId);
     }
     
+    // Task-specific rules with assignment checking
+    match /tenants/{tenantId}/tasks/{taskId} {
+      // Anyone in tenant can read tasks
+      allow read: if isAuthenticated() && 
+                     userBelongsToTenant(request.auth.uid, tenantId);
+      
+      // Only assigned users or managers can update
+      allow update: if isAuthenticated() && 
+                       userBelongsToTenant(request.auth.uid, tenantId) &&
+                       (request.auth.uid in resource.data.assignedTo ||
+                        hasRole(request.auth.uid, tenantId, ['owner', 'admin', 'manager']));
+      
+      // Managers and above can create/delete
+      allow create, delete: if isAuthenticated() && 
+                               hasRole(request.auth.uid, tenantId, ['owner', 'admin', 'manager']);
+    }
+    
+    // Client-specific rules with optional team member creation
+    match /tenants/{tenantId}/clients/{clientId} {
+      // All tenant members can read
+      allow read: if isAuthenticated() && 
+                     userBelongsToTenant(request.auth.uid, tenantId);
+      
+      // Team members can create if feature is enabled
+      allow create: if isAuthenticated() && 
+                       userBelongsToTenant(request.auth.uid, tenantId) &&
+                       (hasRole(request.auth.uid, tenantId, ['owner', 'admin', 'manager']) ||
+                        get(/databases/$(database)/documents/tenants/$(tenantId)).data.settings.allowTeamMemberCreateClients == true);
+      
+      // Only managers and above can update/delete
+      allow update, delete: if isAuthenticated() && 
+                               hasRole(request.auth.uid, tenantId, ['owner', 'admin', 'manager']);
+    }
+    
+    // Settings protection - separate from tenant document
+    match /tenants/{tenantId}/settings/{document} {
+      // Only owners and admins can read settings
+      allow read: if isAuthenticated() && 
+                     hasRole(request.auth.uid, tenantId, ['owner', 'admin']);
+      
+      // Only owners can write settings
+      allow write: if isAuthenticated() && 
+                      hasRole(request.auth.uid, tenantId, ['owner']);
+    }
+    
+    // Financial data protection
+    match /tenants/{tenantId}/invoices/{invoiceId} {
+      // Managers and above can read
+      allow read: if isAuthenticated() && 
+                     hasRole(request.auth.uid, tenantId, ['owner', 'admin', 'manager']);
+      
+      // Only admins and owners can create/update
+      allow create, update: if isAuthenticated() && 
+                               hasRole(request.auth.uid, tenantId, ['owner', 'admin']);
+      
+      // Only owners can delete
+      allow delete: if isAuthenticated() && 
+                       hasRole(request.auth.uid, tenantId, ['owner']);
+    }
+    
     // Bulk invite sessions
     match /tenants/{tenantId}/bulkSessions/{sessionId} {
       allow read: if isAuthenticated() && 
@@ -111,7 +171,7 @@ service cloud.firestore {
                                canManageTenant(request.auth.uid, tenantId);
     }
     
-    // Tenant-scoped data - all collections within a tenant
+    // Default tenant-scoped collections
     match /tenants/{tenantId}/{collection}/{document} {
       allow read: if isAuthenticated() && userBelongsToTenant(request.auth.uid, tenantId);
       allow create, update: if isAuthenticated() && canEditData(request.auth.uid, tenantId);

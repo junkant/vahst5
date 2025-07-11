@@ -1,42 +1,42 @@
-<!-- src/lib/components/job/JobList.svelte -->
+<!-- src/lib/components/task/TaskList.svelte -->
 <script lang="ts">
-  import type { Job, JobStatus } from '$lib/types/job';
-  import JobCard from './JobCard.svelte';
-  import { useTasks } from '$lib/stores/tasks.svelte';
+  import type { Task, TaskStatus } from '$lib/types/task';
+  import TaskCard from './TaskCard.svelte';
+  import { useJobStore } from '$lib/stores/task.svelte';
   import { useAuth } from '$lib/stores/auth.svelte';
   import Icon from '$lib/components/icons/Icon.svelte';
   import { goto } from '$app/navigation';
   import { toast } from '$lib/utils/toast';
   
   interface Props {
-    jobs: Job[];
+    tasks: Task[];
     title?: string;
     emptyMessage?: string;
     showClient?: boolean;
     allowStatusChange?: boolean;
-    onJobClick?: (job: Job) => void;
+    onTaskClick?: (task: Task) => void;
   }
   
   let { 
-    jobs,
+    tasks,
     title,
-    emptyMessage = 'No jobs found',
+    emptyMessage = 'No tasks found',
     showClient = true,
     allowStatusChange = true,
-    onJobClick
+    onTaskClick
   }: Props = $props();
   
-  const jobStore = useJobs();
+  const taskStore = useJobStore();
   const auth = useAuth();
   
-  // Group jobs by date
-  const groupedJobs = $derived(() => {
-    const groups = new Map<string, Job[]>();
+  // Group tasks by date
+  const groupedTasks = $derived(() => {
+    const groups = new Map<string, Task[]>();
     
-    jobs.forEach(job => {
-      const date = job.scheduledStart instanceof Date 
-        ? job.scheduledStart 
-        : job.scheduledStart.toDate();
+    tasks.forEach(task => {
+      const date = task.scheduledStart instanceof Date 
+        ? task.scheduledStart 
+        : task.scheduledStart.toDate();
       
       const dateKey = date.toDateString();
       
@@ -44,7 +44,7 @@
         groups.set(dateKey, []);
       }
       
-      groups.get(dateKey)!.push(job);
+      groups.get(dateKey)!.push(task);
     });
     
     // Sort groups by date
@@ -75,26 +75,26 @@
     }
   }
   
-  // Handle job click
-  function handleJobClick(job: Job) {
-    if (onJobClick) {
-      onJobClick(job);
+  // Handle task click
+  function handleTaskClick(task: Task) {
+    if (onTaskClick) {
+      onTaskClick(task);
     } else {
-      goto(`/clients/${job.clientId}/jobs/${job.id}`);
+      goto(`/clients/${task.clientId}/tasks/${task.id}`);
     }
   }
   
   // Handle status change
-  async function handleStatusChange(job: Job, newStatus: JobStatus) {
+  async function handleStatusChange(task: Task, newStatus: TaskStatus) {
     if (!allowStatusChange) return;
     
     try {
-      await jobStore.updateJobStatus(job.id, newStatus);
-      toast.success(`Job status updated to ${newStatus.replace('_', ' ')}`);
+      await taskStore.updateTaskStatus(task.id, newStatus);
+      toast.success(`Task status updated to ${newStatus.replace('_', ' ')}`);
       
-      // Auto-navigate to job if changing to in_progress
+      // Auto-navigate to task if changing to in_progress
       if (newStatus === 'in_progress') {
-        handleJobClick(job);
+        handleTaskClick(task);
       }
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to update status');
@@ -102,30 +102,30 @@
   }
   
   // Loading state
-  const isLoading = $derived(jobStore.isLoading);
+  const isLoading = $derived(taskStore.isLoading);
 </script>
 
-<div class="job-list">
+<div class="task-list">
   {#if title}
     <h2 class="text-lg font-semibold text-gray-900 mb-4 px-4">
       {title}
     </h2>
   {/if}
   
-  {#if isLoading && jobs.length === 0}
+  {#if isLoading && tasks.length === 0}
     <div class="flex flex-col items-center justify-center py-12">
       <div class="w-8 h-8 border-2 border-blue-600 border-t-transparent 
                   rounded-full animate-spin mb-4"></div>
-      <p class="text-gray-500">Loading jobs...</p>
+      <p class="text-gray-500">Loading tasks...</p>
     </div>
-  {:else if jobs.length === 0}
+  {:else if tasks.length === 0}
     <div class="flex flex-col items-center justify-center py-12 px-4">
       <Icon name="clipboard" class="w-12 h-12 text-gray-400 mb-3" />
       <p class="text-gray-500 text-center">{emptyMessage}</p>
     </div>
   {:else}
     <div class="space-y-6">
-      {#each groupedJobs as [dateKey, dateJobs]}
+      {#each groupedTasks as [dateKey, dateTasks]}
         <div>
           <!-- Date header -->
           <div class="sticky top-0 bg-gray-50 px-4 py-2 border-b border-gray-200 z-10">
@@ -134,20 +134,20 @@
                 {formatGroupDate(dateKey)}
               </h3>
               <span class="text-xs text-gray-500">
-                {dateJobs.length} job{dateJobs.length !== 1 ? 's' : ''}
+                {dateTasks.length} task{dateTasks.length !== 1 ? 's' : ''}
               </span>
             </div>
           </div>
           
-          <!-- Jobs for this date -->
+          <!-- Tasks for this date -->
           <div class="px-4 py-3 space-y-3">
-            {#each dateJobs as job (job.id)}
-              <JobCard
-                {job}
+            {#each dateTasks as task (task.id)}
+              <TaskCard
+                {task}
                 {showClient}
-                onClick={() => handleJobClick(job)}
+                onClick={() => handleTaskClick(task)}
                 onStatusChange={allowStatusChange ? 
-                  (status) => handleStatusChange(job, status) : 
+                  (status) => handleStatusChange(task, status) : 
                   undefined
                 }
               />
@@ -159,7 +159,7 @@
   {/if}
   
   <!-- Offline indicator -->
-  {#if jobStore.isOffline}
+  {#if taskStore.isOffline}
     <div class="fixed bottom-20 left-4 right-4 bg-yellow-100 border border-yellow-400 
                 text-yellow-800 px-4 py-2 rounded-lg shadow-lg flex items-center gap-2">
       <Icon name="wifiOff" class="w-5 h-5" />
@@ -169,13 +169,13 @@
 </div>
 
 <style>
-  .job-list {
+  .task-list {
     min-height: 100%;
     padding-bottom: 5rem; /* Space for bottom navigation */
   }
   
   /* Ensure sticky headers work properly */
-  :global(.job-list > div) {
+  :global(.task-list > div) {
     position: relative;
   }
 </style>

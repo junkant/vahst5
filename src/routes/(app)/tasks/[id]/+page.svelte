@@ -2,51 +2,111 @@
 <script lang="ts">
   import { page } from '$app/stores';
   import { goto } from '$app/navigation';
-  import { useEnhancedTaskStore } from '$lib/stores/task-enhanced.svelte';
+  import { useJobStore } from '$lib/stores/task.svelte';
   import { useTenant } from '$lib/stores/tenant.svelte';
+  import { useClients } from '$lib/stores/client.svelte';
   import { onMount } from 'svelte';
+  import { untrack } from 'svelte';
   import TaskDetail from '$lib/components/task/TaskDetail.svelte';
+  import { getTask } from '$lib/firebase/tasks';
   
-  const taskStore = useEnhancedTaskStore();
+  const taskStore = useJobStore();
   const tenant = useTenant();
+  const clients = useClients();
   
   // Get task ID from route
   const taskId = $derived($page.params.id);
   
   // Track initialization
   let isInitialized = $state(false);
-  let hasCheckedTask = $state(false);
+  let isLoadingTask = $state(false);
+  let taskNotFound = $state(false);
   
-  // Get task from store
-  const task = $derived(taskId ? taskStore.getTaskById(taskId) : null);
+  // Local task state for direct loading
+  let directLoadedTask = $state<any>(null);
   
-  // Initialize store on mount
+  // Get task from store or direct load
+  const task = $derived(
+    taskId ? (taskStore.getTaskById(taskId) || directLoadedTask) : null
+  );
+  
+  // Initialize and load task
   onMount(() => {
-    // Ensure store is initialized with current tenant
-    if (tenant.current?.id && !isInitialized) {
-      taskStore.initializeTenant(tenant.current.id);
+    console.log('Task detail page mounted, taskId:', taskId);
+    
+    // Initialize stores with current tenant
+    const tenantId = untrack(() => tenant.current?.id);
+    if (tenantId) {
+      taskStore.setTenant(tenantId);
+      clients.subscribeTenant(tenantId);
       isInitialized = true;
+      
+      // Load the specific task
+      loadTaskData();
     }
     
-    // Give the store time to load tasks
-    const timeoutId = setTimeout(() => {
-      hasCheckedTask = true;
-    }, 1500);
-    
     return () => {
-      clearTimeout(timeoutId);
+      console.log('Task detail page unmounting');
+      directLoadedTask = null;
     };
   });
   
-  // Handle task not found after checking
+  // Watch for tenant changes
   $effect(() => {
-    if (hasCheckedTask && !task && !taskStore.isLoading) {
-      goto('/tasks');
+    const tenantId = tenant.current?.id;
+    if (tenantId && isInitialized) {
+      loadTaskData();
     }
   });
+  
+  // Load task data
+  async function loadTaskData() {
+    if (!tenant.current?.id || !taskId || isLoadingTask) return;
+    
+    // First check if task is already in store
+    const storeTask = taskStore.getTaskById(taskId);
+    if (storeTask) {
+      console.log('Task found in store');
+      directLoadedTask = null;
+      return;
+    }
+    
+    // If not in store, load directly
+    isLoadingTask = true;
+    taskNotFound = false;
+    
+    try {
+      console.log('Loading task directly from Firebase...');
+      const loadedTask = await getTask(tenant.current.id, taskId);
+      
+      if (loadedTask) {
+        console.log('Task loaded:', loadedTask);
+        directLoadedTask = loadedTask;
+        
+        // Subscribe to the client's tasks if task has a client
+        if (loadedTask.clientId) {
+          console.log('Subscribing to client tasks:', loadedTask.clientId);
+          taskStore.subscribeToClient(loadedTask.clientId);
+        }
+      } else {
+        console.log('Task not found');
+        taskNotFound = true;
+      }
+    } catch (error) {
+      console.error('Error loading task:', error);
+      taskNotFound = true;
+    } finally {
+      isLoadingTask = false;
+    }
+  }
+  
+  // Navigate to tasks list
+  function goToTasksList() {
+    goto('/tasks');
+  }
 </script>
 
-{#if taskStore.isLoading || !hasCheckedTask}
+{#if isLoadingTask || (!task && !taskNotFound)}
   <div class="min-h-screen bg-gray-50 flex items-center justify-center">
     <div class="text-center">
       <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
@@ -63,7 +123,7 @@
       </svg>
       <p class="text-gray-600 mb-4">Task not found</p>
       <button
-        onclick={() => goto('/tasks')}
+        onclick={goToTasksList}
         class="text-blue-600 hover:text-blue-700 font-medium"
       >
         Back to Tasks

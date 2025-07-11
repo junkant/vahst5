@@ -1,6 +1,6 @@
 // src/lib/stores/task.svelte.ts
 // Enhanced task store with AI predictions and offline support
-
+import { BaseStore } from './base.store';
 import { 
   type Unsubscribe,
   type DocumentSnapshot 
@@ -61,7 +61,7 @@ interface TaskStoreState {
   predictionsCache: Map<string, TaskPredictions>;
 }
 
-class TaskStore {
+class TaskStore extends BaseStore {
   // State using Svelte 5 runes
   private state = $state<TaskStoreState>({
     tasks: [],
@@ -90,25 +90,64 @@ class TaskStore {
   private tenant = useTenant();
   
   constructor() {
+    super();
     if (browser) {
       this.initializeOfflineDetection();
       this.loadCachedData();
     }
   }
   
+  // Initialize the store
+  init() {
+    if (this.initialized) return;
+    this.initialized = true;
+    // Additional initialization if needed
+  }
+  
+  // Reset the store state
+  reset() {
+    this.state.tasks = [];
+    this.state.clientTasks.clear();
+    this.state.todayTasks = [];
+    this.state.upcomingTasks = [];
+    this.state.overdueTasks = [];
+    this.state.isLoading = false;
+    this.state.error = null;
+    this.state.isOffline = false;
+    this.state.filters = {};
+    this.state.sortOptions = {
+      field: 'scheduledStart',
+      direction: 'asc'
+    };
+    this.state.hasMore = true;
+    this.state.lastDoc = undefined;
+    this.state.predictionsCache.clear();
+    this.currentTenantId = undefined;
+  }
+  
   // Initialize offline detection
   private initializeOfflineDetection() {
     this.state.isOffline = !navigator.onLine;
     
-    window.addEventListener('online', () => {
-      this.state.isOffline = false;
-      this.syncOfflineQueue();
-    });
+    window.addEventListener('online', this.handleOnline);
+    window.addEventListener('offline', this.handleOffline);
     
-    window.addEventListener('offline', () => {
-      this.state.isOffline = true;
+    // Add cleanup for event listeners
+    this.addCleanup(() => {
+      window.removeEventListener('online', this.handleOnline);
+      window.removeEventListener('offline', this.handleOffline);
     });
   }
+  
+  // Event handlers
+  private handleOnline = () => {
+    this.state.isOffline = false;
+    this.syncOfflineQueue();
+  };
+  
+  private handleOffline = () => {
+    this.state.isOffline = true;
+  };
   
   // Load cached data
   private async loadCachedData() {
@@ -222,6 +261,9 @@ class TaskStore {
     );
     
     this.unsubscribes.set(key, unsubscribe);
+    
+    // Track for cleanup
+    this.addCleanup(() => unsubscribe());
   }
   
   // Subscribe to technician's today tasks
@@ -632,6 +674,47 @@ class TaskStore {
     this.loadMore();
   }
   
+  // Load a specific task by ID
+  async loadTask(taskId: string): Promise<Task | null> {
+    if (!this.currentTenantId) {
+      throw new Error('No tenant selected');
+    }
+    
+    try {
+      this.state.isLoading = true;
+      
+      // Try to get from cache first
+      let task = this.getTaskById(taskId);
+      if (task) {
+        return task;
+      }
+      
+      // Fetch from Firebase
+      const fetchedTask = await getTask(this.currentTenantId, taskId);
+      
+      if (fetchedTask) {
+        // Add to state
+        this.state.tasks = [...this.state.tasks, fetchedTask];
+        this.updateDerivedTasks();
+        
+        // Cache it
+        await localCache.setTask(fetchedTask, this.currentTenantId);
+        
+        // Generate predictions
+        this.generatePredictionsForTasks([fetchedTask]);
+        
+        return fetchedTask;
+      }
+      
+      return null;
+    } catch (error) {
+      console.error('Error loading task:', error);
+      throw error;
+    } finally {
+      this.state.isLoading = false;
+    }
+  }
+  
   // Get task by ID
   getTaskById(taskId: string): Task | undefined {
     return this.state.tasks.find(task => task.id === taskId);
@@ -668,7 +751,11 @@ class TaskStore {
     if (this.currentTenantId === tenantId) return;
     
     // Clean up subscriptions
-    this.cleanup();
+    this.unsubscribes.forEach(unsubscribe => unsubscribe());
+    this.unsubscribes.clear();
+    this.state.tasks = [];
+    this.state.clientTasks.clear();
+    this.updateDerivedTasks();
     
     this.currentTenantId = tenantId;
     
@@ -689,6 +776,9 @@ class TaskStore {
     this.state.tasks = [];
     this.state.clientTasks.clear();
     this.updateDerivedTasks();
+    
+    // Let base store handle additional cleanup
+    super.destroy();
   }
   
   // Getters for reactive access

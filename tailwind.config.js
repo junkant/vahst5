@@ -1,7 +1,10 @@
 export default {
   content: [
     './src/**/*.{html,js,svelte,ts}',
-    './node_modules/@melt-ui/**/*.{html,js,svelte,ts}'
+    './node_modules/@melt-ui/**/*.{html,js,svelte,ts}',
+    // Exclude test files from purge
+    '!./src/**/*.{test,spec}.{js,ts}',
+    '!./e2e/**/*'
   ],
   theme: {
     extend: {
@@ -51,5 +54,5 @@ export default {
       }
     }
   },
-  plugins: [require('@tailwindcss/typography')]
+  plugins: []
 }

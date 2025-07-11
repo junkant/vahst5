@@ -6,12 +6,12 @@
   import { useAuth } from '$lib/stores/auth.svelte';
   import { initializeClientStore, useClients } from '$lib/stores/client.svelte';
   // import { initializeJobStore, cleanupJobStore } from '$lib/stores/jobs.svelte'; // Removed - using tasks now
-  import { useEnhancedTaskStore, cleanupEnhancedTaskStore } from '$lib/stores/task-enhanced.svelte';
+  import { useJobStore, cleanupJobStore } from '$lib/stores/task.svelte';
   import { useOffline } from '$lib/stores/offline.svelte';
-  import TopBar from '$lib/components/common/TopBar.svelte';
-  import BottomNav from '$lib/components/common/BottomNav.svelte';
-  import LandingBottomNav from '$lib/components/common/LandingBottomNav.svelte';
-  import LandingHeader from '$lib/components/common/LandingHeader.svelte';
+  import TopBar from '$lib/components/layout/TopBar.svelte';
+  import BottomNav from '$lib/components/layout/BottomNav.svelte';
+  import LandingBottomNav from '$lib/components/layout/LandingBottomNav.svelte';
+  import LandingHeader from '$lib/components/layout/LandingHeader.svelte';
   import OfflineIndicator from '$lib/components/common/OfflineIndicator.svelte';
   import PwaInstallPrompt from '$lib/components/common/PwaInstallPrompt.svelte';
   import NotificationPrompt from '$lib/components/notifications/NotificationPrompt.svelte';
@@ -21,7 +21,7 @@
   
   const auth = useAuth();
   const clients = useClients();
-  const taskStore = useEnhancedTaskStore();
+  const taskStore = useJobStore();
   const offline = useOffline();
   
   // List of routes that don't require authentication
@@ -102,14 +102,14 @@
     // Only initialize if tenant changed and we have a tenant
     if (currentTenantId && currentTenantId !== lastInitializedTenantId) {
       lastInitializedTenantId = currentTenantId;
-      taskStore.initializeTenant(currentTenantId);
+      taskStore.setTenant(currentTenantId);
     }
   });
   
   // Cleanup on unmount
   $effect(() => {
     return () => {
-      cleanupEnhancedTaskStore();
+      cleanupJobStore();
     };
   });
 </script>
