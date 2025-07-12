@@ -8,12 +8,14 @@
   import { onMount } from 'svelte';
   import Icon from '$lib/components/icons/Icon.svelte';
   import TaskForm from '$lib/components/task/TaskForm.svelte';
-  import { toast } from '$lib/utils/toast';
+  import { useToast } from '$lib/stores/toast.svelte';
+  import { createTask } from '$lib/actions/task.actions';
   import type { CreateTaskInput } from '$lib/types/task';
   
   const clients = useClients();
   const taskStore = useJobStore();
   const tenant = useTenant();
+  const toast = useToast();
   
   // Get client ID from URL or use selected client
   let initialClientId = $state('');
@@ -33,13 +35,14 @@
   async function handleSubmit(taskData: CreateTaskInput) {
     isSubmitting = true;
     
-    try {
-      const newTask = await taskStore.createTask(taskData);
-      toast.success('Task created successfully');
-      goto(`/tasks/${newTask.id}`);
-    } catch (error) {
-      console.error('Error creating task:', error);
-      toast.error('Failed to create task');
+    const result = await createTask(taskData, {
+      redirectTo: (task) => `/tasks/${task.id}`,
+      onError: () => {
+        isSubmitting = false;
+      }
+    });
+    
+    if (!result) {
       isSubmitting = false;
     }
   }

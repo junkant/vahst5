@@ -9,6 +9,7 @@ import {
   subscribeToClientTasks,
   subscribeToTechnicianTodayTasks,
   getTasks,
+  getTask,
   createTask as createTaskFirebase,
   updateTask as updateTaskFirebase,
   deleteTask as deleteTaskFirebase,
@@ -352,14 +353,17 @@ class TaskStore extends BaseStore {
     
     try {
       if (this.state.isOffline) {
+        // Determine initial status based on whether task is scheduled
+        const initialStatus: TaskStatus = taskData.scheduledStart ? 'scheduled' : 'draft';
+        
         // Create offline task
         const offlineTask: Task = {
           id: `offline_${Date.now()}`,
           tenantId: this.currentTenantId,
           ...taskData,
-          status: 'draft',
+          status: initialStatus,
           statusHistory: [{
-            status: 'draft',
+            status: initialStatus,
             changedAt: new Date(),
             changedBy: this.auth.user.uid
           }],
@@ -841,7 +845,7 @@ export function useJobStore() {
 
 // Cleanup function
 export function cleanupJobStore() {
-  if (taskStore) {
+  if (taskStore && typeof taskStore.cleanup === 'function') {
     taskStore.cleanup();
     taskStore = null;
   }

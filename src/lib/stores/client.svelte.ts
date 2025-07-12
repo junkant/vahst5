@@ -876,6 +876,7 @@ class ClientStore extends BaseStore {
 
   // Cleanup subscriptions and timers
   cleanup() {
+    // Clean up subscriptions
     if (this.unsubscribeClients) {
       this.unsubscribeClients();
       this.unsubscribeClients = null;
@@ -886,6 +887,7 @@ class ClientStore extends BaseStore {
       this.unsubscribeTasks = null;
     }
     
+    // Clean up timers
     if (this.syncInterval) {
       clearInterval(this.syncInterval);
       this.syncInterval = null;
@@ -901,14 +903,17 @@ class ClientStore extends BaseStore {
       this.syncDebounceTimer = null;
     }
     
-    // Add cleanup functions to base store
-    this.addCleanup(() => {
+    // Remove event listeners
+    if (browser) {
       window.removeEventListener('online', this.handleOnline);
       window.removeEventListener('offline', this.handleOffline);
-    });
+    }
+    
+    // Reset state
+    this.reset();
   }
   
-  // Event handlers for offline detection
+  // Add event handler binding
   private handleOnline = () => {
     this.isOffline = false;
     if (this.currentTenantId) {
@@ -949,6 +954,14 @@ export function useClients() {
     clientStore = new ClientStore();
   }
   return clientStore;
+}
+
+// Cleanup function
+export function cleanupClientStore() {
+  if (clientStore && typeof clientStore.cleanup === 'function') {
+    clientStore.cleanup();
+    clientStore = null;
+  }
 }
 
 // Initialize client store with tenant

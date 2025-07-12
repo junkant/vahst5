@@ -1,88 +1,59 @@
-// src/lib/utils/taskNumber.ts
-// Generate unique task numbers for easy reference
-
-import { doc, getDoc, updateDoc, setDoc } from 'firebase/firestore';
+// Task number generation utility
 import { db } from '$lib/firebase/config';
+import { doc, getDoc, setDoc, updateDoc, increment } from 'firebase/firestore';
 
-interface TaskNumberCounter {
-  current: number;
-  prefix?: string;
-  year: number;
-}
+const COUNTER_COLLECTION = 'counters';
+const TASK_COUNTER_DOC = 'tasks';
 
-/**
- * Generate a unique task number in format: PREFIX-YYYY-NNNN
- * Example: TASK-2025-0001
- */
 export async function generateTaskNumber(tenantId: string): Promise<string> {
-  const currentYear = new Date().getFullYear();
-  const counterRef = doc(db, `tenants/${tenantId}/counters`, 'taskNumbers');
+  const counterRef = doc(db, COUNTER_COLLECTION, `${tenantId}_${TASK_COUNTER_DOC}`);
   
   try {
+    // Try to get the current counter
     const counterSnap = await getDoc(counterRef);
-    let counter: TaskNumberCounter;
     
-    if (counterSnap.exists()) {
-      counter = counterSnap.data() as TaskNumberCounter;
-      
-      // Reset counter if year changed
-      if (counter.year !== currentYear) {
-        counter = {
-          current: 1,
-          prefix: counter.prefix || 'TASK',
-          year: currentYear
-        };
-      } else {
-        counter.current += 1;
-      }
-    } else {
-      // Initialize counter
-      counter = {
-        current: 1,
-        prefix: 'TASK',
-        year: currentYear
-      };
+    if (!counterSnap.exists()) {
+      // Initialize counter if it doesn't exist
+      await setDoc(counterRef, {
+        value: 1,
+        createdAt: new Date()
+      });
+      return formatTaskNumber(tenantId, 1);
     }
     
-    // Update counter in database
-    await setDoc(counterRef, counter);
+    // Increment and get the new value
+    await updateDoc(counterRef, {
+      value: increment(1)
+    });
     
-    // Format number with leading zeros
-    const paddedNumber = counter.current.toString().padStart(4, '0');
-    return `${counter.prefix}-${currentYear}-${paddedNumber}`;
+    // Get the updated value
+    const updatedSnap = await getDoc(counterRef);
+    const newValue = updatedSnap.data()?.value || 1;
     
+    return formatTaskNumber(tenantId, newValue);
   } catch (error) {
     console.error('Error generating task number:', error);
     // Fallback to timestamp-based number
-    return `TASK-${currentYear}-${Date.now().toString().slice(-6)}`;
+    return `TASK-${Date.now()}`;
   }
 }
 
-/**
- * Set custom prefix for task numbers
- */
-export async function setTaskNumberPrefix(
-  tenantId: string, 
-  prefix: string
-): Promise<void> {
-  const counterRef = doc(db, `tenants/${tenantId}/counters`, 'taskNumbers');
-  await updateDoc(counterRef, { prefix });
+function formatTaskNumber(tenantId: string, number: number): string {
+  // Get a short prefix from tenant ID (first 3-4 chars)
+  const prefix = tenantId.substring(0, 4).toUpperCase();
+  
+  // Pad the number with zeros
+  const paddedNumber = number.toString().padStart(5, '0');
+  
+  // Return formatted task number
+  return `${prefix}-${paddedNumber}`;
 }
 
-/**
- * Parse task number to extract components
- */
-export function parseTaskNumber(taskNumber: string): {
-  prefix: string;
-  year: number;
-  number: number;
-} | null {
-  const match = taskNumber.match(/^([A-Z]+)-(\d{4})-(\d+)$/);
-  if (!match) return null;
-  
-  return {
-    prefix: match[1],
-    year: parseInt(match[2]),
-    number: parseInt(match[3])
-  };
+// Reset counter (for admin use)
+export async function resetTaskCounter(tenantId: string): Promise<void> {
+  const counterRef = doc(db, COUNTER_COLLECTION, `${tenantId}_${TASK_COUNTER_DOC}`);
+  await setDoc(counterRef, {
+    value: 0,
+    resetAt: new Date()
+  });
 }

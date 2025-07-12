@@ -1,12 +1,14 @@
 <!-- src/routes/+layout.svelte -->
 <script lang="ts">
   import '../app.css';
+  import { onDestroy } from 'svelte';
+  import { browser } from '$app/environment';
   import { page } from '$app/stores';
   import { goto } from '$app/navigation';
   import { useAuth } from '$lib/stores/auth.svelte';
-  import { initializeClientStore, useClients } from '$lib/stores/client.svelte';
-  // import { initializeJobStore, cleanupJobStore } from '$lib/stores/jobs.svelte'; // Removed - using tasks now
+  import { initializeClientStore, useClients, cleanupClientStore } from '$lib/stores/client.svelte';
   import { useJobStore, cleanupJobStore } from '$lib/stores/task.svelte';
+  import { cleanupTeamStore } from '$lib/stores/team.svelte';
   import { useOffline } from '$lib/stores/offline.svelte';
   import { getCalendarTaskSync, destroyCalendarTaskSync } from '$lib/services/calendar-task-sync';
   import TopBar from '$lib/components/layout/TopBar.svelte';
@@ -17,6 +19,8 @@
   import PwaInstallPrompt from '$lib/components/common/PwaInstallPrompt.svelte';
   import NotificationPrompt from '$lib/components/notifications/NotificationPrompt.svelte';
   import Toaster from '$lib/components/common/Toaster.svelte';
+  import TaskCreationModal from '$lib/components/task/TaskCreationModal.svelte';
+  import { useTaskCreation } from '$lib/composables/useTaskCreation.svelte';
   
   let { children } = $props();
   
@@ -24,6 +28,7 @@
   const clients = useClients();
   const taskStore = useJobStore();
   const offline = useOffline();
+  const taskCreation = auth.isAuthenticated ? useTaskCreation() : null;
   
   // List of routes that don't require authentication
   const publicRoutes = ['/', '/login', '/register', '/onboarding', '/select-business'];
@@ -117,13 +122,15 @@
     }
   });
   
-  // Cleanup on unmount
-  $effect(() => {
-    return () => {
+  // Cleanup stores when component unmounts (client-side only)
+  if (browser) {
+    onDestroy(() => {
       cleanupJobStore();
+      cleanupClientStore();
+      cleanupTeamStore();
       destroyCalendarTaskSync();
-    };
-  });
+    });
+  }
 </script>
 
 <!-- Show loading state while initializing -->
@@ -171,5 +178,17 @@
     
     <!-- Toaster is global for all pages -->
     <Toaster />
+    
+    <!-- Global Task Creation Modal -->
+    {#if auth.isAuthenticated && taskCreation}
+    <TaskCreationModal 
+      bind:open={taskCreation.state.isOpen}
+      task={taskCreation.state.task}
+      initialDate={taskCreation.state.initialDate}
+      initialTime={taskCreation.state.initialTime}
+      initialClientId={taskCreation.state.initialClientId}
+      onSuccess={taskCreation.state.onSuccess}
+    />
+    {/if}
   </div>
 {/if}

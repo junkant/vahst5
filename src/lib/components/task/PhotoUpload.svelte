@@ -3,7 +3,7 @@
   import type { TaskPhoto } from '$lib/types/task';
   import { useEnhancedTaskStore } from '$lib/stores/task-enhanced.svelte';
   import Icon from '$lib/components/icons/Icon.svelte';
-  import { toast } from '$lib/utils/toast';
+  import { useToast } from '$lib/stores/toast.svelte';
   
   interface Props {
     taskId: string;
@@ -13,6 +13,7 @@
   let { taskId, existingPhotos }: Props = $props();
   
   const taskStore = useEnhancedTaskStore();
+  const toast = useToast();
   
   let fileInput: HTMLInputElement;
   let uploading = $state(false);
@@ -194,9 +195,11 @@
       <div 
         class="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-hidden"
         onclick={(e) => e.stopPropagation()}
+        onkeydown={(e) => e.key === 'Escape' && (selectedPhoto = null)}
         role="dialog"
         aria-modal="true"
         aria-label="Photo details"
+        tabindex="-1"
       >
         <!-- Photo -->
         <div class="relative bg-gray-900">

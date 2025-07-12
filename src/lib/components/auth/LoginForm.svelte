@@ -21,12 +21,17 @@
     error = '';
     isLoading = true;
     
+    console.log('Starting login with:', formData.email);
+    
     try {
       const result = await auth.signIn(formData.email, formData.password);
+      console.log('Sign in result:', result);
       
       if (result.error) {
+        console.error('Sign in error:', result.error);
         error = result.error;
       } else {
+        console.log('Sign in successful');
         // Success - close modal
         open = false;
         
@@ -38,15 +43,21 @@
         
         // IMPORTANT: Wait for tenants to be loaded before redirecting
         // Create an effect to watch for tenant loading completion
+        let checkCount = 0;
         let checkInterval = setInterval(() => {
+          checkCount++;
+          console.log(`Checking tenants (${checkCount}):`, {
+            tenantsLoaded: auth.tenantsLoaded,
+            tenants: auth.tenants,
+            tenant: auth.tenant
+          });
+          
           if (auth.tenantsLoaded) {
             clearInterval(checkInterval);
             
             // Now check where to redirect
             const redirectPath = auth.getPostLoginRedirect();
             console.log('Redirecting to:', redirectPath);
-            console.log('Available tenants:', auth.tenants);
-            console.log('Current tenant:', auth.tenant);
             goto(redirectPath);
           }
         }, 100); // Check every 100ms
@@ -54,13 +65,15 @@
         // Timeout after 5 seconds to prevent infinite waiting
         setTimeout(() => {
           clearInterval(checkInterval);
+          console.warn('Timeout waiting for tenants to load');
           // Force redirect if tenants haven't loaded
           const redirectPath = auth.getPostLoginRedirect();
           goto(redirectPath);
         }, 5000);
       }
     } catch (err) {
-      error = 'An unexpected error occurred';
+      console.error('Unexpected error during sign in:', err);
+      error = err.message || 'An unexpected error occurred';
     } finally {
       isLoading = false;
     }
@@ -189,7 +202,27 @@
           {/if}
         </button>
         
-        <!-- Switch to Register -->
+        <!-- Test Button for Debugging -->
+        <div class="mt-4 p-3 bg-gray-100 rounded-lg">
+          <p class="text-xs text-gray-600 mb-2">Debug: Click to test login with demo credentials</p>
+          <button
+            type="button"
+            onclick={() => {
+              formData.email = 'demo@example.com';
+              formData.password = 'demo123';
+              console.log('Auth state:', { 
+                user: auth.user, 
+                isLoading: auth.isLoading,
+                error: auth.error,
+                tenants: auth.tenants,
+                tenant: auth.tenant
+              });
+            }}
+            class="text-xs text-blue-600 hover:text-blue-700"
+          >
+            Fill Demo Credentials & Log State
+          </button>
+        </div>
         <p class="mt-4 text-center text-sm text-gray-600">
           Don't have an account? 
           <button

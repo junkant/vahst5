@@ -1,0 +1,325 @@
+// Drag and drop utilities for calendar with warnings and validations
+import type { Task } from '$lib/types/task';
+import { toast } from '$lib/utils/toast-wrapper';
+
+export interface DragState {
+  task: Task | null;
+  sourceDate: string;
+  sourceTime: string;
+}
+
+export interface DragWarning {
+  type: 'past' | 'status' | 'conflict' | 'business_hours';
+  message: string;
+  severity: 'warning' | 'error';
+}
+
+export interface DragHandlerOptions {
+  checkConflicts?: (date: string, time: string, duration: number) => boolean;
+  checkBusinessHours?: (date: string, time: string) => boolean;
+}
+
+export function createDragHandlers(
+  onDrop: (task: Task, newDate: string, newTime: string) => Promise<void>,
+  options?: DragHandlerOptions
+) {
+  let dragState: DragState = {
+    task: null,
+    sourceDate: '',
+    sourceTime: ''
+  };
+
+  // Check if dropping on a past date
+  function isPastDate(date: string): boolean {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const dropDate = new Date(date);
+    return dropDate < today;
+  }
+
+  // Get warnings for the drop location
+  function getDropWarnings(task: Task, date: string, time: string): DragWarning[] {
+    const warnings: DragWarning[] = [];
+    
+    // Check if dropping in the past
+    if (isPastDate(date)) {
+      warnings.push({
+        type: 'past',
+        message: 'This date is in the past. The task status may need to be updated.',
+        severity: 'warning'
+      });
+    }
+    
+    // Check status implications
+    if (task.status === 'completed' || task.status === 'invoiced' || task.status === 'paid') {
+      warnings.push({
+        type: 'status',
+        message: `Cannot reschedule a ${task.status} task. Change status to 'scheduled' first.`,
+        severity: 'error'
+      });
+    }
+    
+    // Check for conflicts
+    if (options?.checkConflicts) {
+      const duration = task.scheduledEnd && task.scheduledStart
+        ? Math.round((new Date(task.scheduledEnd).getTime() - new Date(task.scheduledStart).getTime()) / 60000)
+        : 60;
+      
+      if (options.checkConflicts(date, time, duration)) {
+        warnings.push({
+          type: 'conflict',
+          message: 'This time slot conflicts with another appointment.',
+          severity: 'warning'
+        });
+      }
+    }
+    
+    // Check business hours
+    if (options?.checkBusinessHours && !options.checkBusinessHours(date, time)) {
+      warnings.push({
+        type: 'business_hours',
+        message: 'This time is outside of business hours.',
+        severity: 'warning'
+      });
+    }
+    
+    return warnings;
+  }
+
+  function handleDragStart(e: DragEvent, task: Task) {
+    // Handle both Date objects and Firestore Timestamps
+    let taskDate: Date;
+    if (task.scheduledStart instanceof Date) {
+      taskDate = task.scheduledStart;
+    } else if (task.scheduledStart && typeof task.scheduledStart.toDate === 'function') {
+      taskDate = task.scheduledStart.toDate();
+    } else {
+      taskDate = new Date(task.scheduledStart);
+    }
+    
+    dragState = {
+      task,
+      sourceDate: taskDate.toISOString().split('T')[0],
+      sourceTime: taskDate.toTimeString().slice(0, 5)
+    };
+    
+    // Set drag data
+    e.dataTransfer!.effectAllowed = 'move';
+    e.dataTransfer!.setData('text/plain', JSON.stringify(dragState));
+    
+    // Add dragging class to element
+    const target = e.target as HTMLElement;
+    target.classList.add('opacity-50', 'cursor-grabbing');
+  }
+
+  function handleDragEnd(e: DragEvent) {
+    // Remove dragging class
+    const target = e.target as HTMLElement;
+    target.classList.remove('opacity-50', 'cursor-grabbing');
+    
+    // Reset drag state
+    dragState = {
+      task: null,
+      sourceDate: '',
+      sourceTime: ''
+    };
+  }
+
+  function handleDragOver(e: DragEvent) {
+    e.preventDefault();
+    e.dataTransfer!.dropEffect = 'move';
+    
+    // Add visual feedback based on warnings
+    const target = e.currentTarget as HTMLElement;
+    const date = target.getAttribute('data-date');
+    const time = target.getAttribute('data-time');
+    
+    if (dragState.task && date && time) {
+      const warnings = getDropWarnings(dragState.task, date, time);
+      const hasErrors = warnings.some(w => w.severity === 'error');
+      
+      // Remove any existing classes
+      target.classList.remove('bg-blue-100', 'bg-red-100', 'border-2', 'border-blue-400', 'border-red-400');
+      
+      // Add appropriate classes
+      target.classList.add(hasErrors ? 'bg-red-100' : 'bg-blue-100');
+      target.classList.add('border-2');
+      target.classList.add(hasErrors ? 'border-red-400' : 'border-blue-400');
+    }
+  }
+
+  function handleDragLeave(e: DragEvent) {
+    // Remove visual feedback
+    const target = e.currentTarget as HTMLElement;
+    target.classList.remove('bg-blue-100', 'bg-red-100', 'border-2', 'border-blue-400', 'border-red-400');
+  }
+
+  async function handleDrop(e: DragEvent, newDate: string, newTime: string) {
+    e.preventDefault();
+    
+    // Remove visual feedback
+    const target = e.currentTarget as HTMLElement;
+    target.classList.remove('bg-blue-100', 'bg-red-100', 'border-2', 'border-blue-400', 'border-red-400');
+    
+    // Get drag data
+    try {
+      const data = JSON.parse(e.dataTransfer!.getData('text/plain')) as DragState;
+      if (!data.task) return;
+      
+      // Get warnings
+      const warnings = getDropWarnings(data.task, newDate, newTime);
+      const errors = warnings.filter(w => w.severity === 'error');
+      const normalWarnings = warnings.filter(w => w.severity === 'warning');
+      
+      // If there are errors, show them and don't proceed
+      if (errors.length > 0) {
+        errors.forEach(error => toast.error(error.message));
+        return;
+      }
+      
+      // If there are warnings, show confirm dialog
+      if (normalWarnings.length > 0) {
+        const warningMessages = normalWarnings.map(w => `• ${w.message}`).join('\n');
+        const confirmed = confirm(
+          `Warning:\n\n${warningMessages}\n\nDo you want to continue?`
+        );
+        
+        if (!confirmed) return;
+      }
+      
+      // Proceed with the drop
+      try {
+        await onDrop(data.task, newDate, newTime);
+        toast.success('Task rescheduled successfully');
+      } catch (error) {
+        console.error('Drop handler error:', error);
+        // More specific error messages
+        if (error instanceof Error) {
+          if (error.message.includes('Not authenticated')) {
+            toast.error('Please log in to reschedule tasks');
+          } else if (error.message.includes('No tenant')) {
+            toast.error('Please select a business first');
+          } else {
+            toast.error(error.message || 'Failed to reschedule task');
+          }
+        } else {
+          toast.error('Failed to reschedule task');
+        }
+      }
+    } catch (error) {
+      console.error('Failed to handle drop:', error);
+      toast.error('Failed to reschedule task');
+    }
+  }
+
+  return {
+    handleDragStart,
+    handleDragEnd,
+    handleDragOver,
+    handleDragLeave,
+    handleDrop
+  };
+}
+
+// Touch support for mobile devices
+export function addTouchSupport(element: HTMLElement, handlers: ReturnType<typeof createDragHandlers>) {
+  let touchItem: HTMLElement | null = null;
+  let touchOffset = { x: 0, y: 0 };
+  let originalPosition = { position: '', left: '', top: '', zIndex: '' };
+  
+  element.addEventListener('touchstart', (e: TouchEvent) => {
+    const touch = e.targetTouches[0];
+    touchItem = e.target as HTMLElement;
+    
+    // Calculate offset
+    const rect = touchItem.getBoundingClientRect();
+    touchOffset.x = touch.clientX - rect.left;
+    touchOffset.y = touch.clientY - rect.top;
+    
+    // Store original position
+    originalPosition = {
+      position: touchItem.style.position,
+      left: touchItem.style.left,
+      top: touchItem.style.top,
+      zIndex: touchItem.style.zIndex
+    };
+    
+    // Add visual feedback
+    touchItem.classList.add('opacity-50');
+  });
+  
+  element.addEventListener('touchmove', (e: TouchEvent) => {
+    if (!touchItem) return;
+    e.preventDefault();
+    
+    const touch = e.targetTouches[0];
+    
+    // Move the element
+    touchItem.style.position = 'fixed';
+    touchItem.style.left = `${touch.clientX - touchOffset.x}px`;
+    touchItem.style.top = `${touch.clientY - touchOffset.y}px`;
+    touchItem.style.zIndex = '1000';
+    touchItem.style.pointerEvents = 'none'; // Allow finding elements underneath
+    
+    // Find drop target
+    const dropTarget = document.elementFromPoint(touch.clientX, touch.clientY);
+    
+    // Remove previous hover states
+    document.querySelectorAll('.calendar-slot').forEach(slot => {
+      slot.classList.remove('bg-blue-100', 'bg-red-100', 'border-2', 'border-blue-400', 'border-red-400');
+    });
+    
+    if (dropTarget && dropTarget.classList.contains('calendar-slot')) {
+      // Simulate drag over
+      const date = dropTarget.getAttribute('data-date');
+      const time = dropTarget.getAttribute('data-time');
+      const task = JSON.parse(touchItem.getAttribute('data-task') || '{}');
+      
+      if (date && time && task) {
+        // You would need to pass the getDropWarnings function or recreate the logic here
+        dropTarget.classList.add('bg-blue-100', 'border-2', 'border-blue-400');
+      }
+    }
+  });
+  
+  element.addEventListener('touchend', (e: TouchEvent) => {
+    if (!touchItem) return;
+    
+    const touch = e.changedTouches[0];
+    touchItem.style.pointerEvents = ''; // Restore pointer events
+    const dropTarget = document.elementFromPoint(touch.clientX, touch.clientY);
+    
+    // Reset visual state
+    touchItem.classList.remove('opacity-50');
+    touchItem.style.position = originalPosition.position;
+    touchItem.style.left = originalPosition.left;
+    touchItem.style.top = originalPosition.top;
+    touchItem.style.zIndex = originalPosition.zIndex;
+    
+    // Remove hover states
+    document.querySelectorAll('.calendar-slot').forEach(slot => {
+      slot.classList.remove('bg-blue-100', 'bg-red-100', 'border-2', 'border-blue-400', 'border-red-400');
+    });
+    
+    // Handle drop
+    if (dropTarget && dropTarget.classList.contains('calendar-slot')) {
+      const newDate = dropTarget.getAttribute('data-date');
+      const newTime = dropTarget.getAttribute('data-time');
+      
+      if (newDate && newTime) {
+        // Trigger drop handler
+        const task = JSON.parse(touchItem.getAttribute('data-task') || '{}');
+        const fakeEvent = new Event('drop') as DragEvent;
+        fakeEvent.preventDefault = () => {};
+        fakeEvent.currentTarget = dropTarget;
+        fakeEvent.dataTransfer = {
+          getData: () => JSON.stringify({ task, sourceDate: '', sourceTime: '' })
+        } as any;
+        
+        handlers.handleDrop(fakeEvent, newDate, newTime);
+      }
+    }
+    
+    touchItem = null;
+  });
+}

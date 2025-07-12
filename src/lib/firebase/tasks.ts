@@ -86,13 +86,16 @@ export async function createTask(
     if (clientData.lastServiceDate) clientSnapshot.serviceHistory.lastServiceDate = clientData.lastServiceDate;
   }
   
+  // Determine initial status based on whether task is scheduled
+  const initialStatus: TaskStatus = taskData.scheduledStart ? 'scheduled' : 'draft';
+  
   const task: Omit<Task, 'id'> = {
     ...taskData,
     tenantId,
     taskNumber,
-    status: 'draft',
+    status: initialStatus,
     statusHistory: [{
-      status: 'draft',
+      status: initialStatus,
       changedAt: new Date(),
       changedBy: userId
     }],

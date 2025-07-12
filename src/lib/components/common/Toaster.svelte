@@ -105,6 +105,7 @@
         <div 
           class="flex items-start gap-3 px-4 py-3 rounded-lg shadow-lg border backdrop-blur-sm 
                  max-w-sm min-w-[300px] {styles.container} relative overflow-hidden"
+          role="status"
           onmouseenter={() => toastItem.pauseOnHover && handleMouseEnter(toastItem.id)}
           onmouseleave={() => toastItem.pauseOnHover && handleMouseLeave(toastItem.id)}
         >

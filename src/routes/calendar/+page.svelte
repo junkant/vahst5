@@ -2,9 +2,24 @@
   import { calendarSettings, scheduledTasks } from '$lib/stores/calendar.svelte';
   import CalendarView from '$lib/components/CalendarView.svelte';
   import { page } from '$app/stores';
+  import { useAuth } from '$lib/stores/auth.svelte';
+  import { useTenant } from '$lib/stores/tenant.svelte';
+  import { initializeClientStore } from '$lib/stores/client.svelte';
+  import { onMount } from 'svelte';
+  
+  const auth = useAuth();
+  const tenant = useTenant();
   
   // Get view type from URL params (week, day, or month)
   $: viewType = $page.url.searchParams.get('view') || 'week';
+  
+  // Initialize stores when component mounts
+  onMount(() => {
+    // Initialize client store with current tenant
+    if (tenant.current?.id) {
+      initializeClientStore(tenant.current.id);
+    }
+  });
 </script>
 
 <div class="h-screen flex flex-col bg-gray-50">

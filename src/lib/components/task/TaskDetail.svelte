@@ -4,7 +4,7 @@
   import { useJobStore } from '$lib/stores/task.svelte';
   import { getStatusColor, getStatusIcon, getPriorityColor, canTransitionTo } from '$lib/types/task';
   import Icon from '$lib/components/icons/Icon.svelte';
-  import { toast } from '$lib/utils/toast';
+  import { useToast } from '$lib/stores/toast.svelte';
   import StatusTimeline from './StatusTimeline.svelte';
   import PhotoUpload from './PhotoUpload.svelte';
   import { goto } from '$app/navigation';
@@ -29,6 +29,7 @@
   let { task }: Props = $props();
   
   const taskStore = useJobStore();
+  const toast = useToast();
   
   let showStatusMenu = $state(false);
   let showTimeline = $state(false);

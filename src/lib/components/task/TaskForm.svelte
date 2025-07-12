@@ -2,7 +2,11 @@
   import { useClients } from '$lib/stores/client.svelte';
   import { useTenant } from '$lib/stores/tenant.svelte';
   import { useAuth } from '$lib/stores/auth.svelte';
+  import { useJobStore } from '$lib/stores/task.svelte';
   import Icon from '$lib/components/icons/Icon.svelte';
+  import { useToast } from '$lib/stores/toast.svelte';
+  import { checkSchedulingConflicts, formatConflictMessage } from '$lib/utils/calendar-conflicts';
+  import { type RecurrencePattern, formatRecurrencePattern, createRecurringTasks } from '$lib/utils/recurring-tasks';
   import type { Task, CreateTaskInput } from '$lib/types/task';
   
   interface Props {
@@ -32,10 +36,14 @@
   const clients = useClients();
   const tenantStore = useTenant();
   const auth = useAuth();
+  const taskStore = useJobStore();
+  const toast = useToast();
   
   // UI state
   let showClientSearch = $state(false);
   let clientSearchQuery = $state('');
+  let hasConflict = $state(false);
+  let conflictMessage = $state('');
   
   // Form state
   let title = $state(task?.title || '');
@@ -47,6 +55,12 @@
   let scheduledTime = $state(initialTime || '');
   let estimatedDuration = $state(60); // minutes
   let assignedTo = $state<string[]>(task?.assignedTo || []);
+  
+  // Recurrence state
+  let isRecurring = $state(false);
+  let recurrencePattern = $state<RecurrencePattern>('weekly');
+  let recurrenceEndDate = $state('');
+  let maxOccurrences = $state(12);
   
   // Initialize stores if needed
   $effect(() => {
@@ -126,6 +140,28 @@
     scheduledTime
   );
   
+  // Check for scheduling conflicts
+  $effect(() => {
+    if (scheduledDate && scheduledTime && estimatedDuration) {
+      const start = new Date(`${scheduledDate}T${scheduledTime}`);
+      const end = new Date(start.getTime() + estimatedDuration * 60000);
+      
+      const conflict = checkSchedulingConflicts(
+        start,
+        end,
+        taskStore.tasks,
+        assignedTo[0], // Check for first assigned technician
+        task?.id // Exclude current task if editing
+      );
+      
+      hasConflict = conflict.hasConflict;
+      conflictMessage = conflict.message || '';
+    } else {
+      hasConflict = false;
+      conflictMessage = '';
+    }
+  });
+  
   // Duration options
   const durationOptions = [
     { value: 30, label: '30 minutes' },
@@ -166,6 +202,14 @@
     if (e.key === 'Escape' && showClientSearch) {
       showClientSearch = false;
     }
+  }
+  
+  // Focus action for search input
+  function focusOnMount(node: HTMLElement) {
+    node.focus();
+    return {
+      destroy() {}
+    };
   }
 </script>
 
@@ -245,7 +289,7 @@
     </div>
     
     <div>
-      <label class="block text-sm font-medium text-gray-700 mb-1">
+      <label for="task-priority" class="block text-sm font-medium text-gray-700 mb-1">
         Priority
       </label>
       <div class="grid grid-cols-2 gap-1">
@@ -278,6 +322,73 @@
       </div>
     </div>
   </div>
+  
+  <!-- Recurrence Options (not shown when editing) -->
+  {#if !task && !compact}
+    <div>
+      <label class="flex items-center gap-2">
+        <input
+          type="checkbox"
+          bind:checked={isRecurring}
+          class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+        />
+        <span class="text-sm font-medium text-gray-700">Repeat this task</span>
+      </label>
+      
+      {#if isRecurring}
+        <div class="mt-3 space-y-3 pl-6">
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label for="recurrence-pattern" class="block text-xs text-gray-600 mb-1">
+                Repeat
+              </label>
+              <select
+                id="recurrence-pattern"
+                bind:value={recurrencePattern}
+                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="daily">Daily</option>
+                <option value="weekly">Weekly</option>
+                <option value="biweekly">Bi-weekly</option>
+                <option value="monthly">Monthly</option>
+                <option value="quarterly">Quarterly</option>
+                <option value="annually">Annually</option>
+              </select>
+            </div>
+            
+            <div>
+              <label for="max-occurrences" class="block text-xs text-gray-600 mb-1">
+                Number of occurrences
+              </label>
+              <input
+                id="max-occurrences"
+                type="number"
+                bind:value={maxOccurrences}
+                min="2"
+                max="52"
+                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+          </div>
+          
+          <p class="text-xs text-gray-500">
+            This will create {maxOccurrences} tasks, occurring {formatRecurrencePattern(recurrencePattern).toLowerCase()}
+          </p>
+        </div>
+      {/if}
+    </div>
+  {/if}
+  
+  <!-- Conflict Warning -->
+  {#if hasConflict}
+    <div class="bg-yellow-50 border border-yellow-200 rounded-md p-3 flex items-start gap-2">
+      <Icon name="alertTriangle" class="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
+      <div class="flex-1">
+        <p class="text-sm font-medium text-yellow-800">Scheduling Conflict</p>
+        <p class="text-sm text-yellow-700 mt-1">{conflictMessage}</p>
+      </div>
+    </div>
+  {/if}
   
   <!-- Schedule -->
   <div class="space-y-3">
@@ -331,7 +442,7 @@
   <!-- Assigned To (if team members available) -->
   {#if teamMembers.length > 0 && !compact}
     <div>
-      <label class="block text-sm font-medium text-gray-700 mb-1">
+      <label for="task-assignees" class="block text-sm font-medium text-gray-700 mb-1">
         Assign To
       </label>
       <div class="space-y-2 max-h-32 overflow-y-auto border border-gray-200 rounded-md p-2">
@@ -392,11 +503,24 @@
 
 <!-- Client Search Modal -->
 {#if showClientSearch}
-  <div class="fixed inset-0 bg-black bg-opacity-50 flex items-end z-[60]" onclick={(e) => e.target === e.currentTarget && (showClientSearch = false)}>
-    <div class="bg-white rounded-t-xl w-full max-h-[80vh] flex flex-col" onclick={(e) => e.stopPropagation()}>
+  <div 
+    class="fixed inset-0 bg-black bg-opacity-50 flex items-end z-[60]" 
+    role="presentation"
+    onclick={(e) => e.target === e.currentTarget && (showClientSearch = false)}
+    onkeydown={(e) => e.key === 'Escape' && (showClientSearch = false)}
+  >
+    <div 
+      class="bg-white rounded-t-xl w-full max-h-[80vh] flex flex-col" 
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="client-search-title"
+      onclick={(e) => e.stopPropagation()}
+      onkeydown={(e) => e.key === 'Escape' && (showClientSearch = false)}
+      tabindex="-1"
+    >
       <div class="p-4 border-b border-gray-200">
         <div class="flex items-center justify-between mb-3">
-          <h2 class="text-lg font-semibold">Select Client</h2>
+          <h2 id="client-search-title" class="text-lg font-semibold">Select Client</h2>
           <button
             type="button"
             onclick={() => showClientSearch = false}
@@ -411,7 +535,7 @@
           bind:value={clientSearchQuery}
           placeholder="Search clients..."
           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          autofocus
+          use:focusOnMount
         />
       </div>
       
