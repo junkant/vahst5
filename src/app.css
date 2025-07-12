@@ -50,3 +50,8 @@
     padding-bottom: env(safe-area-inset-bottom);
   }
 }
+
+/* Dark mode specific styles */
+.dark {
+  color-scheme: dark;
+}

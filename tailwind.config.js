@@ -6,6 +6,7 @@ export default {
     '!./src/**/*.{test,spec}.{js,ts}',
     '!./e2e/**/*'
   ],
+  darkMode: 'class',
   theme: {
     extend: {
       colors: {

@@ -1,5 +1,7 @@
 // src/lib/stores/ui.ts
 
+import { browser } from '$app/environment';
+
 // Svelte 5 state using runes
 let theme = $state<'light' | 'dark'>('light');
 let sidebarOpen = $state(false);
@@ -9,30 +11,62 @@ let notificationCount = $state(0);
 let isLoading = $state(false);
 let loadingMessage = $state('');
 
-// Initialize theme from localStorage
-if (typeof window !== 'undefined') {
+// Create broadcast channel for multi-tab sync
+let themeChannel: BroadcastChannel | null = null;
+
+// Initialize theme from localStorage and setup multi-tab sync
+if (browser) {
   const savedTheme = localStorage.getItem('theme') as 'light' | 'dark' | null;
   if (savedTheme) {
     theme = savedTheme;
     document.documentElement.classList.toggle('dark', savedTheme === 'dark');
   }
-}
-
-// Persist theme changes
-$effect(() => {
-  if (typeof window !== 'undefined') {
-    localStorage.setItem('theme', theme);
-    document.documentElement.classList.toggle('dark', theme === 'dark');
+  
+  // Setup BroadcastChannel for multi-tab sync
+  try {
+    themeChannel = new BroadcastChannel('theme-sync');
+    themeChannel.onmessage = (event) => {
+      if (event.data.theme) {
+        theme = event.data.theme;
+        document.documentElement.classList.toggle('dark', theme === 'dark');
+      }
+    };
+  } catch (e) {
+    // BroadcastChannel not supported, fallback to storage event
+    window.addEventListener('storage', (e) => {
+      if (e.key === 'theme' && e.newValue) {
+        theme = e.newValue as 'light' | 'dark';
+        document.documentElement.classList.toggle('dark', theme === 'dark');
+      }
+    });
   }
-});
+}
 
 // UI Actions
 function toggleTheme() {
   theme = theme === 'light' ? 'dark' : 'light';
+  if (browser) {
+    localStorage.setItem('theme', theme);
+    document.documentElement.classList.toggle('dark', theme === 'dark');
+    
+    // Broadcast theme change to other tabs
+    if (themeChannel) {
+      themeChannel.postMessage({ theme });
+    }
+  }
 }
 
 function setTheme(newTheme: 'light' | 'dark') {
   theme = newTheme;
+  if (browser) {
+    localStorage.setItem('theme', theme);
+    document.documentElement.classList.toggle('dark', theme === 'dark');
+    
+    // Broadcast theme change to other tabs
+    if (themeChannel) {
+      themeChannel.postMessage({ theme });
+    }
+  }
 }
 
 function toggleSidebar() {
@@ -83,6 +117,14 @@ function resetUI() {
   loadingMessage = '';
 }
 
+// Cleanup function for broadcast channel
+function cleanup() {
+  if (themeChannel) {
+    themeChannel.close();
+    themeChannel = null;
+  }
+}
+
 // Export the store hook
 export function useUI() {
   return {
@@ -120,6 +162,9 @@ export function useUI() {
     hideLoading,
     
     // Reset
-    resetUI
+    resetUI,
+    
+    // Cleanup
+    cleanup
   };
 }

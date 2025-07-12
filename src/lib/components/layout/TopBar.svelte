@@ -8,12 +8,14 @@
   import { goto } from '$app/navigation';
   import { useAuth } from '$lib/stores/auth.svelte';
   import { useClients } from '$lib/stores/client.svelte';
+  import { useUI } from '$lib/stores/ui.svelte';
   import { debounce } from '$lib/utils/debounce';
   import { onMount } from 'svelte';
   import Icon from '$lib/components/icons/Icon.svelte';
   
   const auth = useAuth();
   const clients = useClients();
+  const ui = useUI();
   
   // State management
   let showClientSelector = $state(false);
@@ -170,7 +172,7 @@
   });
 </script>
 
-<header class="bg-white border-b border-gray-200 safe-top">
+<header class="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 safe-top">
   <div class="flex items-center justify-between gap-3 px-4 py-3">
     
     <!-- Business Name (Left) -->
@@ -180,7 +182,7 @@
       {:else}
         <button 
           onclick={() => goto('/my-day')}
-          class="text-lg font-semibold text-gray-900 animate-fade-in hover:text-blue-600 transition-colors text-left"
+          class="text-lg font-semibold text-gray-900 dark:text-gray-100 animate-fade-in hover:text-blue-600 dark:hover:text-blue-400 transition-colors text-left"
         >
           {auth.tenant.name}
         </button>
@@ -304,9 +306,9 @@
       
       <!-- User Dropdown -->
       {#if showUserMenu}
-        <div class="absolute right-0 top-full mt-1 w-56 bg-white rounded-lg shadow-lg border border-gray-200 z-50">
-          <div class="p-3 border-b border-gray-100">
-            <p class="text-sm font-medium text-gray-900 truncate">
+        <div class="absolute right-0 top-full mt-1 w-56 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-50">
+          <div class="p-3 border-b border-gray-100 dark:border-gray-700">
+            <p class="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
               {auth.user?.email || 'User'}
             </p>
             {#if auth.tenant}
@@ -320,7 +322,7 @@
                 showUserMenu = false;
                 goto('/settings/profile');
               }}
-              class="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 transition-colors flex items-center gap-2"
+              class="w-full px-3 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors flex items-center gap-2"
             >
               <Icon name="user" class="w-4 h-4 text-gray-400" />
               Profile Settings
@@ -331,7 +333,7 @@
                 showUserMenu = false;
                 goto('/settings/business');
               }}
-              class="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 transition-colors flex items-center gap-2"
+              class="w-full px-3 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors flex items-center gap-2"
             >
               <Icon name="building" class="w-4 h-4 text-gray-400" />
               Business Settings
@@ -342,13 +344,29 @@
                 showUserMenu = false;
                 goto('/settings/team');
               }}
-              class="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 transition-colors flex items-center gap-2"
+              class="w-full px-3 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors flex items-center gap-2"
             >
               <Icon name="users" class="w-4 h-4 text-gray-400" />
               Team Members
             </button>
             
-            <hr class="my-1 border-gray-100" />
+            <hr class="my-1 border-gray-100 dark:border-gray-700" />
+            
+            <!-- Dark Mode Toggle -->
+            <button
+              onclick={() => ui.toggleTheme()}
+              class="w-full px-3 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors flex items-center justify-between"
+            >
+              <span class="flex items-center gap-2">
+                <Icon name={ui.theme === 'dark' ? 'moon' : 'sun'} class="w-4 h-4 text-gray-400" />
+                <span>Dark Mode</span>
+              </span>
+              <span class="text-xs text-gray-500 dark:text-gray-400">
+                {ui.theme === 'dark' ? 'On' : 'Off'}
+              </span>
+            </button>
+            
+            <hr class="my-1 border-gray-100 dark:border-gray-700" />
             
             <button
               onclick={async () => {
