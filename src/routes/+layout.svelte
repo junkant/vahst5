@@ -51,8 +51,8 @@
         ui.toggleTheme();
         
         // Show toast notification
-        const newTheme = ui.theme === 'dark' ? 'Dark' : 'Light';
-        toast.success(`${newTheme} mode activated`);
+        const themeLabel = ui.effectiveTheme === 'dark' ? 'Dark' : 'Light';
+        toast.success(`${themeLabel} mode activated`);
       }
     };
     
@@ -209,7 +209,7 @@
 
 <!-- Show loading state while initializing -->
 {#if isInitializing}
-  <div class="min-h-screen bg-gray-50 flex items-center justify-center">
+  <div class="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
     <div class="text-center">
       <div class="inline-flex items-center justify-center w-12 h-12 mb-4">
         <svg class="animate-spin h-8 w-8 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -221,7 +221,7 @@
     </div>
   </div>
 {:else}
-  <div class="min-h-screen bg-gray-50 flex flex-col">
+  <div class="min-h-screen bg-gray-50 dark:bg-gray-900 flex flex-col">
     <!-- Top Navigation -->
     {#if isPublicPage}
       <LandingHeader />

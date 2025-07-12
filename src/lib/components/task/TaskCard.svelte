@@ -146,8 +146,8 @@
 
 <div 
   bind:this={cardElement}
-  class="task-card relative bg-white rounded-lg shadow-sm border border-gray-200 
-         overflow-hidden transition-all duration-200 hover:shadow-md cursor-pointer
+  class="task-card relative bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700
+         overflow-hidden transition-all duration-200 hover:shadow-md dark:hover:shadow-gray-900/30 cursor-pointer
          touch-manipulation"
   onclick={onClick}
   role="button"
@@ -167,15 +167,15 @@
   {/if}
   
   <!-- Card content -->
-  <div class="relative bg-white p-4">
+  <div class="relative bg-white dark:bg-gray-800 p-4">
     <!-- Header -->
     <div class="flex items-start justify-between mb-2">
       <div class="flex-1 min-w-0">
-        <h3 class="font-medium text-gray-900 truncate">
+        <h3 class="font-medium text-gray-900 dark:text-gray-100 truncate">
           {task.title}
         </h3>
         {#if task.taskNumber}
-          <p class="text-xs text-gray-500 mt-0.5">#{task.taskNumber}</p>
+          <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">#{task.taskNumber}</p>
         {/if}
       </div>
       
@@ -195,25 +195,25 @@
     
     <!-- Client info -->
     {#if showClient && task.client}
-      <div class="flex items-center gap-2 text-sm text-gray-600 mb-2">
-        <Icon name="user" class="w-4 h-4 text-gray-400" />
+      <div class="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300 mb-2">
+        <Icon name="user" class="w-4 h-4 text-gray-400 dark:text-gray-500" />
         <span class="truncate">{task.client.name}</span>
       </div>
     {/if}
     
     <!-- Time and location -->
     <div class="flex flex-col gap-1 text-sm">
-      <div class="flex items-center gap-2 text-gray-600">
-        <Icon name="clock" class="w-4 h-4 text-gray-400" />
+      <div class="flex items-center gap-2 text-gray-600 dark:text-gray-300">
+        <Icon name="clock" class="w-4 h-4 text-gray-400 dark:text-gray-500" />
         <span>{scheduledTime}</span>
         {#if durationDisplay}
-          <span class="text-gray-400">• {durationDisplay}</span>
+          <span class="text-gray-400 dark:text-gray-500">• {durationDisplay}</span>
         {/if}
       </div>
       
       {#if task.address}
-        <div class="flex items-center gap-2 text-gray-600">
-          <Icon name="mapPin" class="w-4 h-4 text-gray-400" />
+        <div class="flex items-center gap-2 text-gray-600 dark:text-gray-300">
+          <Icon name="mapPin" class="w-4 h-4 text-gray-400 dark:text-gray-500" />
           <span class="truncate">
             {task.address.street}
             {#if task.address.city}
@@ -227,20 +227,20 @@
     <!-- Technicians -->
     {#if task.assignedToNames?.length}
       <div class="flex items-center gap-2 mt-2 text-sm">
-        <Icon name="users" class="w-4 h-4 text-gray-400" />
+        <Icon name="users" class="w-4 h-4 text-gray-400 dark:text-gray-500" />
         <div class="flex -space-x-2">
           {#each task.assignedToNames.slice(0, 3) as name, i}
             <div 
-              class="w-7 h-7 rounded-full bg-gray-300 border-2 border-white 
-                     flex items-center justify-center text-xs font-medium text-gray-700"
+              class="w-7 h-7 rounded-full bg-gray-300 dark:bg-gray-600 border-2 border-white dark:border-gray-800
+                     flex items-center justify-center text-xs font-medium text-gray-700 dark:text-gray-200"
               title={name}
             >
               {name.charAt(0).toUpperCase()}
             </div>
           {/each}
           {#if task.assignedToNames.length > 3}
-            <div class="w-7 h-7 rounded-full bg-gray-200 border-2 border-white 
-                       flex items-center justify-center text-xs text-gray-600">
+            <div class="w-7 h-7 rounded-full bg-gray-200 dark:bg-gray-700 border-2 border-white dark:border-gray-800
+                       flex items-center justify-center text-xs text-gray-600 dark:text-gray-300">
               +{task.assignedToNames.length - 3}
             </div>
           {/if}
@@ -251,7 +251,7 @@
     <!-- AI predictions indicator -->
     {#if task.predictions}
       <div class="flex items-center gap-2 mt-2">
-        <div class="flex items-center gap-1 text-xs text-indigo-600">
+        <div class="flex items-center gap-1 text-xs text-indigo-600 dark:text-indigo-400">
           <Icon name="sparkles" class="w-3 h-3" />
           <span>AI insights available</span>
         </div>
@@ -261,7 +261,7 @@
     <!-- Photo indicator -->
     {#if task.photos?.length}
       <div class="absolute bottom-2 right-2">
-        <div class="flex items-center gap-1 text-xs text-gray-500">
+        <div class="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400">
           <Icon name="camera" class="w-3 h-3" />
           <span>{task.photos.length}</span>
         </div>

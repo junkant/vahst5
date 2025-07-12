@@ -218,7 +218,7 @@
 <form onsubmit={handleSubmit} class="{compact ? 'space-y-3' : 'space-y-4'}">
   <!-- Title -->
   <div>
-    <label for="task-title" class="block text-sm font-medium text-gray-700 mb-1">
+    <label for="task-title" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
       Title <span class="text-red-500">*</span>
     </label>
     <input
@@ -226,31 +226,31 @@
       type="text"
       bind:value={title}
       placeholder="e.g., Annual HVAC Maintenance"
-      class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+      class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500"
       required
     />
   </div>
   
   <!-- Client Selection -->
   <div>
-    <label for="task-client" class="block text-sm font-medium text-gray-700 mb-1">
+    <label for="task-client" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
       Client <span class="text-red-500">*</span>
     </label>
     
     {#if selectedClient}
       <!-- Show selected client -->
-      <div class="p-3 bg-blue-50 border border-blue-200 rounded-md flex items-center justify-between">
+      <div class="p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-md flex items-center justify-between">
         <div>
-          <p class="text-sm font-medium text-blue-900">{selectedClient.name}</p>
+          <p class="text-sm font-medium text-blue-900 dark:text-blue-100">{selectedClient.name}</p>
           {#if selectedClient.address}
-            <p class="text-xs text-blue-700">{selectedClient.address}</p>
+            <p class="text-xs text-blue-700 dark:text-blue-300">{selectedClient.address}</p>
           {/if}
         </div>
         {#if !task && !initialClientId}
           <button
             type="button"
             onclick={() => { clientId = ''; clientSearchQuery = ''; }}
-            class="text-xs text-blue-600 hover:text-blue-700 font-medium"
+            class="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium"
           >
             Change
           </button>
@@ -261,7 +261,7 @@
       <button
         type="button"
         onclick={() => showClientSearch = true}
-        class="w-full px-3 py-2 border-2 border-dashed border-gray-300 rounded-md hover:border-gray-400 text-gray-600 hover:text-gray-700 transition-colors"
+        class="w-full px-3 py-2 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-md hover:border-gray-400 dark:hover:border-gray-500 text-gray-600 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
       >
         <div class="flex items-center justify-center gap-2">
           <Icon name="search" class="w-4 h-4" />
@@ -274,13 +274,13 @@
   <!-- Service Type and Priority -->
   <div class="grid grid-cols-2 gap-3">
     <div>
-      <label for="task-service" class="block text-sm font-medium text-gray-700 mb-1">
+      <label for="task-service" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
         Service Type
       </label>
       <select
         id="task-service"
         bind:value={serviceType}
-        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+        class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
       >
         {#each serviceTypes as type}
           <option value={type}>{type}</option>
@@ -289,7 +289,7 @@
     </div>
     
     <div>
-      <label for="task-priority" class="block text-sm font-medium text-gray-700 mb-1">
+      <label for="task-priority" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
         Priority
       </label>
       <div class="grid grid-cols-2 gap-1">
@@ -300,7 +300,7 @@
             class="py-2 px-2 rounded text-xs font-medium transition-colors
                    {priority === p 
                      ? p === 'low' ? 'bg-gray-600 text-white' : 'bg-blue-600 text-white'
-                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}"
+                     : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'}"
           >
             {p.charAt(0).toUpperCase() + p.slice(1)}
           </button>
@@ -314,7 +314,7 @@
             class="py-2 px-2 rounded text-xs font-medium transition-colors
                    {priority === p 
                      ? p === 'high' ? 'bg-orange-600 text-white' : 'bg-red-600 text-white'
-                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}"
+                     : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'}"
           >
             {p.charAt(0).toUpperCase() + p.slice(1)}
           </button>
@@ -330,22 +330,22 @@
         <input
           type="checkbox"
           bind:checked={isRecurring}
-          class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+          class="rounded border-gray-300 dark:border-gray-600 text-blue-600 dark:text-blue-400 focus:ring-blue-500 dark:focus:ring-blue-400"
         />
-        <span class="text-sm font-medium text-gray-700">Repeat this task</span>
+        <span class="text-sm font-medium text-gray-700 dark:text-gray-300">Repeat this task</span>
       </label>
       
       {#if isRecurring}
         <div class="mt-3 space-y-3 pl-6">
           <div class="grid grid-cols-2 gap-3">
             <div>
-              <label for="recurrence-pattern" class="block text-xs text-gray-600 mb-1">
+              <label for="recurrence-pattern" class="block text-xs text-gray-600 dark:text-gray-400 mb-1">
                 Repeat
               </label>
               <select
                 id="recurrence-pattern"
                 bind:value={recurrencePattern}
-                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
               >
                 <option value="daily">Daily</option>
                 <option value="weekly">Weekly</option>
@@ -357,7 +357,7 @@
             </div>
             
             <div>
-              <label for="max-occurrences" class="block text-xs text-gray-600 mb-1">
+              <label for="max-occurrences" class="block text-xs text-gray-600 dark:text-gray-400 mb-1">
                 Number of occurrences
               </label>
               <input
@@ -366,12 +366,12 @@
                 bind:value={maxOccurrences}
                 min="2"
                 max="52"
-                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
               />
             </div>
           </div>
           
-          <p class="text-xs text-gray-500">
+          <p class="text-xs text-gray-500 dark:text-gray-400">
             This will create {maxOccurrences} tasks, occurring {formatRecurrencePattern(recurrencePattern).toLowerCase()}
           </p>
         </div>
@@ -381,22 +381,22 @@
   
   <!-- Conflict Warning -->
   {#if hasConflict}
-    <div class="bg-yellow-50 border border-yellow-200 rounded-md p-3 flex items-start gap-2">
-      <Icon name="alertTriangle" class="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
+    <div class="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-md p-3 flex items-start gap-2">
+      <Icon name="alertTriangle" class="w-5 h-5 text-yellow-600 dark:text-yellow-400 flex-shrink-0 mt-0.5" />
       <div class="flex-1">
-        <p class="text-sm font-medium text-yellow-800">Scheduling Conflict</p>
-        <p class="text-sm text-yellow-700 mt-1">{conflictMessage}</p>
+        <p class="text-sm font-medium text-yellow-800 dark:text-yellow-100">Scheduling Conflict</p>
+        <p class="text-sm text-yellow-700 dark:text-yellow-200 mt-1">{conflictMessage}</p>
       </div>
     </div>
   {/if}
   
   <!-- Schedule -->
   <div class="space-y-3">
-    <h3 class="text-sm font-medium text-gray-700">Schedule</h3>
+    <h3 class="text-sm font-medium text-gray-700 dark:text-gray-300">Schedule</h3>
     
     <div class="grid grid-cols-2 gap-3">
       <div>
-        <label for="task-date" class="block text-xs text-gray-600 mb-1">
+        <label for="task-date" class="block text-xs text-gray-600 dark:text-gray-400 mb-1">
           Date <span class="text-red-500">*</span>
         </label>
         <input
@@ -405,12 +405,12 @@
           bind:value={scheduledDate}
           required
           min={new Date().toISOString().split('T')[0]}
-          class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
         />
       </div>
       
       <div>
-        <label for="task-time" class="block text-xs text-gray-600 mb-1">
+        <label for="task-time" class="block text-xs text-gray-600 dark:text-gray-400 mb-1">
           Time <span class="text-red-500">*</span>
         </label>
         <input
@@ -418,19 +418,19 @@
           type="time"
           bind:value={scheduledTime}
           required
-          class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
         />
       </div>
     </div>
     
     <div>
-      <label for="task-duration" class="block text-xs text-gray-600 mb-1">
+      <label for="task-duration" class="block text-xs text-gray-600 dark:text-gray-400 mb-1">
         Estimated Duration
       </label>
       <select
         id="task-duration"
         bind:value={estimatedDuration}
-        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+        class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
       >
         {#each durationOptions as option}
           <option value={option.value}>{option.label}</option>
@@ -442,12 +442,12 @@
   <!-- Assigned To (if team members available) -->
   {#if teamMembers.length > 0 && !compact}
     <div>
-      <label for="task-assignees" class="block text-sm font-medium text-gray-700 mb-1">
+      <label for="task-assignees" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
         Assign To
       </label>
-      <div class="space-y-2 max-h-32 overflow-y-auto border border-gray-200 rounded-md p-2">
+      <div class="space-y-2 max-h-32 overflow-y-auto border border-gray-200 dark:border-gray-700 rounded-md p-2 bg-white dark:bg-gray-800">
         {#each teamMembers as member}
-          <label class="flex items-center space-x-2 cursor-pointer hover:bg-gray-50 p-1 rounded">
+          <label class="flex items-center space-x-2 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 p-1 rounded">
             <input
               type="checkbox"
               value={member.id}
@@ -459,9 +459,9 @@
                   assignedTo = assignedTo.filter(id => id !== member.id);
                 }
               }}
-              class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              class="rounded border-gray-300 dark:border-gray-600 text-blue-600 dark:text-blue-400 focus:ring-blue-500 dark:focus:ring-blue-400"
             />
-            <span class="text-sm">{member.name}</span>
+            <span class="text-sm text-gray-900 dark:text-gray-100">{member.name}</span>
           </label>
         {/each}
       </div>
@@ -470,7 +470,7 @@
   
   <!-- Description -->
   <div>
-    <label for="task-description" class="block text-sm font-medium text-gray-700 mb-1">
+    <label for="task-description" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
       Description / Notes
     </label>
     <textarea
@@ -478,7 +478,7 @@
       bind:value={description}
       rows="{compact ? 2 : 3}"
       placeholder="Additional details about the task..."
-      class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+      class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500"
     ></textarea>
   </div>
   
@@ -487,14 +487,14 @@
     <button
       type="button"
       onclick={onCancel}
-      class="flex-1 px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
+      class="flex-1 px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md transition-colors"
     >
       Cancel
     </button>
     <button
       type="submit"
       disabled={!isValid || isSubmitting}
-      class="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+      class="flex-1 px-4 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-md hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
     >
       {isSubmitting ? 'Saving...' : submitLabel}
     </button>
@@ -504,13 +504,13 @@
 <!-- Client Search Modal -->
 {#if showClientSearch}
   <div 
-    class="fixed inset-0 bg-black bg-opacity-50 flex items-end z-[60]" 
+    class="fixed inset-0 bg-black bg-opacity-50 dark:bg-opacity-70 flex items-end z-[60]" 
     role="presentation"
     onclick={(e) => e.target === e.currentTarget && (showClientSearch = false)}
     onkeydown={(e) => e.key === 'Escape' && (showClientSearch = false)}
   >
     <div 
-      class="bg-white rounded-t-xl w-full max-h-[80vh] flex flex-col" 
+      class="bg-white dark:bg-gray-800 rounded-t-xl w-full max-h-[80vh] flex flex-col" 
       role="dialog"
       aria-modal="true"
       aria-labelledby="client-search-title"
@@ -518,15 +518,15 @@
       onkeydown={(e) => e.key === 'Escape' && (showClientSearch = false)}
       tabindex="-1"
     >
-      <div class="p-4 border-b border-gray-200">
+      <div class="p-4 border-b border-gray-200 dark:border-gray-700">
         <div class="flex items-center justify-between mb-3">
-          <h2 id="client-search-title" class="text-lg font-semibold">Select Client</h2>
+          <h2 id="client-search-title" class="text-lg font-semibold text-gray-900 dark:text-gray-100">Select Client</h2>
           <button
             type="button"
             onclick={() => showClientSearch = false}
-            class="p-2 hover:bg-gray-100 rounded-lg"
+            class="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
           >
-            <Icon name="x" class="w-5 h-5" />
+            <Icon name="x" class="w-5 h-5 text-gray-500 dark:text-gray-400" />
           </button>
         </div>
         
@@ -534,18 +534,18 @@
           type="text"
           bind:value={clientSearchQuery}
           placeholder="Search clients..."
-          class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500"
           use:focusOnMount
         />
       </div>
       
       <div class="flex-1 overflow-y-auto">
         {#if filteredClients.length === 0}
-          <div class="p-8 text-center text-gray-500">
+          <div class="p-8 text-center text-gray-500 dark:text-gray-400">
             {clientSearchQuery ? 'No clients found' : 'No clients available'}
           </div>
         {:else}
-          <div class="divide-y divide-gray-200">
+          <div class="divide-y divide-gray-200 dark:divide-gray-700">
             {#each filteredClients as client}
               <button
                 type="button"
@@ -554,16 +554,16 @@
                   showClientSearch = false;
                   clientSearchQuery = '';
                 }}
-                class="w-full p-4 text-left hover:bg-gray-50 transition-colors"
+                class="w-full p-4 text-left hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
               >
-                <p class="font-medium text-gray-900">{client.name}</p>
+                <p class="font-medium text-gray-900 dark:text-gray-100">{client.name}</p>
                 {#if client.address}
-                  <p class="text-sm text-gray-600 mt-1">
+                  <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">
                     {client.address}
                   </p>
                 {/if}
                 {#if client.phone}
-                  <p class="text-sm text-gray-500">{client.phone}</p>
+                  <p class="text-sm text-gray-500 dark:text-gray-400">{client.phone}</p>
                 {/if}
               </button>
             {/each}

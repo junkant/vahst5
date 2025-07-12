@@ -75,14 +75,14 @@
           class="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
           aria-label="Close"
         >
-          <Icon name="close" class="w-5 h-5 text-gray-500" />
+          <Icon name="close" class="w-5 h-5 text-gray-500 dark:text-gray-400" />
         </button>
       </div>
       
       <!-- Search -->
       <div class="p-4 border-b border-gray-100 dark:border-gray-700">
         <div class="relative">
-          <Icon name="search" class="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+          <Icon name="search" class="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 dark:text-gray-500" />
           <input
             type="text"
             bind:value={searchQuery}
@@ -142,7 +142,7 @@
             <div
               onclick={() => selectClientAndClose(clientItem)}
               onkeydown={(e) => e.key === 'Enter' && selectClientAndClose(clientItem)}
-              class="w-full p-3 text-left hover:bg-gray-50 rounded-lg transition-colors flex items-center gap-3 cursor-pointer group"
+              class="w-full p-3 text-left hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg transition-colors flex items-center gap-3 cursor-pointer group"
               role="button"
               tabindex="0"
             >
@@ -152,20 +152,20 @@
                 </span>
               </div>
               <div class="flex-1 min-w-0">
-                <p class="font-medium text-gray-900 truncate">{clientItem.name}</p>
-                <p class="text-sm text-gray-500 truncate">{clientItem.address}</p>
+                <p class="font-medium text-gray-900 dark:text-gray-100 truncate">{clientItem.name}</p>
+                <p class="text-sm text-gray-500 dark:text-gray-400 truncate">{clientItem.address}</p>
               </div>
               <div class="flex items-center space-x-2">
                 <!-- Edit Button -->
                 <button
                   onclick={(e) => editClient(clientItem, e)}
-                  class="p-1.5 text-gray-400 hover:text-gray-600 rounded hover:bg-gray-100 transition-colors"
+                  class="p-1.5 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 rounded hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"
                   aria-label="Edit {clientItem.name}"
                 >
                   <Icon name="edit" class="w-4 h-4" size={2} />
                 </button>
                 {#if client.selectedClient?.id === clientItem.id}
-                  <Icon name="checkCircleFilled" class="w-5 h-5 text-blue-600 flex-shrink-0" />
+                  <Icon name="checkCircleFilled" class="w-5 h-5 text-blue-600 dark:text-blue-400 flex-shrink-0" />
                 {/if}
               </div>
             </div>
@@ -173,7 +173,7 @@
           
           {#if filteredClients().length === 0}
             <div class="text-center py-8">
-              <Icon name="users" class="w-12 h-12 text-gray-400 mx-auto mb-3" />
+              <Icon name="users" class="w-12 h-12 text-gray-400 dark:text-gray-500 mx-auto mb-3" />
               <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100 mb-1">
                 {searchQuery ? 'No clients found' : 'No clients yet'}
               </h3>
@@ -186,7 +186,7 @@
                     closeModal();
                     goto('/clients/new');
                   }}
-                  class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+                  class="bg-blue-600 dark:bg-blue-500 hover:bg-blue-700 dark:hover:bg-blue-600 text-white px-4 py-2 rounded-lg font-medium transition-colors"
                 >
                   Add Client
                 </button>
@@ -203,7 +203,7 @@
             closeModal();
             goto('/clients/new');
           }}
-          class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg font-medium transition-colors"
+          class="w-full bg-blue-600 dark:bg-blue-500 hover:bg-blue-700 dark:hover:bg-blue-600 text-white py-2 px-4 rounded-lg font-medium transition-colors"
         >
           Add New Client
         </button>

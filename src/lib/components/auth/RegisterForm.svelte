@@ -108,7 +108,7 @@
 {#if open}
   <!-- Overlay -->
   <div 
-    class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
+    class="fixed inset-0 bg-black/50 dark:bg-black/70 z-50 flex items-center justify-center p-4"
     onclick={handleOverlayClick}
     onkeydown={(e) => e.key === 'Escape' && closeDialog()}
     role="dialog"
@@ -117,13 +117,13 @@
     tabindex="-1"
   >
     <!-- Modal -->
-    <div class="bg-white rounded-xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto transform transition-all">
+    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto transform transition-all">
       <!-- Header -->
       <div class="flex items-center justify-between p-6 pb-4">
-        <h2 id="register-form-title" class="text-2xl font-bold text-gray-900">Start Your Journey</h2>
+        <h2 id="register-form-title" class="text-2xl font-bold text-gray-900 dark:text-gray-100">Start Your Journey</h2>
         <button 
           onclick={closeDialog}
-          class="text-gray-400 hover:text-gray-600 p-1 rounded-md hover:bg-gray-100"
+          class="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 p-1 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700"
           aria-label="Close form"
         >
           <Icon name="close" class="w-6 h-6" />
@@ -132,12 +132,12 @@
       
       <!-- Content -->
       <form onsubmit={handleSubmit} class="p-6 pt-2">
-        <p class="text-sm text-gray-600 mb-6">
+        <p class="text-sm text-gray-600 dark:text-gray-400 mb-6">
           Create your business account • Full access to all features
         </p>
         
         {#if error}
-          <div class="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+          <div class="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-red-700 dark:text-red-300 text-sm">
             {error}
           </div>
         {/if}
@@ -145,7 +145,7 @@
         <div class="space-y-4">
           <!-- Business Name -->
           <div>
-            <label for="register-business" class="block text-sm font-medium text-gray-700 mb-1">
+            <label for="register-business" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Business Name *
             </label>
             <input
@@ -154,14 +154,14 @@
               bind:value={formData.businessName}
               required
               disabled={isLoading}
-              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100"
+              class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent disabled:bg-gray-100 dark:disabled:bg-gray-700 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
               placeholder="ABC Plumbing"
             />
           </div>
           
           <!-- Email -->
           <div>
-            <label for="register-email" class="block text-sm font-medium text-gray-700 mb-1">
+            <label for="register-email" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Email Address *
             </label>
             <input
@@ -170,14 +170,14 @@
               bind:value={formData.email}
               required
               disabled={isLoading}
-              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100"
+              class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent disabled:bg-gray-100 dark:disabled:bg-gray-700 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
               placeholder="you@company.com"
             />
           </div>
           
           <!-- Password -->
           <div>
-            <label for="register-password" class="block text-sm font-medium text-gray-700 mb-1">
+            <label for="register-password" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Password *
             </label>
             <input
@@ -187,15 +187,15 @@
               required
               minlength="6"
               disabled={isLoading}
-              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100"
+              class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent disabled:bg-gray-100 dark:disabled:bg-gray-700 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
               placeholder="••••••••"
             />
-            <p class="mt-1 text-xs text-gray-500">Must be at least 6 characters</p>
+            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Must be at least 6 characters</p>
           </div>
           
           <!-- Confirm Password -->
           <div>
-            <label for="register-confirm" class="block text-sm font-medium text-gray-700 mb-1">
+            <label for="register-confirm" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Confirm Password *
             </label>
             <input
@@ -205,7 +205,7 @@
               required
               minlength="6"
               disabled={isLoading}
-              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100"
+              class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent disabled:bg-gray-100 dark:disabled:bg-gray-700 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
               placeholder="••••••••"
             />
           </div>
@@ -217,11 +217,11 @@
                 type="checkbox" 
                 bind:checked={formData.agreeToTerms}
                 disabled={isLoading}
-                class="mt-1 rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50" 
+                class="mt-1 rounded border-gray-300 dark:border-gray-600 text-blue-600 dark:text-blue-400 shadow-sm focus:border-blue-300 dark:focus:border-blue-500 focus:ring focus:ring-blue-200 dark:focus:ring-blue-800 focus:ring-opacity-50" 
               />
-              <span class="ml-2 text-sm text-gray-600">
-                I agree to the <a href="/terms" class="text-blue-600 hover:text-blue-500">Terms of Service</a> 
-                and <a href="/privacy" class="text-blue-600 hover:text-blue-500">Privacy Policy</a>
+              <span class="ml-2 text-sm text-gray-600 dark:text-gray-400">
+                I agree to the <a href="/terms" class="text-blue-600 dark:text-blue-400 hover:text-blue-500 dark:hover:text-blue-300">Terms of Service</a> 
+                and <a href="/privacy" class="text-blue-600 dark:text-blue-400 hover:text-blue-500 dark:hover:text-blue-300">Privacy Policy</a>
               </span>
             </label>
           </div>
@@ -231,7 +231,7 @@
         <button
           type="submit"
           disabled={isLoading || !formData.agreeToTerms}
-          class="w-full mt-6 bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+          class="w-full mt-6 bg-green-600 dark:bg-green-500 text-white py-3 rounded-lg font-semibold hover:bg-green-700 dark:hover:bg-green-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
         >
           {#if isLoading}
             <Icon name="refresh" class="w-4 h-4 animate-spin" />
@@ -242,13 +242,13 @@
         </button>
         
         <!-- Switch to Login -->
-        <p class="mt-4 text-center text-sm text-gray-600">
+        <p class="mt-4 text-center text-sm text-gray-600 dark:text-gray-400">
           Already have an account? 
           <button
             type="button"
             onclick={switchToLogin}
             disabled={isLoading}
-            class="text-blue-600 hover:text-blue-500 font-medium disabled:opacity-50"
+            class="text-blue-600 dark:text-blue-400 hover:text-blue-500 dark:hover:text-blue-300 font-medium disabled:opacity-50"
           >
             Sign in
           </button>

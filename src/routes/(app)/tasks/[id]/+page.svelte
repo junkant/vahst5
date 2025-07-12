@@ -107,24 +107,24 @@
 </script>
 
 {#if isLoadingTask || (!task && !taskNotFound)}
-  <div class="min-h-screen bg-gray-50 flex items-center justify-center">
+  <div class="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
     <div class="text-center">
-      <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-      <p class="text-gray-600">Loading task...</p>
+      <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 dark:border-blue-400 mx-auto mb-4"></div>
+      <p class="text-gray-600 dark:text-gray-400">Loading task...</p>
     </div>
   </div>
 {:else if task}
   <TaskDetail {task} />
 {:else}
-  <div class="min-h-screen bg-gray-50 flex items-center justify-center">
+  <div class="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
     <div class="text-center">
-      <svg class="w-12 h-12 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <svg class="w-12 h-12 text-gray-400 dark:text-gray-500 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M12 20a8 8 0 100-16 8 8 0 000 16z" />
       </svg>
-      <p class="text-gray-600 mb-4">Task not found</p>
+      <p class="text-gray-600 dark:text-gray-400 mb-4">Task not found</p>
       <button
         onclick={goToTasksList}
-        class="text-blue-600 hover:text-blue-700 font-medium"
+        class="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium"
       >
         Back to Tasks
       </button>

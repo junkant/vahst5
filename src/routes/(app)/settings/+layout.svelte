@@ -48,17 +48,30 @@
   }
 </script>
 
-<div class="min-h-screen bg-gray-50 pb-20">
-  <div class="bg-white shadow-sm">
+<div class="min-h-screen bg-gray-50 dark:bg-gray-900 pb-20 transition-colors duration-200">
+  <div class="bg-white dark:bg-gray-800 shadow-sm dark:shadow-gray-900/50 transition-colors duration-200">
     <div class="px-4 py-4">
-      <h1 class="text-2xl font-bold text-gray-900">Settings</h1>
+      <h1 class="text-2xl font-bold text-gray-900 dark:text-gray-100">Settings</h1>
       
       <!-- Horizontal Navigation Menu -->
       <nav class="mt-4 -mx-4 px-4 overflow-x-auto" aria-label="Settings navigation">
-        <div class="flex gap-4 min-w-max pb-2">
+        <div class="flex gap-2 min-w-max pb-2">
           {#each menuItems as item}
-            <button onclick={() => navigateTo(item.href)} class="flex flex-col items-center py-2 px-3 rounded-lg transition-colors min-w-[60px] {currentPath === item.href ? 'text-blue-600 bg-blue-50' : 'text-gray-500 hover:text-gray-700'}" aria-current={currentPath === item.href ? 'page' : undefined}>
-              <svg class="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <button 
+              onclick={() => navigateTo(item.href)} 
+              class="flex flex-col items-center py-2 px-3 rounded-lg transition-all duration-200 min-w-[64px] group
+                     {currentPath === item.href 
+                       ? 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/50' 
+                       : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700/50'}"
+              aria-current={currentPath === item.href ? 'page' : undefined}
+            >
+              <svg 
+                class="w-6 h-6 mb-1 transition-transform duration-200 group-hover:scale-110" 
+                fill="none" 
+                stroke="currentColor" 
+                viewBox="0 0 24 24" 
+                aria-hidden="true"
+              >
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d={item.icon} />
               </svg>
               <span class="text-xs font-medium">{item.label}</span>
@@ -71,9 +84,11 @@
   
   <div class="max-w-4xl mx-auto p-4">
     <!-- Settings Content -->
-    <div class="bg-white rounded-lg shadow-sm p-6">
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm dark:shadow-gray-900/30 p-6 transition-colors duration-200">
       {#key currentPath}
-        {@render children()}
+        <div class="animate-fade-in">
+          {@render children()}
+        </div>
       {/key}
     </div>
   </div>
@@ -82,10 +97,44 @@
 <style>
   /* Hide scrollbar for cleaner appearance */
   nav::-webkit-scrollbar {
-    display: none;
+    height: 6px;
   }
+  
+  nav::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  
+  nav::-webkit-scrollbar-thumb {
+    @apply bg-gray-300 dark:bg-gray-600 rounded-full;
+  }
+  
+  nav::-webkit-scrollbar-thumb:hover {
+    @apply bg-gray-400 dark:bg-gray-500;
+  }
+  
+  /* Fallback for Firefox */
   nav {
-    -ms-overflow-style: none;
-    scrollbar-width: none;
+    scrollbar-width: thin;
+    scrollbar-color: theme('colors.gray.300') transparent;
+  }
+  
+  :global(.dark) nav {
+    scrollbar-color: theme('colors.gray.600') transparent;
+  }
+  
+  /* Fade in animation */
+  .animate-fade-in {
+    animation: fadeIn 0.2s ease-out;
+  }
+  
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(4px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
   }
 </style>

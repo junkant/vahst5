@@ -21,7 +21,8 @@ export default {
           600: '#2563eb',
           700: '#1d4ed8',
           800: '#1e40af',
-          900: '#1e3a8a'
+          900: '#1e3a8a',
+          950: '#172554'
         },
         secondary: {
           50: '#f8fafc',
@@ -33,7 +34,17 @@ export default {
           600: '#475569',
           700: '#334155',
           800: '#1e293b',
-          900: '#0f172a'
+          900: '#0f172a',
+          950: '#020617'
+        },
+        // Dark mode specific grays
+        dark: {
+          bg: '#0f172a',        // Main background
+          surface: '#1e293b',   // Card/surface background
+          border: '#334155',    // Border color
+          muted: '#475569',     // Muted text
+          hover: '#334155',     // Hover state
+          selected: '#1e293b'   // Selected state
         }
       },
       fontFamily: {

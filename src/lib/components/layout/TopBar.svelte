@@ -192,20 +192,20 @@
     <!-- Client Selector (Center) -->
     <div class="flex-1 max-w-xs relative search-container">
       <div 
-        class="flex items-center gap-2 px-3 py-1.5 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors w-full cursor-pointer"
+        class="flex items-center gap-2 px-3 py-1.5 bg-gray-100 dark:bg-gray-800 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors w-full cursor-pointer"
         onclick={openClientSelector}
         role="button"
         tabindex="0"
         onkeydown={(e) => (e.key === 'Enter' || e.key === ' ') && openClientSelector()}
       >
-        <Icon name="user" class="w-4 h-4 text-gray-500 flex-shrink-0" />
+        <Icon name="user" class="w-4 h-4 text-gray-500 dark:text-gray-400 flex-shrink-0" />
         
         <!-- Client Display -->
         {#if clients.isLoadingClients}
-          <span class="text-sm text-gray-500 truncate">Loading clients...</span>
+          <span class="text-sm text-gray-500 dark:text-gray-400 truncate">Loading clients...</span>
         {:else if clients.selectedClient}
           <div class="flex items-center space-x-2 flex-1 min-w-0">
-            <span class="text-sm text-gray-700 truncate font-medium">
+            <span class="text-sm text-gray-700 dark:text-blue-400 truncate font-medium">
               {clients.selectedClient.name}
             </span>
             <!-- Clear button -->
@@ -214,76 +214,76 @@
               onkeydown={(e) => (e.key === 'Enter' || e.key === ' ') && handleClientClear(e)}
               role="button"
               tabindex="0"
-              class="text-gray-400 hover:text-gray-600 p-0.5 rounded hover:bg-gray-100 cursor-pointer"
+              class="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 p-0.5 rounded hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer"
               aria-label="Clear client selection"
             >
               <Icon name="close" class="w-3 h-3" />
             </span>
           </div>
         {:else if clients.clients.length === 0 && !clients.isLoadingClients}
-          <span class="text-sm text-gray-500 truncate">No clients yet</span>
+          <span class="text-sm text-gray-500 dark:text-gray-400 truncate">No clients yet</span>
         {:else}
-          <span class="text-sm text-gray-700 truncate">Select Client</span>
+          <span class="text-sm text-gray-700 dark:text-gray-200 truncate">Select Client</span>
         {/if}
         
         <!-- Dropdown Arrow -->
-        <Icon name="chevronDown" class="w-4 h-4 text-gray-400 flex-shrink-0 ml-auto" />
+        <Icon name="chevronDown" class="w-4 h-4 text-gray-400 dark:text-gray-500 flex-shrink-0 ml-auto" />
       </div>
       
       <!-- Quick Search Button -->
       <button
         onclick={toggleInlineSearch}
-        class="absolute right-0 top-0 h-full px-2 hover:bg-gray-200 rounded-r-lg transition-colors flex items-center"
+        class="absolute right-0 top-0 h-full px-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-r-lg transition-colors flex items-center"
         aria-label="Quick search"
       >
-        <Icon name="search" class="w-4 h-4 text-gray-400" />
+        <Icon name="search" class="w-4 h-4 text-gray-400 dark:text-gray-500" />
       </button>
       
       <!-- Inline Search Dropdown -->
       {#if showInlineSearch}
-        <div class="absolute top-full left-0 right-0 mt-1 bg-white rounded-lg shadow-lg border border-gray-200 z-50">
+        <div class="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-50">
           <div class="p-2">
             <input
               bind:this={searchInputRef}
               type="text"
               bind:value={searchQuery}
               placeholder="Quick search clients..."
-              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+              class="w-full px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 text-sm"
             />
           </div>
           
           {#if filteredClients().length > 0}
-            <div class="border-t border-gray-100">
+            <div class="border-t border-gray-100 dark:border-gray-700">
               {#each filteredClients() as client}
                 <button
                   onclick={() => {
                     clients.selectClient(client);
                     toggleInlineSearch();
                   }}
-                  class="w-full px-3 py-2 text-left hover:bg-gray-50 transition-colors flex items-center gap-2"
+                  class="w-full px-3 py-2 text-left hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors flex items-center gap-2"
                 >
-                  <div class="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
-                    <span class="text-blue-600 text-xs font-medium">
+                  <div class="w-8 h-8 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center flex-shrink-0">
+                    <span class="text-blue-600 dark:text-blue-400 text-xs font-medium">
                       {client.name.charAt(0).toUpperCase()}
                     </span>
                   </div>
                   <div class="flex-1 min-w-0">
-                    <p class="text-sm font-medium text-gray-900 truncate">{client.name}</p>
+                    <p class="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">{client.name}</p>
                     {#if client.address}
-                      <p class="text-xs text-gray-500 truncate">{client.address}</p>
+                      <p class="text-xs text-gray-500 dark:text-gray-400 truncate">{client.address}</p>
                     {/if}
                   </div>
                 </button>
               {/each}
               <button
                 onclick={openClientSelector}
-                class="w-full px-3 py-2 text-center text-sm text-blue-600 hover:bg-blue-50 border-t border-gray-100"
+                class="w-full px-3 py-2 text-center text-sm text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 border-t border-gray-100 dark:border-gray-700"
               >
                 View all clients
               </button>
             </div>
           {:else if searchQuery.trim()}
-            <div class="px-3 py-4 text-center text-sm text-gray-500">
+            <div class="px-3 py-4 text-center text-sm text-gray-500 dark:text-gray-400">
               No clients found
             </div>
           {/if}
@@ -295,13 +295,13 @@
     <div class="relative user-menu-container">
       <button 
         onclick={() => showUserMenu = !showUserMenu}
-        class="flex items-center gap-2 p-2 rounded-lg hover:bg-gray-100 transition-colors"
+        class="flex items-center gap-2 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
         aria-label="User menu"
       >
-        <div class="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white font-medium">
+        <div class="w-8 h-8 bg-blue-600 dark:bg-blue-500 rounded-full flex items-center justify-center text-white font-medium">
           {auth.user?.email?.charAt(0).toUpperCase() || 'U'}
         </div>
-        <Icon name="chevronDown" class="w-4 h-4 text-gray-400" />
+        <Icon name="chevronDown" class="w-4 h-4 text-gray-400 dark:text-gray-500" />
       </button>
       
       <!-- User Dropdown -->
@@ -312,7 +312,7 @@
               {auth.user?.email || 'User'}
             </p>
             {#if auth.tenant}
-              <p class="text-sm text-gray-500 mt-1">{auth.tenant.name}</p>
+              <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">{auth.tenant.name}</p>
             {/if}
           </div>
           
@@ -324,7 +324,7 @@
               }}
               class="w-full px-3 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors flex items-center gap-2"
             >
-              <Icon name="user" class="w-4 h-4 text-gray-400" />
+              <Icon name="user" class="w-4 h-4 text-gray-400 dark:text-gray-500" />
               Profile Settings
             </button>
             
@@ -335,7 +335,7 @@
               }}
               class="w-full px-3 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors flex items-center gap-2"
             >
-              <Icon name="building" class="w-4 h-4 text-gray-400" />
+              <Icon name="building" class="w-4 h-4 text-gray-400 dark:text-gray-500" />
               Business Settings
             </button>
             
@@ -346,7 +346,7 @@
               }}
               class="w-full px-3 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors flex items-center gap-2"
             >
-              <Icon name="users" class="w-4 h-4 text-gray-400" />
+              <Icon name="users" class="w-4 h-4 text-gray-400 dark:text-gray-500" />
               Team Members
             </button>
             
@@ -358,11 +358,11 @@
               class="w-full px-3 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors flex items-center justify-between"
             >
               <span class="flex items-center gap-2">
-                <Icon name={ui.theme === 'dark' ? 'moon' : 'sun'} class="w-4 h-4 text-gray-400" />
+                <Icon name={ui.effectiveTheme === 'dark' ? 'moon' : 'sun'} class="w-4 h-4 text-gray-400 dark:text-gray-500" />
                 <span>Dark Mode</span>
               </span>
               <span class="text-xs text-gray-500 dark:text-gray-400">
-                {ui.theme === 'dark' ? 'On' : 'Off'}
+                {ui.effectiveTheme === 'dark' ? 'On' : 'Off'}
               </span>
             </button>
             
@@ -374,7 +374,7 @@
                 await auth.signOut();
                 goto('/');
               }}
-              class="w-full px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50 transition-colors flex items-center gap-2"
+              class="w-full px-3 py-2 text-left text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors flex items-center gap-2"
             >
               <Icon name="logout" class="w-4 h-4" />
               Sign Out

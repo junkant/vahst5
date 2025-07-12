@@ -9,12 +9,35 @@
   }
   
   body {
-    @apply antialiased;
+    @apply antialiased bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100;
   }
   
   /* Ensure smooth scrolling on iOS */
   .scroll-smooth {
     -webkit-overflow-scrolling: touch;
+  }
+  
+  /* Selection colors */
+  ::selection {
+    @apply bg-primary-500/20 dark:bg-primary-400/30;
+  }
+  
+  /* Scrollbar styling */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  
+  ::-webkit-scrollbar-track {
+    @apply bg-gray-100 dark:bg-gray-800;
+  }
+  
+  ::-webkit-scrollbar-thumb {
+    @apply bg-gray-400 dark:bg-gray-600 rounded;
+  }
+  
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-gray-500 dark:bg-gray-500;
   }
 }
 
@@ -23,20 +46,51 @@
   .btn-primary {
     @apply bg-primary-600 text-white px-4 py-2 rounded-lg font-medium 
            hover:bg-primary-700 active:bg-primary-800 
+           dark:bg-primary-500 dark:hover:bg-primary-600 dark:active:bg-primary-700
            transition-colors duration-200
            disabled:opacity-50 disabled:cursor-not-allowed;
   }
   
   .btn-secondary {
-    @apply bg-white text-gray-700 px-4 py-2 rounded-lg font-medium 
-           border border-gray-300 hover:bg-gray-50 
-           active:bg-gray-100 transition-colors duration-200;
+    @apply bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 
+           px-4 py-2 rounded-lg font-medium 
+           border border-gray-300 dark:border-gray-600 
+           hover:bg-gray-50 dark:hover:bg-gray-700 
+           active:bg-gray-100 dark:active:bg-gray-600 
+           transition-colors duration-200;
   }
   
   .input-base {
-    @apply w-full px-3 py-2 border border-gray-300 rounded-lg
-           focus:outline-none focus:ring-2 focus:ring-primary-500 
+    @apply w-full px-3 py-2 
+           bg-white dark:bg-gray-800 
+           text-gray-900 dark:text-gray-100
+           border border-gray-300 dark:border-gray-600 rounded-lg
+           placeholder-gray-400 dark:placeholder-gray-500
+           focus:outline-none focus:ring-2 focus:ring-primary-500 dark:focus:ring-primary-400
            focus:border-transparent transition-all duration-200;
+  }
+  
+  .card {
+    @apply bg-white dark:bg-gray-800 
+           border border-gray-200 dark:border-gray-700 
+           shadow-sm dark:shadow-gray-900/20
+           rounded-lg;
+  }
+  
+  .card-hover {
+    @apply card hover:shadow-md dark:hover:shadow-gray-900/30 
+           hover:border-gray-300 dark:hover:border-gray-600
+           transition-all duration-200;
+  }
+  
+  .link {
+    @apply text-primary-600 dark:text-primary-400 
+           hover:text-primary-700 dark:hover:text-primary-300 
+           underline-offset-2 transition-colors duration-200;
+  }
+  
+  .divider {
+    @apply border-gray-200 dark:border-gray-700;
   }
 }
 
@@ -57,15 +111,75 @@
 }
 
 /* Smooth transitions for theme switching */
-* {
-  transition-property: color, background-color, border-color;
+html.transitioning,
+html.transitioning *,
+html.transitioning *:before,
+html.transitioning *:after {
+  transition-property: color, background-color, border-color, text-decoration-color, fill, stroke, opacity, box-shadow, transform, filter, backdrop-filter;
   transition-duration: 200ms;
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* Disable transitions on very rapid interactions */
 @media (prefers-reduced-motion: reduce) {
-  * {
+  *,
+  *:before,
+  *:after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+/* Focus visible styles */
+.focus-visible:focus {
+  outline: none;
+}
+
+.focus-visible:focus-visible {
+  @apply ring-2 ring-primary-500 dark:ring-primary-400 ring-offset-2 ring-offset-white dark:ring-offset-gray-900;
+}
+
+/* Custom animations */
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-slide-in {
+  animation: slideIn 0.2s ease-out;
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.2s ease-out;
+}
+
+.animate-scale-in {
+  animation: scaleIn 0.2s ease-out;
 }

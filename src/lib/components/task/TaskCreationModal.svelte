@@ -134,7 +134,7 @@
   <div
     class="fixed left-[50%] top-[50%] z-50 max-h-[85vh] w-[90vw] 
            {compact ? 'max-w-[500px]' : 'max-w-[800px]'} 
-           translate-x-[-50%] translate-y-[-50%] rounded-lg bg-white p-6 
+           translate-x-[-50%] translate-y-[-50%] rounded-lg bg-white dark:bg-gray-800 p-6 
            shadow-lg overflow-y-auto"
     transition:fly={{ y: -10, duration: 150 }}
     role="dialog"
@@ -144,20 +144,20 @@
     <!-- Header -->
     <div class="flex items-start justify-between mb-4">
       <div>
-        <h2 class="text-lg font-semibold">
+        <h2 class="text-lg font-semibold text-gray-900 dark:text-gray-100">
           {title}
         </h2>
         {#if formattedDateTime}
-          <p class="text-sm text-gray-500 mt-1">
+          <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
             {formattedDateTime}
           </p>
         {/if}
       </div>
       <button
         onclick={() => open = false}
-        class="rounded-lg p-1 hover:bg-gray-100 transition-colors"
+        class="rounded-lg p-1 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
       >
-        <Icon name="close" size={20} />
+        <Icon name="close" size={20} class="text-gray-500 dark:text-gray-400" />
       </button>
     </div>
     
@@ -176,11 +176,11 @@
     
     <!-- Delete button for existing tasks -->
     {#if task}
-      <div class="mt-4 pt-4 border-t">
+      <div class="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
         <button
           type="button"
           onclick={handleDelete}
-          class="w-full px-4 py-2 text-red-600 hover:bg-red-50 rounded-md transition-colors"
+          class="w-full px-4 py-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md transition-colors"
         >
           Delete Task
         </button>

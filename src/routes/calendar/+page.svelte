@@ -22,30 +22,39 @@
   });
 </script>
 
-<div class="h-screen flex flex-col bg-gray-50">
+<div class="h-screen flex flex-col bg-gray-50 dark:bg-gray-900">
   <!-- Header -->
-  <header class="bg-white shadow-sm border-b">
+  <header class="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
     <div class="px-4 sm:px-6 lg:px-8">
       <div class="flex justify-between items-center h-16">
-        <h1 class="text-2xl font-semibold text-gray-900">Calendar</h1>
+        <h1 class="text-2xl font-semibold text-gray-900 dark:text-gray-100">Calendar</h1>
         
         <!-- View Toggle -->
         <div class="flex gap-2">
           <a 
             href="/calendar?view=day"
-            class="px-4 py-2 text-sm font-medium rounded-md {viewType === 'day' ? 'bg-blue-100 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}"
+            class="px-4 py-2 text-sm font-medium rounded-md 
+                   {viewType === 'day' 
+                     ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300' 
+                     : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'}"
           >
             Day
           </a>
           <a 
             href="/calendar?view=week"
-            class="px-4 py-2 text-sm font-medium rounded-md {viewType === 'week' ? 'bg-blue-100 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}"
+            class="px-4 py-2 text-sm font-medium rounded-md 
+                   {viewType === 'week' 
+                     ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300' 
+                     : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'}"
           >
             Week
           </a>
           <a 
             href="/calendar?view=month"
-            class="px-4 py-2 text-sm font-medium rounded-md {viewType === 'month' ? 'bg-blue-100 text-blue-700' : 'text-gray-700 hover:bg-gray-100'}"
+            class="px-4 py-2 text-sm font-medium rounded-md 
+                   {viewType === 'month' 
+                     ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300' 
+                     : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'}"
           >
             Month
           </a>
