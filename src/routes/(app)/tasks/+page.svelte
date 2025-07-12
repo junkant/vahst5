@@ -185,23 +185,23 @@
     if (status === 'scheduled' && scheduledStart) {
       const schedDate = scheduledStart instanceof Date ? scheduledStart : scheduledStart?.toDate ? scheduledStart.toDate() : new Date(scheduledStart);
       if (schedDate < new Date()) {
-        return 'bg-red-100 text-red-800';
+        return 'bg-red-100 dark:bg-red-900/20 text-red-800 dark:text-red-300';
       }
     }
     
     switch (status) {
       case 'completed':
-        return 'bg-green-100 text-green-800';
+        return 'bg-green-100 dark:bg-green-900/20 text-green-800 dark:text-green-300';
       case 'in_progress':
-        return 'bg-blue-100 text-blue-800';
+        return 'bg-blue-100 dark:bg-blue-900/20 text-blue-800 dark:text-blue-300';
       case 'scheduled':
-        return 'bg-yellow-100 text-yellow-800';
+        return 'bg-yellow-100 dark:bg-yellow-900/20 text-yellow-800 dark:text-yellow-300';
       case 'draft':
-        return 'bg-gray-100 text-gray-800';
+        return 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300';
       case 'cancelled':
-        return 'bg-red-100 text-red-800';
+        return 'bg-red-100 dark:bg-red-900/20 text-red-800 dark:text-red-300';
       default:
-        return 'bg-gray-100 text-gray-800';
+        return 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300';
     }
   }
   
@@ -245,15 +245,15 @@
   function getPriorityColor(priority?: string) {
     switch (priority) {
       case 'urgent':
-        return 'bg-red-100 text-red-800';
+        return 'bg-red-100 dark:bg-red-900/20 text-red-800 dark:text-red-300';
       case 'high':
-        return 'bg-orange-100 text-orange-800';
+        return 'bg-orange-100 dark:bg-orange-900/20 text-orange-800 dark:text-orange-300';
       case 'medium':
-        return 'bg-yellow-100 text-yellow-800';
+        return 'bg-yellow-100 dark:bg-yellow-900/20 text-yellow-800 dark:text-yellow-300';
       case 'low':
-        return 'bg-gray-100 text-gray-800';
+        return 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300';
       default:
-        return 'bg-gray-100 text-gray-800';
+        return 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300';
     }
   }
   
@@ -294,11 +294,11 @@
   }
 </script>
 
-<div class="flex flex-col h-full bg-gray-50">
+<div class="flex flex-col h-full bg-gray-50 dark:bg-gray-900">
   <!-- Header -->
-  <div class="bg-white border-b border-gray-200 p-4">
+  <div class="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 p-4">
     <div class="flex items-center justify-between mb-3">
-      <h1 class="text-xl font-semibold text-gray-900">Tasks</h1>
+      <h1 class="text-xl font-semibold text-gray-900 dark:text-gray-100">Tasks</h1>
       <button 
         onclick={createNewTask}
         class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors"
@@ -309,16 +309,16 @@
     
     <!-- Selected Client Info -->
     {#if clients.selectedClient}
-      <div class="flex items-center justify-between bg-blue-50 border border-blue-200 rounded-lg px-3 py-2 mb-3">
+      <div class="flex items-center justify-between bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg px-3 py-2 mb-3">
         <div class="flex items-center space-x-2">
-          <Icon name="info" class="w-4 h-4 text-blue-600" />
-          <span class="text-sm text-blue-800">
+          <Icon name="info" class="w-4 h-4 text-blue-600 dark:text-blue-400" />
+          <span class="text-sm text-blue-800 dark:text-blue-300">
             Showing tasks for: <span class="font-medium">{clients.selectedClient.name}</span>
           </span>
         </div>
         <button 
           onclick={() => clients.selectClient(null)}
-          class="text-sm text-blue-600 hover:text-blue-700 font-medium"
+          class="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium"
         >
           Clear Filter
         </button>
@@ -331,7 +331,7 @@
         type="text"
         bind:value={searchQuery}
         placeholder="Search tasks..."
-        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+        class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400"
       />
     </div>
     
@@ -357,14 +357,14 @@
           class="px-3 py-1 rounded-full text-sm font-medium whitespace-nowrap transition-colors
                  {filter === filterOption.key 
                    ? 'bg-blue-600 text-white' 
-                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}"
+                   : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'}"
         >
           {filterOption.label}
           {#if filterOption.count > 0}
             <span class="ml-1.5 px-1.5 py-0.5 text-xs rounded-full 
                          {filter === filterOption.key 
                            ? 'bg-blue-500 text-white' 
-                           : 'bg-gray-200 text-gray-600'}">
+                           : 'bg-gray-200 dark:bg-gray-600 text-gray-600 dark:text-gray-300'}">
               {filterOption.count}
             </span>
           {/if}
@@ -382,10 +382,10 @@
     {:else if filteredTasks().length === 0}
       <div class="text-center py-12">
         <Icon name="clipboard" class="w-12 h-12 text-gray-400 mx-auto mb-3" />
-        <h3 class="text-lg font-medium text-gray-900 mb-1">
+        <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100 mb-1">
           {searchQuery || clients.selectedClient ? 'No tasks found' : 'No tasks yet'}
         </h3>
-        <p class="text-gray-500 mb-4">
+        <p class="text-gray-500 dark:text-gray-400 mb-4">
           {searchQuery 
             ? 'Try adjusting your search' 
             : clients.selectedClient
@@ -406,13 +406,13 @@
         {#each filteredTasks() as task (task.id)}
           <button
             onclick={() => viewTask(task)}
-            class="w-full bg-white rounded-lg shadow-sm border border-gray-200 p-4 hover:shadow-md transition-shadow text-left"
+            class="w-full bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4 hover:shadow-md transition-shadow text-left"
           >
             <div class="flex items-start justify-between">
               <div class="flex-1">
                 <div class="flex items-center space-x-2 mb-2">
                   <Icon name={getTaskTypeIcon(task.serviceType)} class="w-4 h-4 text-gray-500" />
-                  <h3 class="font-semibold text-gray-900">{task.title}</h3>
+                  <h3 class="font-semibold text-gray-900 dark:text-gray-100">{task.title}</h3>
                   {#if task.priority && task.priority !== 'normal'}
                     <span class="px-2 py-1 rounded-full text-xs {getPriorityColor(task.priority)}">
                       {task.priority}
@@ -424,28 +424,28 @@
                 </div>
                 
                 <div class="space-y-1">
-                  <p class="text-sm text-gray-600">
+                  <p class="text-sm text-gray-600 dark:text-gray-400">
                     Client: {task.client?.name || 'Unknown Client'}
                   </p>
                   
                   {#if task.description}
-                    <p class="text-sm text-gray-500 line-clamp-2">{task.description}</p>
+                    <p class="text-sm text-gray-500 dark:text-gray-400 line-clamp-2">{task.description}</p>
                   {/if}
                   
                   {#if task.scheduledStart}
-                    <p class="text-xs text-gray-500">
+                    <p class="text-xs text-gray-500 dark:text-gray-400">
                       Scheduled: {formatDate(task.scheduledStart)}
                     </p>
                   {/if}
                   
                   {#if task.duration}
-                    <p class="text-xs text-gray-500">
+                    <p class="text-xs text-gray-500 dark:text-gray-400">
                       Duration: {Math.floor(task.duration / 60)}h {task.duration % 60}m
                     </p>
                   {/if}
                   
                   {#if task.assignedTo && task.assignedTo.length > 0}
-                    <p class="text-xs text-gray-500">
+                    <p class="text-xs text-gray-500 dark:text-gray-400">
                       Assigned to: {task.assignedTo.join(', ')}
                     </p>
                   {/if}

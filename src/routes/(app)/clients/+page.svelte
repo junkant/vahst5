@@ -77,9 +77,9 @@
 
   function getStatusColor(status: string) {
     switch(status) {
-      case 'active': return 'bg-green-100 text-green-800';
-      case 'inactive': return 'bg-gray-100 text-gray-800';
-      default: return 'bg-gray-100 text-gray-800';
+      case 'active': return 'bg-green-100 dark:bg-green-900/20 text-green-800 dark:text-green-300';
+      case 'inactive': return 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300';
+      default: return 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300';
     }
   }
   
@@ -93,11 +93,11 @@
   }
 </script>
 
-<div class="h-full bg-gray-50 flex flex-col">
+<div class="h-full bg-gray-50 dark:bg-gray-900 flex flex-col">
   <!-- Header -->
-  <div class="bg-white border-b border-gray-200 p-4">
+  <div class="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 p-4">
     <div class="flex items-center justify-between mb-3">
-      <h1 class="text-xl font-semibold text-gray-900">Clients</h1>
+      <h1 class="text-xl font-semibold text-gray-900 dark:text-gray-100">Clients</h1>
       <div class="flex space-x-2">
         <button 
           onclick={openNewClientForm}
@@ -117,7 +117,7 @@
           type="text"
           bind:value={searchQuery}
           placeholder="Search clients by name, phone, or address..."
-          class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          class="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400"
         />
       </div>
     </div>
@@ -129,7 +129,7 @@
         class="px-3 py-1 rounded-full text-sm font-medium transition-colors
                {statusFilter === 'all' 
                  ? 'bg-blue-600 text-white' 
-                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}"
+                 : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'}"
       >
         All ({clients.clients.length})
       </button>
@@ -138,7 +138,7 @@
         class="px-3 py-1 rounded-full text-sm font-medium transition-colors
                {statusFilter === 'active' 
                  ? 'bg-green-600 text-white' 
-                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}"
+                 : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'}"
       >
         Active ({clients.clients.filter(c => c.status === 'active').length})
       </button>
@@ -147,7 +147,7 @@
         class="px-3 py-1 rounded-full text-sm font-medium transition-colors
                {statusFilter === 'inactive' 
                  ? 'bg-red-600 text-white' 
-                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}"
+                 : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'}"
       >
         Inactive ({clients.clients.filter(c => c.status === 'inactive').length})
       </button>
@@ -161,21 +161,21 @@
         <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
       </div>
     {:else if clients.error}
-      <div class="bg-red-50 border border-red-200 rounded-lg p-4">
+      <div class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
         <div class="flex items-center">
-          <Icon name="warning" class="w-5 h-5 text-red-600 mr-2" />
-          <p class="text-sm text-red-800">{clients.error}</p>
+          <Icon name="warning" class="w-5 h-5 text-red-600 dark:text-red-400 mr-2" />
+          <p class="text-sm text-red-800 dark:text-red-300">{clients.error}</p>
         </div>
       </div>
     {:else if filteredClients().length === 0}
       <div class="text-center py-12">
-        <div class="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center mx-auto mb-4">
-          <Icon name="users" class="w-8 h-8 text-gray-400" />
+        <div class="w-16 h-16 bg-gray-200 dark:bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-4">
+          <Icon name="users" class="w-8 h-8 text-gray-400 dark:text-gray-500" />
         </div>
-        <h3 class="text-lg font-medium text-gray-900 mb-2">
+        <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">
           {searchQuery || statusFilter !== 'all' ? 'No clients found' : 'No clients yet'}
         </h3>
-        <p class="text-gray-500 mb-4">
+        <p class="text-gray-500 dark:text-gray-400 mb-4">
           {searchQuery || statusFilter !== 'all' 
             ? 'Try adjusting your search or filters' 
             : 'Get started by adding your first client'}
@@ -192,17 +192,17 @@
     {:else}
       <div class="space-y-3">
         {#each filteredClients() as client (client.id)}
-          <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 hover:shadow-md transition-shadow">
+          <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4 hover:shadow-md transition-shadow">
             <div class="flex items-start justify-between">
               <div class="flex-1">
                 <div class="flex items-center space-x-2 mb-1">
-                  <h3 class="font-semibold text-gray-900">{client.name}</h3>
+                  <h3 class="font-semibold text-gray-900 dark:text-gray-100">{client.name}</h3>
                   <span class="px-2 py-1 rounded-full text-xs {getStatusColor(client.status)}">
                     {client.status}
                   </span>
                 </div>
-                <p class="text-sm text-gray-600 mb-1">{client.address || 'No address'}</p>
-                <div class="flex flex-wrap gap-3 text-sm text-gray-500">
+                <p class="text-sm text-gray-600 dark:text-gray-400 mb-1">{client.address || 'No address'}</p>
+                <div class="flex flex-wrap gap-3 text-sm text-gray-500 dark:text-gray-400">
                   {#if client.phone}
                     <span class="flex items-center gap-1">
                       <Icon name="phone" class="w-4 h-4" size={2} />
@@ -217,7 +217,7 @@
                   {/if}
                 </div>
                 {#if client.lastServiceDate}
-                  <p class="text-xs text-gray-400 mt-2">
+                  <p class="text-xs text-gray-400 dark:text-gray-500 mt-2">
                     Last service: {formatDate(client.lastServiceDate)}
                   </p>
                 {/if}
@@ -226,12 +226,12 @@
                 {#if client.tags && client.tags.length > 0}
                   <div class="flex flex-wrap gap-1 mt-2">
                     {#each client.tags.slice(0, 3) as tag}
-                      <span class="px-2 py-1 rounded text-xs bg-blue-100 text-blue-700">
+                      <span class="px-2 py-1 rounded text-xs bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300">
                         {tag}
                       </span>
                     {/each}
                     {#if client.tags.length > 3}
-                      <span class="px-2 py-1 rounded text-xs bg-gray-100 text-gray-600">
+                      <span class="px-2 py-1 rounded text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400">
                         +{client.tags.length - 3} more
                       </span>
                     {/if}
@@ -243,7 +243,7 @@
               <div class="flex items-center space-x-2 ml-4">
                 <button
                   onclick={() => selectClient(client)}
-                  class="p-2 text-gray-400 hover:text-gray-600 rounded hover:bg-gray-100 transition-colors"
+                  class="p-2 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
                   aria-label="Select {client.name}"
                   title="Select client"
                 >
@@ -264,8 +264,8 @@
             </div>
             
             {#if client.notes}
-              <div class="mt-3 p-2 bg-yellow-50 rounded border border-yellow-200">
-                <p class="text-xs text-yellow-800">📝 {client.notes}</p>
+              <div class="mt-3 p-2 bg-yellow-50 dark:bg-yellow-900/20 rounded border border-yellow-200 dark:border-yellow-800">
+                <p class="text-xs text-yellow-800 dark:text-yellow-300">📝 {client.notes}</p>
               </div>
             {/if}
           </div>

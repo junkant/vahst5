@@ -46,22 +46,22 @@
   <div use:melt={$portalled}>
     <div 
       use:melt={$overlay}
-      class="fixed inset-0 bg-black/50 z-50"
+      class="fixed inset-0 bg-black/50 dark:bg-black/70 z-50"
       transition:fade={{ duration: 150 }}
       onclick={handleClose}
     />
     <div
       use:melt={$content}
       class="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 
-             bg-white rounded-lg shadow-xl z-50 w-full p-6
+             bg-white dark:bg-gray-800 rounded-lg shadow-xl z-50 w-full p-6
              {sizeClasses[size]}"
       transition:fly={{ y: -20, duration: 200 }}
     >
       <div class="flex items-center justify-between mb-4">
-        <h2 class="text-xl font-semibold">{title}</h2>
+        <h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100">{title}</h2>
         <button
           use:melt={$close}
-          class="p-1 hover:bg-gray-100 rounded-lg transition-colors"
+          class="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
           onclick={handleClose}
         >
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

@@ -95,10 +95,10 @@
   
   function getStatusColor(status) {
     switch(status) {
-      case 'paid': return 'text-green-600 bg-green-50';
-      case 'pending': return 'text-yellow-600 bg-yellow-50';
-      case 'overdue': return 'text-red-600 bg-red-50';
-      default: return 'text-gray-600 bg-gray-50';
+      case 'paid': return 'text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20';
+      case 'pending': return 'text-yellow-600 dark:text-yellow-400 bg-yellow-50 dark:bg-yellow-900/20';
+      case 'overdue': return 'text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20';
+      default: return 'text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-800';
     }
   }
   
@@ -110,15 +110,15 @@
   }
 </script>
 
-<div class="min-h-screen bg-gray-50 pb-20">
+<div class="min-h-screen bg-gray-50 dark:bg-gray-900 pb-20">
   <!-- Header -->
-  <header class="bg-white shadow-sm sticky top-0 z-20">
+  <header class="bg-white dark:bg-gray-800 shadow-sm sticky top-0 z-20">
     <div class="px-4 py-4">
       <div class="flex items-center justify-between">
         <div>
-          <h1 class="text-2xl font-bold text-gray-900">Money</h1>
+          <h1 class="text-2xl font-bold text-gray-900 dark:text-gray-100">Money</h1>
           {#if clients.selectedClient}
-            <p class="text-sm text-gray-500 mt-1">
+            <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
               Finances for {clients.selectedClient.name}
             </p>
           {/if}
@@ -136,19 +136,19 @@
       <div class="flex gap-2 mt-4 border-b border-gray-200">
         <button
           onclick={() => activeTab = 'overview'}
-          class="pb-2 px-1 {activeTab === 'overview' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-500'}"
+          class="pb-2 px-1 {activeTab === 'overview' ? 'border-b-2 border-blue-600 text-blue-600 dark:text-blue-400' : 'text-gray-500 dark:text-gray-400'}"
         >
           Overview
         </button>
         <button
           onclick={() => activeTab = 'invoices'}
-          class="pb-2 px-1 {activeTab === 'invoices' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-500'}"
+          class="pb-2 px-1 {activeTab === 'invoices' ? 'border-b-2 border-blue-600 text-blue-600 dark:text-blue-400' : 'text-gray-500 dark:text-gray-400'}"
         >
           Invoices
         </button>
         <button
           onclick={() => activeTab = 'expenses'}
-          class="pb-2 px-1 {activeTab === 'expenses' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-500'}"
+          class="pb-2 px-1 {activeTab === 'expenses' ? 'border-b-2 border-blue-600 text-blue-600 dark:text-blue-400' : 'text-gray-500 dark:text-gray-400'}"
         >
           Expenses
         </button>
@@ -161,42 +161,42 @@
     {#if activeTab === 'overview'}
       <!-- Financial Overview -->
       <div class="grid grid-cols-2 gap-4 mb-6">
-        <div class="bg-white p-4 rounded-lg shadow-sm">
-          <p class="text-sm text-gray-500">Total Revenue</p>
-          <p class="text-2xl font-bold text-gray-900">{formatCurrency(metrics().totalRevenue)}</p>
-          <p class="text-xs text-green-600 mt-1">+12% from last month</p>
+        <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm">
+          <p class="text-sm text-gray-500 dark:text-gray-400">Total Revenue</p>
+          <p class="text-2xl font-bold text-gray-900 dark:text-gray-100">{formatCurrency(metrics().totalRevenue)}</p>
+          <p class="text-xs text-green-600 dark:text-green-400 mt-1">+12% from last month</p>
         </div>
         
-        <div class="bg-white p-4 rounded-lg shadow-sm">
-          <p class="text-sm text-gray-500">Pending</p>
-          <p class="text-2xl font-bold text-yellow-600">{formatCurrency(metrics().pendingAmount)}</p>
-          <p class="text-xs text-gray-500 mt-1">{metrics().invoiceCount - metrics().paidCount} invoices</p>
+        <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm">
+          <p class="text-sm text-gray-500 dark:text-gray-400">Pending</p>
+          <p class="text-2xl font-bold text-yellow-600 dark:text-yellow-400">{formatCurrency(metrics().pendingAmount)}</p>
+          <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">{metrics().invoiceCount - metrics().paidCount} invoices</p>
         </div>
         
-        <div class="bg-white p-4 rounded-lg shadow-sm">
-          <p class="text-sm text-gray-500">Expenses</p>
-          <p class="text-2xl font-bold text-gray-900">{formatCurrency(metrics().totalExpenses)}</p>
-          <p class="text-xs text-gray-500 mt-1">This month</p>
+        <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm">
+          <p class="text-sm text-gray-500 dark:text-gray-400">Expenses</p>
+          <p class="text-2xl font-bold text-gray-900 dark:text-gray-100">{formatCurrency(metrics().totalExpenses)}</p>
+          <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">This month</p>
         </div>
         
-        <div class="bg-white p-4 rounded-lg shadow-sm">
-          <p class="text-sm text-gray-500">Profit</p>
+        <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm">
+          <p class="text-sm text-gray-500 dark:text-gray-400">Profit</p>
           <p class="text-2xl font-bold {metrics().profit >= 0 ? 'text-green-600' : 'text-red-600'}">
             {formatCurrency(metrics().profit)}
           </p>
-          <p class="text-xs text-gray-500 mt-1">After expenses</p>
+          <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">After expenses</p>
         </div>
       </div>
       
       <!-- Recent Activity -->
-      <div class="bg-white rounded-lg shadow-sm p-4">
-        <h3 class="font-semibold text-gray-900 mb-3">Recent Activity</h3>
+      <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-4">
+        <h3 class="font-semibold text-gray-900 dark:text-gray-100 mb-3">Recent Activity</h3>
         <div class="space-y-3">
           {#each [...invoices].slice(0, 3) as invoice}
-            <div class="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
+            <div class="flex items-center justify-between py-2 border-b border-gray-100 dark:border-gray-700 last:border-0">
               <div>
-                <p class="font-medium text-gray-900">{invoice.number}</p>
-                <p class="text-sm text-gray-500">{invoice.clientName}</p>
+                <p class="font-medium text-gray-900 dark:text-gray-100">{invoice.number}</p>
+                <p class="text-sm text-gray-500 dark:text-gray-400">{invoice.clientName}</p>
               </div>
               <div class="text-right">
                 <p class="font-medium">{formatCurrency(invoice.amount)}</p>
@@ -214,27 +214,27 @@
       <!-- Invoices List -->
       <div class="space-y-3">
         {#each filteredInvoices() as invoice}
-          <div class="bg-white rounded-lg shadow-sm p-4">
+          <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-4">
             <div class="flex items-start justify-between">
               <div>
                 <div class="flex items-center gap-3">
-                  <h3 class="font-medium text-gray-900">{invoice.number}</h3>
+                  <h3 class="font-medium text-gray-900 dark:text-gray-100">{invoice.number}</h3>
                   <span class="text-xs px-2 py-1 rounded-full {getStatusColor(invoice.status)}">
                     {invoice.status}
                   </span>
                 </div>
-                <p class="text-sm text-gray-500 mt-1">{invoice.clientName}</p>
-                <div class="flex gap-4 text-xs text-gray-500 mt-2">
+                <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">{invoice.clientName}</p>
+                <div class="flex gap-4 text-xs text-gray-500 dark:text-gray-400 mt-2">
                   <span>Issued: {new Date(invoice.issuedDate).toLocaleDateString()}</span>
                   <span>Due: {new Date(invoice.dueDate).toLocaleDateString()}</span>
                 </div>
               </div>
               <div class="text-right">
-                <p class="text-lg font-semibold text-gray-900">{formatCurrency(invoice.amount)}</p>
+                <p class="text-lg font-semibold text-gray-900 dark:text-gray-100">{formatCurrency(invoice.amount)}</p>
                 {#if invoice.status !== 'paid'}
                   <button
                     onclick={() => markAsPaid(invoice.id)}
-                    class="text-xs text-blue-600 hover:underline mt-1"
+                    class="text-xs text-blue-600 dark:text-blue-400 hover:underline mt-1"
                   >
                     Mark as paid
                   </button>
@@ -247,7 +247,7 @@
         {#if filteredInvoices().length === 0}
           <div class="text-center py-12">
             <Icon name="document" class="w-16 h-16 mx-auto text-gray-300" size={2} />
-            <p class="text-gray-500 mt-4">No invoices found</p>
+            <p class="text-gray-500 dark:text-gray-400 mt-4">No invoices found</p>
           </div>
         {/if}
       </div>
@@ -256,20 +256,20 @@
     {#if activeTab === 'expenses'}
       <!-- Expenses List -->
       <div class="space-y-3">
-        <div class="bg-white rounded-lg shadow-sm p-4">
-          <h3 class="font-semibold text-gray-900 mb-3">Recent Expenses</h3>
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-4">
+          <h3 class="font-semibold text-gray-900 dark:text-gray-100 mb-3">Recent Expenses</h3>
           {#each expenses as expense}
-            <div class="flex items-center justify-between py-3 border-b border-gray-100 last:border-0">
+            <div class="flex items-center justify-between py-3 border-b border-gray-100 dark:border-gray-700 last:border-0">
               <div>
-                <p class="font-medium text-gray-900">{expense.description}</p>
-                <p class="text-sm text-gray-500">{expense.category} • {new Date(expense.date).toLocaleDateString()}</p>
+                <p class="font-medium text-gray-900 dark:text-gray-100">{expense.description}</p>
+                <p class="text-sm text-gray-500 dark:text-gray-400">{expense.category} • {new Date(expense.date).toLocaleDateString()}</p>
               </div>
-              <p class="font-medium text-gray-900">{formatCurrency(expense.amount)}</p>
+              <p class="font-medium text-gray-900 dark:text-gray-100">{formatCurrency(expense.amount)}</p>
             </div>
           {/each}
         </div>
         
-        <button class="w-full bg-white rounded-lg shadow-sm p-4 text-center text-blue-600 hover:bg-gray-50 transition-colors">
+        <button class="w-full bg-white dark:bg-gray-800 rounded-lg shadow-sm p-4 text-center text-blue-600 dark:text-blue-400 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
           + Add Expense
         </button>
       </div>
@@ -280,20 +280,20 @@
 <!-- New Invoice Modal (Simplified) -->
 {#if showNewInvoiceForm}
   <div class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-    <div class="bg-white rounded-2xl w-full max-w-lg p-6">
-      <h2 class="text-xl font-semibold mb-4">New Invoice</h2>
+    <div class="bg-white dark:bg-gray-800 rounded-2xl w-full max-w-lg p-6">
+      <h2 class="text-xl font-semibold mb-4 text-gray-900 dark:text-gray-100">New Invoice</h2>
       
       <div class="space-y-4">
-        <div class="text-center py-8 border-2 border-dashed border-gray-300 rounded-lg">
+        <div class="text-center py-8 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg">
           <Icon name="document" class="w-12 h-12 mx-auto text-gray-400" size={2} />
-          <p class="text-gray-500 mt-2">Invoice creation coming soon!</p>
-          <p class="text-sm text-gray-400 mt-1">This feature is under development</p>
+          <p class="text-gray-500 dark:text-gray-400 mt-2">Invoice creation coming soon!</p>
+          <p class="text-sm text-gray-400 dark:text-gray-500 mt-1">This feature is under development</p>
         </div>
       </div>
       
       <button
         onclick={() => showNewInvoiceForm = false}
-        class="w-full mt-6 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+        class="w-full mt-6 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
       >
         Close
       </button>

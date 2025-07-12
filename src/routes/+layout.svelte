@@ -10,6 +10,8 @@
   import { useJobStore, cleanupJobStore } from '$lib/stores/task.svelte';
   import { cleanupTeamStore } from '$lib/stores/team.svelte';
   import { useOffline } from '$lib/stores/offline.svelte';
+  import { useUI } from '$lib/stores/ui.svelte';
+  import { useToast } from '$lib/stores/toast.svelte';
   import { getCalendarTaskSync, destroyCalendarTaskSync } from '$lib/services/calendar-task-sync';
   import TopBar from '$lib/components/layout/TopBar.svelte';
   import BottomNav from '$lib/components/layout/BottomNav.svelte';
@@ -30,11 +32,33 @@
   const clients = useClients();
   const taskStore = useJobStore();
   const offline = useOffline();
+  const ui = useUI();
+  const toast = useToast();
   const taskCreation = auth.isAuthenticated ? useTaskCreation() : null;
   
   // Modal states for login/register
   let showLoginModal = $state(false);
   let showRegisterModal = $state(false);
+  
+  // Keyboard shortcut for dark mode toggle (Cmd/Ctrl + Shift + D)
+  $effect(() => {
+    if (!browser) return;
+    
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Check for Cmd/Ctrl + Shift + D
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === 'D') {
+        e.preventDefault();
+        ui.toggleTheme();
+        
+        // Show toast notification
+        const newTheme = ui.theme === 'dark' ? 'Dark' : 'Light';
+        toast.success(`${newTheme} mode activated`);
+      }
+    };
+    
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  });
   
   // Event listeners for modal opening
   $effect(() => {

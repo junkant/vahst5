@@ -169,7 +169,7 @@
 {#if open}
   <!-- Overlay -->
   <div 
-    class="fixed inset-0 bg-black/50 z-40 flex items-center justify-center p-4"
+    class="fixed inset-0 bg-black/50 dark:bg-black/70 z-40 flex items-center justify-center p-4"
     onclick={handleOverlayClick}
     onkeydown={handleKeydown}
     role="dialog"
@@ -177,13 +177,13 @@
     aria-labelledby="client-form-title"
   >
     <!-- Modal -->
-    <div class="bg-white rounded-lg shadow-xl w-full max-w-lg max-h-[90vh] overflow-hidden">
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-lg max-h-[90vh] overflow-hidden">
       <!-- Header -->
-      <div class="flex items-center justify-between p-4 border-b border-gray-200">
-        <h2 id="client-form-title" class="text-xl font-semibold">Add New Client</h2>
+      <div class="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
+        <h2 id="client-form-title" class="text-xl font-semibold text-gray-900 dark:text-gray-100">Add New Client</h2>
         <button 
           onclick={closeDialog}
-          class="text-gray-400 hover:text-gray-600 disabled:opacity-50"
+          class="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 disabled:opacity-50"
           aria-label="Close form"
           disabled={isLoading}
         >
@@ -197,109 +197,109 @@
           
           <!-- General Error -->
           {#if errors.general}
-            <div class="bg-red-50 border border-red-200 rounded-lg p-3">
-              <p class="text-sm text-red-800">{errors.general}</p>
+            <div class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3">
+              <p class="text-sm text-red-800 dark:text-red-300">{errors.general}</p>
             </div>
           {/if}
           
           <!-- Client Name -->
           <div>
-            <label for="client-name" class="block text-sm font-medium text-gray-700 mb-1">
+            <label for="client-name" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Client Name *
             </label>
             <input
               id="client-name"
               type="text"
               bind:value={formData.name}
-              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 {errors.name ? 'border-red-300' : ''}"
+              class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 {errors.name ? 'border-red-300 dark:border-red-600' : ''}"
               placeholder="Enter client name"
               disabled={isLoading}
               required
             />
             {#if errors.name}
-              <p class="text-sm text-red-600 mt-1">{errors.name}</p>
+              <p class="text-sm text-red-600 dark:text-red-400 mt-1">{errors.name}</p>
             {/if}
           </div>
           
           <!-- Email -->
           <div>
-            <label for="client-email" class="block text-sm font-medium text-gray-700 mb-1">
+            <label for="client-email" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Email
             </label>
             <input
               id="client-email"
               type="email"
               bind:value={formData.email}
-              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 {errors.email ? 'border-red-300' : ''}"
+              class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 {errors.email ? 'border-red-300 dark:border-red-600' : ''}"
               placeholder="client@example.com"
               disabled={isLoading}
             />
             {#if errors.email}
-              <p class="text-sm text-red-600 mt-1">{errors.email}</p>
+              <p class="text-sm text-red-600 dark:text-red-400 mt-1">{errors.email}</p>
             {/if}
           </div>
           
           <!-- Phone -->
           <div>
-            <label for="client-phone" class="block text-sm font-medium text-gray-700 mb-1">
+            <label for="client-phone" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Phone
             </label>
             <input
               id="client-phone"
               type="tel"
               bind:value={formData.phone}
-              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 {errors.phone ? 'border-red-300' : ''}"
+              class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 {errors.phone ? 'border-red-300 dark:border-red-600' : ''}"
               placeholder="(555) 123-4567"
               disabled={isLoading}
             />
             {#if errors.phone}
-              <p class="text-sm text-red-600 mt-1">{errors.phone}</p>
+              <p class="text-sm text-red-600 dark:text-red-400 mt-1">{errors.phone}</p>
             {/if}
           </div>
           
           <!-- Address -->
           <div>
-            <label for="client-address" class="block text-sm font-medium text-gray-700 mb-1">
+            <label for="client-address" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Address *
             </label>
             <textarea
               id="client-address"
               bind:value={formData.address}
               rows="2"
-              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 {errors.address ? 'border-red-300' : ''}"
+              class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 {errors.address ? 'border-red-300 dark:border-red-600' : ''}"
               placeholder="123 Main St"
               disabled={isLoading}
               required
             ></textarea>
             {#if errors.address}
-              <p class="text-sm text-red-600 mt-1">{errors.address}</p>
+              <p class="text-sm text-red-600 dark:text-red-400 mt-1">{errors.address}</p>
             {/if}
           </div>
           
           <!-- City, State, Zip -->
           <div class="grid grid-cols-2 gap-3">
             <div>
-              <label for="client-city" class="block text-sm font-medium text-gray-700 mb-1">
+              <label for="client-city" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 City
               </label>
               <input
                 id="client-city"
                 type="text"
                 bind:value={formData.city}
-                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                 placeholder="City"
                 disabled={isLoading}
               />
             </div>
             <div>
-              <label for="client-state" class="block text-sm font-medium text-gray-700 mb-1">
+              <label for="client-state" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 State
               </label>
               <input
                 id="client-state"
                 type="text"
                 bind:value={formData.state}
-                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                 placeholder="NC"
                 disabled={isLoading}
               />
@@ -308,7 +308,7 @@
           
           <!-- ZIP -->
           <div>
-            <label for="client-zip" class="block text-sm font-medium text-gray-700 mb-1">
+            <label for="client-zip" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               ZIP Code
             </label>
             <input
@@ -323,17 +323,17 @@
           
           <!-- Tags -->
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Tags
             </label>
             <div class="flex flex-wrap gap-2 mb-2">
               {#each formData.tags as tag}
-                <span class="inline-flex items-center px-2 py-1 rounded-full text-xs bg-blue-100 text-blue-800">
+                <span class="inline-flex items-center px-2 py-1 rounded-full text-xs bg-blue-100 dark:bg-blue-900/20 text-blue-800 dark:text-blue-300">
                   {tag}
                   <button
                     type="button"
                     onclick={() => removeTag(tag)}
-                    class="ml-1 text-blue-600 hover:text-blue-800"
+                    class="ml-1 text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300"
                     disabled={isLoading}
                   >
                     ×
@@ -345,14 +345,14 @@
               <input
                 bind:value={tagInput}
                 onkeydown={handleTagKeydown}
-                class="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                class="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                 placeholder="Add a tag and press Enter"
                 disabled={isLoading}
               />
               <button
                 type="button"
                 onclick={addTag}
-                class="px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 disabled:opacity-50"
+                class="px-3 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-50"
                 disabled={isLoading}
               >
                 Add
@@ -362,7 +362,7 @@
           
           <!-- Notes -->
           <div>
-            <label for="client-notes" class="block text-sm font-medium text-gray-700 mb-1">
+            <label for="client-notes" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Notes
             </label>
             <textarea
@@ -389,7 +389,7 @@
                   class="mr-2"
                   disabled={isLoading}
                 />
-                <span class="text-sm text-gray-700">Active</span>
+                <span class="text-sm text-gray-700 dark:text-gray-300">Active</span>
               </label>
               <label class="flex items-center">
                 <input
@@ -399,7 +399,7 @@
                   class="mr-2"
                   disabled={isLoading}
                 />
-                <span class="text-sm text-gray-700">Inactive</span>
+                <span class="text-sm text-gray-700 dark:text-gray-300">Inactive</span>
               </label>
             </div>
           </div>
@@ -407,12 +407,12 @@
       </div>
       
       <!-- Footer -->
-      <div class="border-t border-gray-200 p-4">
+      <div class="border-t border-gray-200 dark:border-gray-700 p-4">
         <div class="flex gap-3">
           <button
             type="button"
             onclick={closeDialog}
-            class="flex-1 py-2 px-4 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+            class="flex-1 py-2 px-4 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50"
             disabled={isLoading}
           >
             Cancel

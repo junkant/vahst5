@@ -27,16 +27,16 @@
 </script>
 
 {#if show}
-  <div class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-4 w-64 bg-white rounded-2xl shadow-xl border border-gray-200 overflow-hidden">
+  <div class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-4 w-64 bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
     <div class="p-2">
       {#each quickActions as action}
         <button
           type="button"
           onclick={() => navigateAndClose(action.path)}
-          class="w-full px-4 py-3 text-left hover:bg-gray-50 rounded-lg flex items-center space-x-3 cursor-pointer transition-colors"
+          class="w-full px-4 py-3 text-left hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg flex items-center space-x-3 cursor-pointer transition-colors"
         >
-          <Icon name={action.icon} class="w-5 h-5 text-gray-600" />
-          <span class="text-gray-900">{action.label}</span>
+          <Icon name={action.icon} class="w-5 h-5 text-gray-600 dark:text-gray-400" />
+          <span class="text-gray-900 dark:text-gray-100">{action.label}</span>
         </button>
       {/each}
     </div>

@@ -63,16 +63,16 @@
 
 <nav class="fixed bottom-0 left-0 right-0 z-30">
   <!-- Shadow and curve effect -->
-  <div class="absolute inset-x-0 bottom-0 h-16 bg-white rounded-t-[2rem] shadow-[0_-10px_40px_rgba(0,0,0,0.1)]"></div>
+  <div class="absolute inset-x-0 bottom-0 h-16 bg-white dark:bg-gray-800 rounded-t-[2rem] shadow-[0_-10px_40px_rgba(0,0,0,0.1)] dark:shadow-[0_-10px_40px_rgba(0,0,0,0.3)]"></div>
   
   <!-- Navigation content -->
-  <div class="relative bg-white rounded-t-[2rem] px-6 pt-1 pb-2">
+  <div class="relative bg-white dark:bg-gray-800 rounded-t-[2rem] px-6 pt-1 pb-2">
     <div class="flex items-center justify-around">
       
       <!-- My Day -->
       <button 
         type="button"
-        class="flex flex-col items-center py-1 px-3 rounded-lg transition-colors {activeTab === 'my-day' ? 'text-blue-600' : 'text-gray-500'} cursor-pointer"
+        class="flex flex-col items-center py-1 px-3 rounded-lg transition-colors {activeTab === 'my-day' ? 'text-blue-600 dark:text-blue-400' : 'text-gray-500 dark:text-gray-400'} cursor-pointer"
         onclick={() => navigateTo('/my-day')}
       >
         <Icon name="clock" class="w-6 h-6 mb-0.5" />
@@ -82,7 +82,7 @@
       <!-- Tasks -->
       <button 
         type="button"
-        class="flex flex-col items-center py-1 px-3 rounded-lg transition-colors {activeTab === 'tasks' ? 'text-blue-600' : 'text-gray-500'} cursor-pointer"
+        class="flex flex-col items-center py-1 px-3 rounded-lg transition-colors {activeTab === 'tasks' ? 'text-blue-600 dark:text-blue-400' : 'text-gray-500 dark:text-gray-400'} cursor-pointer"
         onclick={() => navigateTo('/tasks')}
       >
         <Icon name="clipboard" class="w-6 h-6 mb-0.5" />
@@ -92,7 +92,7 @@
       <!-- Center Action Button - Quick Actions with Dynamic Lightning Color -->
       <button 
         type="button"
-        class="flex items-center justify-center w-14 h-14 -mt-4 bg-blue-600 rounded-full shadow-lg hover:bg-blue-700 transition-all transform hover:scale-105 cursor-pointer"
+        class="flex items-center justify-center w-14 h-14 -mt-4 bg-blue-600 dark:bg-blue-500 rounded-full shadow-lg hover:bg-blue-700 dark:hover:bg-blue-600 transition-all transform hover:scale-105 cursor-pointer"
         onclick={() => toggleQuickActions()}
         aria-label="Quick actions menu"
       >
@@ -102,7 +102,7 @@
       <!-- Money -->
       <button 
         type="button"
-        class="flex flex-col items-center py-1 px-3 rounded-lg transition-colors {activeTab === 'money' ? 'text-blue-600' : 'text-gray-500'} cursor-pointer"
+        class="flex flex-col items-center py-1 px-3 rounded-lg transition-colors {activeTab === 'money' ? 'text-blue-600 dark:text-blue-400' : 'text-gray-500 dark:text-gray-400'} cursor-pointer"
         onclick={() => navigateTo('/money')}
       >
         <Icon name="dollar" class="w-6 h-6 mb-0.5" />
@@ -112,7 +112,7 @@
       <!-- Voice -->
       <button 
         type="button"
-        class="flex flex-col items-center py-1 px-3 rounded-lg transition-colors {voice?.isListening ? 'text-blue-600 bg-blue-50' : 'text-gray-500'} cursor-pointer"
+        class="flex flex-col items-center py-1 px-3 rounded-lg transition-colors {voice?.isListening ? 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20' : 'text-gray-500 dark:text-gray-400'} cursor-pointer"
         onclick={() => handleVoiceClick()}
       >
         <div class="relative">
