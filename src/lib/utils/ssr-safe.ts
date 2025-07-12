@@ -1,3 +1,4 @@
+// src/lib/utils/ssr-safe.ts
 // SSR-safe store initialization utilities
 import { browser } from '$app/environment';
 

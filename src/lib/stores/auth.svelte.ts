@@ -164,10 +164,29 @@ async function signOut() {
   try {
     error = null;
     
-    // Clean up client store before signing out
-    const { useClients } = await import('./client.svelte');
-    const clients = useClients();
-    clients.cleanup();
+    // Clean up all stores before signing out
+    try {
+      // Import and cleanup task store
+      const { cleanupJobStore } = await import('./task.svelte');
+      if (typeof cleanupJobStore === 'function') {
+        cleanupJobStore();
+      }
+      
+      // Import and cleanup client store
+      const { cleanupClientStore } = await import('./client.svelte');
+      if (typeof cleanupClientStore === 'function') {
+        cleanupClientStore();
+      }
+      
+      // Import and cleanup team store
+      const { cleanupTeamStore } = await import('./team.svelte');
+      if (typeof cleanupTeamStore === 'function') {
+        cleanupTeamStore();
+      }
+    } catch (cleanupError) {
+      console.error('Error during store cleanup:', cleanupError);
+      // Continue with sign out even if cleanup fails
+    }
     
     await firebaseSignOut(auth);
     currentTenant = null;

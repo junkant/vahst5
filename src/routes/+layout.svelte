@@ -21,6 +21,8 @@
   import Toaster from '$lib/components/common/Toaster.svelte';
   import TaskCreationModal from '$lib/components/task/TaskCreationModal.svelte';
   import { useTaskCreation } from '$lib/composables/useTaskCreation.svelte';
+  import LoginForm from '$lib/components/auth/LoginForm.svelte';
+  import RegisterForm from '$lib/components/auth/RegisterForm.svelte';
   
   let { children } = $props();
   
@@ -29,6 +31,33 @@
   const taskStore = useJobStore();
   const offline = useOffline();
   const taskCreation = auth.isAuthenticated ? useTaskCreation() : null;
+  
+  // Modal states for login/register
+  let showLoginModal = $state(false);
+  let showRegisterModal = $state(false);
+  
+  // Event listeners for modal opening
+  $effect(() => {
+    if (!browser) return;
+    
+    const handleOpenLogin = () => {
+      showLoginModal = true;
+      showRegisterModal = false;
+    };
+    
+    const handleOpenRegister = () => {
+      showRegisterModal = true;
+      showLoginModal = false;
+    };
+    
+    window.addEventListener('openLoginModal', handleOpenLogin);
+    window.addEventListener('openRegisterModal', handleOpenRegister);
+    
+    return () => {
+      window.removeEventListener('openLoginModal', handleOpenLogin);
+      window.removeEventListener('openRegisterModal', handleOpenRegister);
+    };
+  });
   
   // List of routes that don't require authentication
   const publicRoutes = ['/', '/login', '/register', '/onboarding', '/select-business'];
@@ -125,10 +154,31 @@
   // Cleanup stores when component unmounts (client-side only)
   if (browser) {
     onDestroy(() => {
-      cleanupJobStore();
-      cleanupClientStore();
-      cleanupTeamStore();
-      destroyCalendarTaskSync();
+      // Use safe cleanup that checks if functions exist
+      try {
+        if (typeof cleanupJobStore === 'function') {
+          cleanupJobStore();
+        }
+        if (typeof cleanupClientStore === 'function') {
+          cleanupClientStore();
+        }
+        if (typeof cleanupTeamStore === 'function') {
+          cleanupTeamStore();
+        }
+        if (typeof destroyCalendarTaskSync === 'function') {
+          destroyCalendarTaskSync();
+        }
+        
+        // Also cleanup the store instances if they have cleanup methods
+        if (taskStore && typeof taskStore.cleanup === 'function') {
+          taskStore.cleanup();
+        }
+        if (clients && typeof clients.cleanup === 'function') {
+          clients.cleanup();
+        }
+      } catch (error) {
+        console.error('Error during cleanup:', error);
+      }
     });
   }
 </script>
@@ -147,7 +197,7 @@
     </div>
   </div>
 {:else}
-  <div class="min-h-screen bg-gray-50">
+  <div class="min-h-screen bg-gray-50 flex flex-col">
     <!-- Top Navigation -->
     {#if isPublicPage}
       <LandingHeader />
@@ -156,7 +206,7 @@
     {/if}
     
     <!-- Main Content -->
-    <main class="flex-1 {isPublicPage ? '' : 'pb-20'}">
+    <main class="flex-1 flex flex-col {isPublicPage ? '' : 'pb-20'}">
       {@render children()}
     </main>
     
@@ -189,6 +239,12 @@
       initialClientId={taskCreation.state.initialClientId}
       onSuccess={taskCreation.state.onSuccess}
     />
+    {/if}
+    
+    <!-- Global Auth Modals -->
+    {#if !auth.isAuthenticated}
+      <LoginForm bind:open={showLoginModal} />
+      <RegisterForm bind:open={showRegisterModal} />
     {/if}
   </div>
 {/if}

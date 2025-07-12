@@ -2,14 +2,12 @@
 <script>
   import { goto } from '$app/navigation';
   import { useAuth } from '$lib/stores/auth.svelte';
-  import LoginForm from '$lib/components/auth/LoginForm.svelte';
-  import RegisterForm from '$lib/components/auth/RegisterForm.svelte';
+
   import Icon from '$lib/components/icons/Icon.svelte';
   
   const auth = useAuth();
   
-  let showLogin = $state(false);
-  let showRegister = $state(false);
+
   
   // Redirect if already authenticated
   $effect(() => {
@@ -18,35 +16,14 @@
     }
   });
   
-  // Listen for modal events from other components
-  $effect(() => {
-    const handleOpenLogin = () => {
-      showLogin = true;
-      showRegister = false;
-    };
-    
-    const handleOpenRegister = () => {
-      showRegister = true;
-      showLogin = false;
-    };
-    
-    window.addEventListener('openLoginModal', handleOpenLogin);
-    window.addEventListener('openRegisterModal', handleOpenRegister);
-    
-    return () => {
-      window.removeEventListener('openLoginModal', handleOpenLogin);
-      window.removeEventListener('openRegisterModal', handleOpenRegister);
-    };
-  });
+
   
   function openLogin() {
-    showLogin = true;
-    showRegister = false;
+    window.dispatchEvent(new CustomEvent('openLoginModal'));
   }
   
   function openRegister() {
-    showRegister = true;
-    showLogin = false;
+    window.dispatchEvent(new CustomEvent('openRegisterModal'));
   }
 </script>
 
@@ -56,7 +33,7 @@
 </svelte:head>
 
 <!-- Hero Section -->
-<section class="relative overflow-hidden bg-gradient-to-br from-blue-600 to-blue-800 text-white">
+<section class="relative overflow-hidden bg-gradient-to-br from-blue-600 to-blue-800 text-white pt-16">
   <div class="absolute inset-0 opacity-10">
     <div class="absolute transform rotate-45 -right-10 -top-10 w-40 h-40 bg-white rounded-lg"></div>
     <div class="absolute transform rotate-12 -left-5 bottom-20 w-32 h-32 bg-white rounded-lg"></div>
@@ -345,6 +322,3 @@
   </div>
 </section>
 
-<!-- Login/Register Forms -->
-<LoginForm bind:open={showLogin} />
-<RegisterForm bind:open={showRegister} />
