@@ -10,6 +10,7 @@
   import { get } from 'svelte/store';
   import { useJobStore } from '$lib/stores/task.svelte';
   import { useClients } from '$lib/stores/client.svelte';
+  import { useTenant } from '$lib/stores/tenant.svelte';
   import type { Task } from '$lib/types/task';
   
   interface Props {
@@ -22,6 +23,22 @@
   let settings = $state(get(calendarSettings));
   const taskStore = useJobStore();
   const clients = useClients();
+  const tenantStore = useTenant();
+  
+  // Initialize task store with tenant
+  $effect(() => {
+    if (tenantStore.current?.id) {
+      taskStore.setTenant(tenantStore.current.id);
+    }
+  });
+  
+  // Subscribe to selected client tasks
+  $effect(() => {
+    if (clients.selectedClient?.id) {
+      console.log('CalendarView - Loading tasks for client:', clients.selectedClient.name);
+      taskStore.subscribeToClient(clients.selectedClient.id);
+    }
+  });
   
   // Get tasks filtered by selected client and scheduled status
   let filteredTasks = $derived(
@@ -34,10 +51,18 @@
         return false;
       }
       
-      // Include all statuses that should show on calendar
-      return ['scheduled', 'in_progress', 'completed'].includes(task.status);
+      // Include all tasks with scheduled dates, including drafts
+      return ['draft', 'scheduled', 'in_progress', 'completed'].includes(task.status);
     })
   );
+  
+  // Debug - log task count
+  $effect(() => {
+    console.log('CalendarView - Selected client:', clients.selectedClient?.name || 'All Clients');
+    console.log('CalendarView - Total tasks:', taskStore.tasks.length);
+    console.log('CalendarView - Filtered tasks:', filteredTasks.length);
+    console.log('CalendarView - Tasks with scheduledStart:', taskStore.tasks.filter(t => t.scheduledStart).length);
+  });
   
   // Subscribe to store changes
   $effect(() => {
@@ -267,6 +292,9 @@
       case 'in_progress':
         return 'bg-yellow-500 hover:bg-yellow-600';
       case 'scheduled':
+        return 'bg-blue-500 hover:bg-blue-600';
+      case 'draft':
+        return 'bg-gray-400 hover:bg-gray-500';
       default:
         return 'bg-blue-500 hover:bg-blue-600';
     }
