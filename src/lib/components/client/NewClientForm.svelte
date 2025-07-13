@@ -3,11 +3,22 @@
   import { useClients } from '$lib/stores/client.svelte';
   import { useTenant } from '$lib/stores/tenant.svelte';
   import Icon from '$lib/components/icons/Icon.svelte';
+  import PermissionGate from '$lib/components/permissions/PermissionGate.svelte';
+  import { usePermission } from '$lib/permissions/context';
   
   let { open = $bindable(false) } = $props();
   
   const clients = useClients();
   const tenant = useTenant();
+  
+  // Check if user can create clients
+  const canCreateClient = $derived(() => {
+    try {
+      return usePermission('user_management_create_client');
+    } catch {
+      return false;
+    }
+  });
   
   // Form state
   let formData = $state({
@@ -167,15 +178,16 @@
 </script>
 
 {#if open}
-  <!-- Overlay -->
-  <div 
-    class="fixed inset-0 bg-black/50 dark:bg-black/70 z-40 flex items-center justify-center p-4"
-    onclick={handleOverlayClick}
-    onkeydown={handleKeydown}
-    role="dialog"
-    aria-modal="true"
-    aria-labelledby="client-form-title"
-  >
+  <PermissionGate action="user_management_create_client">
+    <!-- Overlay -->
+    <div 
+      class="fixed inset-0 bg-black/50 dark:bg-black/70 z-40 flex items-center justify-center p-4"
+      onclick={handleOverlayClick}
+      onkeydown={handleKeydown}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="client-form-title"
+    >
     <!-- Modal -->
     <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-lg max-h-[90vh] overflow-hidden">
       <!-- Header -->
@@ -427,6 +439,29 @@
           </button>
         </div>
       </div>
+      </div>
     </div>
-  </div>
+    
+    {#snippet fallback()}
+      <div class="fixed inset-0 bg-black/50 dark:bg-black/70 z-40 flex items-center justify-center p-4">
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 max-w-md">
+          <div class="text-center">
+            <Icon name="alert-circle" size={48} class="text-red-500 mx-auto mb-4" />
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+              Permission Denied
+            </h3>
+            <p class="text-gray-600 dark:text-gray-400 mb-4">
+              You don't have permission to create new clients. Please contact your administrator.
+            </p>
+            <button
+              onclick={() => open = false}
+              class="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      </div>
+    {/snippet}
+  </PermissionGate>
 {/if}

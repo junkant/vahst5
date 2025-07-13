@@ -14,6 +14,7 @@
   import { resendInvite, cancelInvite } from '$lib/firebase/invites';
   import type { UserRole } from '$lib/stores/tenant.svelte';
   import type { TeamInvite, BulkInviteResult } from '$lib/types/invites';
+  import PermissionGate from '$lib/components/permissions/PermissionGate.svelte';
   
   const tenant = useTenant();
   const auth = useAuth();
@@ -51,14 +52,19 @@
   const currentUserRole = $derived(tenant.userRole);
   const isManager = $derived(currentUserRole === USER_ROLES.OWNER || currentUserRole === USER_ROLES.MANAGER);
   
+  // Track previous state for modal close detection
+  let previousShowCreateInvite = $state(false);
+  
   // Reload data when modal closes
-  let previousShowCreateInvite = showCreateInvite;
   $effect(() => {
-    if (previousShowCreateInvite && !showCreateInvite && tenant.current) {
+    // Create a local copy to avoid the warning
+    const currentShowCreateInvite = showCreateInvite;
+    
+    if (previousShowCreateInvite && !currentShowCreateInvite && tenant.current) {
       // Modal just closed, reload data
       tenant.loadTeamMembers();
     }
-    previousShowCreateInvite = showCreateInvite;
+    previousShowCreateInvite = currentShowCreateInvite;
   });
   
   // Filtered team members
@@ -254,7 +260,7 @@
         </div>
         
         <!-- Action Buttons -->
-        {#if isManager}
+        <PermissionGate action="user_management_invite_member">
           <div class="flex gap-3">
             <button
               onclick={() => showBulkInvite = true}
@@ -273,16 +279,18 @@
               Invite Team Member
             </button>
           </div>
-        {:else}
-          <button
-            onclick={() => showSuggestModal = true}
-            class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 
-                   transition-colors flex items-center gap-2"
-          >
-            <Icon name="plus" class="w-4 h-4" />
-            Suggest Team Member
-          </button>
-        {/if}
+          
+          {#snippet fallback()}
+            <button
+              onclick={() => showSuggestModal = true}
+              class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 
+                     transition-colors flex items-center gap-2"
+            >
+              <Icon name="plus" class="w-4 h-4" />
+              Suggest Team Member
+            </button>
+          {/snippet}
+        </PermissionGate>
       </div>
       
       <!-- Stats -->
@@ -439,31 +447,41 @@
                   </div>
                   
                   <div class="flex items-center gap-4">
-                    {#if isManager && member.id !== auth.user?.uid}
-                      <select
-                        value={member.role}
-                        onchange={(e) => handleRoleChange(member.id, e.currentTarget.value)}
-                        class="px-3 py-1.5 text-sm border rounded-lg focus:ring-2 focus:ring-blue-500"
-                      >
-                        <option value={USER_ROLES.TEAM_MEMBER}>Team Member</option>
-                        <option value={USER_ROLES.MANAGER}>Manager</option>
-                        <option value={USER_ROLES.OWNER}>Owner</option>
-                      </select>
-                    {:else}
-                      <span class="px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border rounded-lg">
-                        {formatRole(member.role)}
-                      </span>
-                    {/if}
+                    <PermissionGate action="user_management_change_roles">
+                      {#if member.id !== auth.user?.uid}
+                        <select
+                          value={member.role}
+                          onchange={(e) => handleRoleChange(member.id, e.currentTarget.value)}
+                          class="px-3 py-1.5 text-sm border rounded-lg focus:ring-2 focus:ring-blue-500"
+                        >
+                          <option value={USER_ROLES.TEAM_MEMBER}>Team Member</option>
+                          <option value={USER_ROLES.MANAGER}>Manager</option>
+                          <option value={USER_ROLES.OWNER}>Owner</option>
+                        </select>
+                      {:else}
+                        <span class="px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border rounded-lg">
+                          {formatRole(member.role)}
+                        </span>
+                      {/if}
+                      
+                      {#snippet fallback()}
+                        <span class="px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border rounded-lg">
+                          {formatRole(member.role)}
+                        </span>
+                      {/snippet}
+                    </PermissionGate>
                     
-                    {#if isManager && member.id !== auth.user?.uid}
-                      <button
-                        onclick={() => handleRemoveMember(member.id, member.name || member.email)}
-                        class="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                        aria-label="Remove member"
-                      >
-                        <Icon name="trash2" class="w-4 h-4" />
-                      </button>
-                    {/if}
+                    <PermissionGate action="user_management_remove_member">
+                      {#if member.id !== auth.user?.uid}
+                        <button
+                          onclick={() => handleRemoveMember(member.id, member.name || member.email)}
+                          class="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                          aria-label="Remove member"
+                        >
+                          <Icon name="trash2" class="w-4 h-4" />
+                        </button>
+                      {/if}
+                    </PermissionGate>
                   </div>
                 </div>
               {/each}
@@ -545,16 +563,18 @@
                     </div>
                     
                     <div class="flex items-center gap-2 ml-4">
-                      {#if needsApproval && isManager}
-                        <button
-                          onclick={() => handleApproveInvite(invite)}
-                          class="px-3 py-1.5 bg-green-600 text-white text-sm font-medium rounded-lg
-                                 hover:bg-green-700 transition-colors flex items-center gap-1"
-                        >
-                          <Icon name="check" class="w-3.5 h-3.5" />
-                          Approve
-                        </button>
-                      {/if}
+                      <PermissionGate action="user_management_approve_member">
+                        {#if needsApproval}
+                          <button
+                            onclick={() => handleApproveInvite(invite)}
+                            class="px-3 py-1.5 bg-green-600 text-white text-sm font-medium rounded-lg
+                                   hover:bg-green-700 transition-colors flex items-center gap-1"
+                          >
+                            <Icon name="check" class="w-3.5 h-3.5" />
+                            Approve
+                          </button>
+                        {/if}
+                      </PermissionGate>
                       
                       {#if isExpired && !invite.acceptedAt}
                         <button

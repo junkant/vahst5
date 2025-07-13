@@ -25,6 +25,8 @@ window.checkTasksExist(tenantId)   # Verify data exists
 | Tasks not loading | Check client subscription, use direct Firebase load |
 | Missing icons | Add to `IconLibrary.svelte` |
 | tsconfig warning | Run `npm run prepare` |
+| Permission denied | Check feature flags in Settings → Permissions |
+| Permission context error | Ensure `setPermissionContext()` called in layout |
 
 ## 📁 Project Structure
 
@@ -48,6 +50,8 @@ src/
 │   └── utils/         # Helpers & utilities
 └── routes/
     ├── (app)/         # Protected app routes
+    │   └── settings/
+    │       └── permissions/  # Feature flag management
     ├── (auth)/        # Public auth routes
     └── +layout.svelte # Main app layout
 ```
@@ -91,6 +95,8 @@ export function useTaskStore() {
 /tenants/{tenantId}/clients/{clientId}
 /tenants/{tenantId}/tasks/{taskId}
 /tenants/{tenantId}/team/{userId}
+/tenantFeatureFlags/{tenantId}  # Feature flags
+/featureFlagAudit/{tenantId}/logs/{logId}  # Audit trail
 ```
 
 ### Date Handling
@@ -224,17 +230,45 @@ if (task?.clientId) {
 
 ## 🔐 Security Model
 
+### Permission System (NEW)
+Vahst V5 uses a feature-flag based permission system. See [PERMISSIONS.md](./PERMISSIONS.md) for complete documentation.
+
+```svelte
+<!-- OLD: Role-based checks -->
+{#if user.role === 'owner' || user.role === 'manager'}
+  <button>Create Task</button>
+{/if}
+
+<!-- NEW: Feature flags -->
+<PermissionGate action="task_management_create_task">
+  <button>Create Task</button>
+</PermissionGate>
+```
+
 ### Roles
-- **Owner**: Full access + billing
-- **Manager**: Team + task management  
-- **Team Member**: Task execution
+- **Owner**: Full access + billing + feature flag management
+- **Manager**: Team + task management + limited permissions
+- **Team Member**: Task execution + assigned work
 - **Client**: Portal access only
+
+### Key Permission Flags
+- `task_management_*` - Task operations
+- `user_management_*` - User and client management  
+- `financial_*` - Invoice and billing access
+- `system_settings_*` - System configuration
+- `experimental_*` - Beta features
 
 ### Firestore Rules
 ```javascript
 // Tenant isolation
 match /tenants/{tenantId}/{document=**} {
   allow read, write: if request.auth.uid in resource.data.members;
+}
+
+// Feature flags
+match /tenantFeatureFlags/{tenantId} {
+  allow read: if userBelongsToTenant(request.auth.uid, tenantId);
+  allow write: if userHasRole(request.auth.uid, tenantId, ['owner', 'manager']);
 }
 ```
 
@@ -635,6 +669,7 @@ onMount(() => {
 - Update this documentation!
 - Review AI model performance
 - Clean up unused IndexedDB data
+- Audit permission settings
 
 ### Performance Checklist
 - [ ] Lighthouse score > 90
@@ -656,4 +691,10 @@ onMount(() => {
 ---
 
 *Last Updated: January 2025*
-*Version: 1.2*
+*Version: 1.3*
+
+## Related Documentation
+- [Development Guidelines](./DEVELOPMENT_GUIDELINES.md) - Coding standards
+- [Strategy Document](./STRATEGY_4.0.md) - Project roadmap  
+- [Voice System](./VOICE_SYSTEM.md) - Voice control docs
+- [Permissions](./PERMISSIONS.md) - Permission system guide

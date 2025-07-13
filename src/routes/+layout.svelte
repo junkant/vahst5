@@ -25,6 +25,8 @@
   import { useTaskCreation } from '$lib/composables/useTaskCreation.svelte';
   import LoginForm from '$lib/components/auth/LoginForm.svelte';
   import RegisterForm from '$lib/components/auth/RegisterForm.svelte';
+  import { setPermissionContext } from '$lib/permissions/context';
+  import { onMount } from 'svelte';
   
   let { children } = $props();
   
@@ -35,6 +37,23 @@
   const ui = useUI();
   const toast = useToast();
   const taskCreation = auth.isAuthenticated ? useTaskCreation() : null;
+  
+  // Initialize permission context when component mounts and auth is ready
+  onMount(() => {
+    if (auth.isAuthenticated && auth.tenant) {
+      setPermissionContext();
+    }
+  });
+  
+  // Also update permission context when auth state changes
+  $effect(() => {
+    if (auth.isAuthenticated && auth.tenant) {
+      // Small delay to ensure stores are ready
+      setTimeout(() => {
+        setPermissionContext();
+      }, 10);
+    }
+  });
   
   // Modal states for login/register
   let showLoginModal = $state(false);

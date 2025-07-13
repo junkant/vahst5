@@ -1,0 +1,71 @@
+// Feature Flag Security Rules for Firestore
+// Add these rules to your existing firestore.rules file
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function userBelongsToTenant(userId, tenantId) {
+      return isAuthenticated() && 
+        exists(/databases/$(database)/documents/userTenants/$(userId)/tenants/$(tenantId));
+    }
+    
+    function getUserRole(userId, tenantId) {
+      return get(/databases/$(database)/documents/userTenants/$(userId)).data.tenants[tenantId].role;
+    }
+    
+    function userHasRole(userId, tenantId, allowedRoles) {
+      return userBelongsToTenant(userId, tenantId) && 
+        getUserRole(userId, tenantId) in allowedRoles;
+    }
+    
+    function isValidFlagUpdate(data) {
+      return data.keys().hasAll(['flags']) &&
+        data.flags is map;
+    }
+    
+    // Tenant Feature Flags
+    match /tenantFeatureFlags/{tenantId} {
+      // Anyone in the tenant can read feature flags
+      allow read: if userBelongsToTenant(request.auth.uid, tenantId);
+      
+      // Only owners and managers can modify feature flags
+      allow create, update: if userHasRole(request.auth.uid, tenantId, ['owner', 'manager']) &&
+        isValidFlagUpdate(request.resource.data);
+      
+      // Only owners can delete feature flag documents
+      allow delete: if userHasRole(request.auth.uid, tenantId, ['owner']);
+    }
+    
+    // Feature Flag Audit Logs
+    match /featureFlagAudit/{tenantId}/logs/{logId} {
+      // Only owners can read audit logs
+      allow read: if userHasRole(request.auth.uid, tenantId, ['owner']);
+      
+      // Anyone in the tenant can create audit logs (but not modify)
+      allow create: if userBelongsToTenant(request.auth.uid, tenantId) &&
+        request.resource.data.performedBy == request.auth.uid &&
+        request.resource.data.performedAt == request.time;
+      
+      // No one can update or delete audit logs
+      allow update, delete: if false;
+    }
+    
+    // User-specific feature flag overrides (stored in userTenants)
+    match /userTenants/{userId} {
+      // Users can read their own tenant relationships
+      allow read: if request.auth.uid == userId;
+      
+      // Feature flag overrides can be set by owners/managers
+      allow update: if request.auth.uid == userId ||
+        (resource.data.keys().hasAny(request.resource.data.keys()) &&
+         request.resource.data.keys().toSet().difference(resource.data.keys().toSet()).hasOnly(['featureFlags']) &&
+         userHasRole(request.auth.uid, resource.id, ['owner', 'manager']));
+    }
+  }
+}

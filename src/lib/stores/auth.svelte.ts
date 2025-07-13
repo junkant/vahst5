@@ -5,8 +5,11 @@ import { doc, getDoc, setDoc, serverTimestamp, collection, updateDoc } from 'fir
 import { auth, db } from '$lib/firebase/config';
 import { getUserTenants } from '$lib/firebase/firestore';
 import { registerAuthStore } from '$lib/stores/tenant.svelte';
+import { createInitialFeatureFlags } from '$lib/permissions/defaults';
 
-// Import tenant type
+// Import tenant type and role
+import type { Role } from '$lib/permissions/types';
+
 interface Tenant {
   id: string;
   name: string;
@@ -22,6 +25,7 @@ interface Tenant {
   createdAt: Date;
   updatedAt?: Date;
   ownerId: string;
+  role?: Role; // Add role to tenant interface
 }
 
 // Svelte 5 state using runes
@@ -32,6 +36,8 @@ let isLoading = $state(true);
 let error = $state<string | null>(null);
 // ADD: Track if tenants have been loaded
 let tenantsLoaded = $state(false);
+// Track user role in selected tenant
+let userRole = $state<Role | null>(null);
 
 // Initialize auth listener
 if (typeof window !== 'undefined') {
@@ -121,6 +127,10 @@ async function signUp(email: string, password: string, businessName: string) {
 
     await setDoc(tenantRef, tenantData);
 
+    // Create initial feature flags for the tenant
+    const featureFlags = createInitialFeatureFlags(tenantRef.id, newUser.uid);
+    await setDoc(doc(db, 'tenantFeatureFlags', tenantRef.id), featureFlags);
+
     // Create user profile
     await setDoc(doc(db, 'users', newUser.uid), {
       email: newUser.email,
@@ -182,6 +192,12 @@ async function signOut() {
       const { cleanupTeamStore } = await import('./team.svelte');
       if (typeof cleanupTeamStore === 'function') {
         cleanupTeamStore();
+      }
+      
+      // Import and cleanup feature flag store
+      const { cleanupFeatureFlagStore } = await import('./featureFlags.svelte');
+      if (typeof cleanupFeatureFlagStore === 'function') {
+        cleanupFeatureFlagStore();
       }
     } catch (cleanupError) {
       console.error('Error during store cleanup:', cleanupError);
@@ -318,6 +334,10 @@ async function createBusiness(businessName: string, businessType?: string) {
     };
 
     await setDoc(tenantRef, tenantData);
+
+    // Create initial feature flags for the tenant
+    const featureFlags = createInitialFeatureFlags(tenantRef.id, user.uid);
+    await setDoc(doc(db, 'tenantFeatureFlags', tenantRef.id), featureFlags);
 
     // Update user-tenant relationship
     const userTenantRef = doc(db, 'userTenants', user.uid);

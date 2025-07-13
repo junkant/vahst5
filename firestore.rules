@@ -26,6 +26,14 @@ service cloud.firestore {
              userTenant.data.tenants[tenantId].role in allowedRoles;
     }
     
+    function getUserRole(userId, tenantId) {
+      let userTenant = getUserTenant(userId);
+      return userTenant != null && 
+             userTenant.data != null &&
+             tenantId in userTenant.data.tenants ?
+             userTenant.data.tenants[tenantId].role : null;
+    }
+    
     function canManageTenant(userId, tenantId) {
       return hasRole(userId, tenantId, ['owner', 'admin']);
     }
@@ -38,14 +46,34 @@ service cloud.firestore {
       return hasRole(userId, tenantId, ['owner']);
     }
     
+    function isValidFlagUpdate(data) {
+      return data.keys().hasAll(['flags']) &&
+        data.flags is map;
+    }
+    
     // Users collection - users can manage their own profile
     match /users/{userId} {
       allow read, write: if isAuthenticated() && request.auth.uid == userId;
     }
     
     // UserTenants collection - users can manage their own tenant relationships
+    // Extended to support feature flag overrides
     match /userTenants/{userId} {
-      allow read, write: if isAuthenticated() && request.auth.uid == userId;
+      // Users can read their own tenant relationships
+      allow read: if isAuthenticated() && request.auth.uid == userId;
+      
+      // Users can write their own data, OR
+      // Owners/managers can set feature flag overrides for users in their tenant
+      allow write: if isAuthenticated() && 
+                      (request.auth.uid == userId ||
+                       (resource != null &&
+                        request.resource.data.keys().hasAll(resource.data.keys()) &&
+                        // Only allowing modification of featureFlags field by managers
+                        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['featureFlags']) &&
+                        // Must be owner/manager of at least one shared tenant
+                        resource.data.tenants.keys().toSet().intersection(
+                          get(/databases/$(database)/documents/userTenants/$(request.auth.uid)).data.tenants.keys().toSet()
+                        ).size() > 0));
     }
     
     // Tenants collection - tenant members can read, owners/admins can write
@@ -170,6 +198,43 @@ service cloud.firestore {
       allow update, delete: if isAuthenticated() && 
                                canManageTenant(request.auth.uid, tenantId);
     }
+    
+    // ========== NEW PERMISSION SYSTEM RULES ==========
+    
+    // Feature Flags - Control access to features per tenant
+    match /tenantFeatureFlags/{tenantId} {
+      // Anyone in the tenant can read feature flags (needed for permission checks)
+      allow read: if isAuthenticated() && 
+                     userBelongsToTenant(request.auth.uid, tenantId);
+      
+      // Only owners and managers can modify feature flags
+      allow create, update: if isAuthenticated() &&
+                              hasRole(request.auth.uid, tenantId, ['owner', 'manager']) &&
+                              isValidFlagUpdate(request.resource.data);
+      
+      // Only owners can delete feature flag documents
+      allow delete: if isAuthenticated() && 
+                       hasRole(request.auth.uid, tenantId, ['owner']);
+    }
+    
+    // Feature Flag Audit Logs - Track all permission changes
+    match /featureFlagAudit/{tenantId}/logs/{logId} {
+      // Only owners can read audit logs
+      allow read: if isAuthenticated() && 
+                     hasRole(request.auth.uid, tenantId, ['owner']);
+      
+      // Anyone in the tenant can create audit logs (but not modify)
+      // Ensures performedBy matches the authenticated user
+      allow create: if isAuthenticated() && 
+                       userBelongsToTenant(request.auth.uid, tenantId) &&
+                       request.resource.data.performedBy == request.auth.uid &&
+                       request.resource.data.performedAt == request.time;
+      
+      // No one can update or delete audit logs (immutable for compliance)
+      allow update, delete: if false;
+    }
+    
+    // ========== END NEW PERMISSION SYSTEM RULES ==========
     
     // Default tenant-scoped collections
     match /tenants/{tenantId}/{collection}/{document} {
