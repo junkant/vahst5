@@ -320,7 +320,7 @@ export async function getUserTenants(userId: string) {
 
   if (userTenantsSnap.exists()) {
     const data = userTenantsSnap.data() as {
-      tenants: Record<string, { role: string }>;
+      tenants: Record<string, { role: string; permissions?: string[]; joinedAt?: any }>;
     };
 
     const tenantIds = Object.keys(data.tenants);
@@ -329,10 +329,19 @@ export async function getUserTenants(userId: string) {
       tenantIds.map(async (tenantId) => {
         const tenantSnap = await getDoc(doc(db, 'tenants', tenantId));
         if (tenantSnap.exists()) {
+          const tenantData = tenantSnap.data();
+          const userTenantData = data.tenants[tenantId];
+          
           return {
             id: tenantId,
-            ...tenantSnap.data(),
-            userRole: data.tenants[tenantId].role
+            ...tenantData,
+            // Include role at the top level for auth store
+            role: userTenantData.role,
+            // Also include as userRole for backward compatibility
+            userRole: userTenantData.role,
+            // Include other user-specific tenant data
+            permissions: userTenantData.permissions,
+            joinedAt: userTenantData.joinedAt
           };
         }
         return null;

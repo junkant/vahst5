@@ -47,8 +47,11 @@ service cloud.firestore {
     }
     
     function isValidFlagUpdate(data) {
-      return data.keys().hasAll(['flags']) &&
-        data.flags is map;
+      // For create operations, we need more fields
+      // For updates, we just need flags
+      return (data.keys().hasAll(['flags', 'createdBy', 'createdAt']) ||
+              data.keys().hasAll(['flags'])) &&
+             data.flags is map;
     }
     
     // Users collection - users can manage their own profile
@@ -60,7 +63,14 @@ service cloud.firestore {
     // Extended to support feature flag overrides
     match /userTenants/{userId} {
       // Users can read their own tenant relationships
-      allow read: if isAuthenticated() && request.auth.uid == userId;
+      // OR users can read documents of other users who share a tenant with them
+      allow read: if isAuthenticated() && 
+                     (request.auth.uid == userId ||
+                      // Check if the requester shares any tenant with this user
+                      (resource != null && 
+                       resource.data.tenants != null &&
+                       exists(/databases/$(database)/documents/userTenants/$(request.auth.uid)) &&
+                       get(/databases/$(database)/documents/userTenants/$(request.auth.uid)).data.tenants.keys().hasAny(resource.data.tenants.keys())));
       
       // Users can write their own data, OR
       // Owners/managers can set feature flag overrides for users in their tenant
@@ -78,8 +88,11 @@ service cloud.firestore {
     
     // Tenants collection - tenant members can read, owners/admins can write
     match /tenants/{tenantId} {
-      allow read: if isAuthenticated() && userBelongsToTenant(request.auth.uid, tenantId);
-      allow create: if isAuthenticated(); // Anyone can create a tenant
+      allow read: if isAuthenticated() && 
+                     (userBelongsToTenant(request.auth.uid, tenantId) ||
+                      resource.data.ownerId == request.auth.uid);
+      allow create: if isAuthenticated() && 
+                       request.resource.data.ownerId == request.auth.uid; // User creating must be the owner
       allow update: if isAuthenticated() && canManageTenant(request.auth.uid, tenantId);
       allow delete: if isAuthenticated() && isOwner(request.auth.uid, tenantId);
     }
@@ -205,12 +218,19 @@ service cloud.firestore {
     match /tenantFeatureFlags/{tenantId} {
       // Anyone in the tenant can read feature flags (needed for permission checks)
       allow read: if isAuthenticated() && 
-                     userBelongsToTenant(request.auth.uid, tenantId);
+                     (userBelongsToTenant(request.auth.uid, tenantId) ||
+                      get(/databases/$(database)/documents/tenants/$(tenantId)).data.ownerId == request.auth.uid);
       
       // Only owners and managers can modify feature flags
-      allow create, update: if isAuthenticated() &&
-                              hasRole(request.auth.uid, tenantId, ['owner', 'manager']) &&
-                              isValidFlagUpdate(request.resource.data);
+      // OR the user creating the tenant (for initial setup)
+      allow create: if isAuthenticated() &&
+                       (request.resource.data.createdBy == request.auth.uid ||
+                        hasRole(request.auth.uid, tenantId, ['owner', 'manager'])) &&
+                       isValidFlagUpdate(request.resource.data);
+                       
+      allow update: if isAuthenticated() &&
+                       hasRole(request.auth.uid, tenantId, ['owner', 'manager']) &&
+                       isValidFlagUpdate(request.resource.data);
       
       // Only owners can delete feature flag documents
       allow delete: if isAuthenticated() && 

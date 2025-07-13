@@ -77,7 +77,7 @@ export const DEFAULT_TENANT_FLAGS: TenantFeatureFlags = {
 export function createInitialFeatureFlags(
   tenantId: string,
   createdBy: string
-): TenantFeatureFlags {
+): TenantFeatureFlags & { createdBy: string; createdAt: any } {
   const now = Timestamp.now();
   
   // Create flags for experimental features (disabled by default)
@@ -119,7 +119,9 @@ export function createInitialFeatureFlags(
 
   return {
     flags: experimentalFlags,
-    defaultsForRoles: DEFAULT_TENANT_FLAGS.defaultsForRoles
+    defaultsForRoles: DEFAULT_TENANT_FLAGS.defaultsForRoles,
+    createdBy: createdBy,
+    createdAt: now
   };
 }
 

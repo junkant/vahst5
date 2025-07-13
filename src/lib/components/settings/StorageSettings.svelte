@@ -5,7 +5,9 @@
   import { localCache } from '$lib/utils/localCache';
   import { useTenant } from '$lib/stores/tenant.svelte';
   import { useToast } from '$lib/stores/toast.svelte';
-const toast = useToast();
+  import PermissionGate from '$lib/components/permissions/PermissionGate.svelte';
+  
+  const toast = useToast();
   
   const tenant = useTenant();
   
@@ -275,35 +277,44 @@ const toast = useToast();
       <div class="space-y-3">
         <h3 class="text-sm font-medium text-gray-700">Cache Management</h3>
         
-        <button
-          onclick={clearOldData}
-          disabled={isClearing}
-          class="w-full px-4 py-2 text-sm bg-white border border-gray-300 rounded-lg 
-                 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed 
-                 transition-colors flex items-center justify-center gap-2"
-        >
-          {#if isClearing && clearingStore === 'old'}
-            <div class="animate-spin h-4 w-4 border-2 border-gray-300 border-t-blue-500 rounded-full"></div>
-            Clearing... {clearProgress}%
-          {:else}
-            Clear Old Data (30+ days)
-          {/if}
-        </button>
-        
-        <button
-          onclick={clearAllCache}
-          disabled={isClearing}
-          class="w-full px-4 py-2 text-sm bg-red-50 border border-red-200 text-red-700 
-                 rounded-lg hover:bg-red-100 disabled:opacity-50 disabled:cursor-not-allowed 
-                 transition-colors flex items-center justify-center gap-2"
-        >
-          {#if isClearing && clearingStore !== 'old'}
-            <div class="animate-spin h-4 w-4 border-2 border-red-300 border-t-red-500 rounded-full"></div>
-            Clearing {clearingStore}... {clearProgress}%
-          {:else}
-            Clear All Cache
-          {/if}
-        </button>
+        <PermissionGate action="system_settings_manage_storage">
+          <button
+            onclick={clearOldData}
+            disabled={isClearing}
+            class="w-full px-4 py-2 text-sm bg-white border border-gray-300 rounded-lg 
+                   hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed 
+                   transition-colors flex items-center justify-center gap-2"
+          >
+            {#if isClearing && clearingStore === 'old'}
+              <div class="animate-spin h-4 w-4 border-2 border-gray-300 border-t-blue-500 rounded-full"></div>
+              Clearing... {clearProgress}%
+            {:else}
+              Clear Old Data (30+ days)
+            {/if}
+          </button>
+          
+          <button
+            onclick={clearAllCache}
+            disabled={isClearing}
+            class="w-full px-4 py-2 text-sm bg-red-50 border border-red-200 text-red-700 
+                   rounded-lg hover:bg-red-100 disabled:opacity-50 disabled:cursor-not-allowed 
+                   transition-colors flex items-center justify-center gap-2"
+          >
+            {#if isClearing && clearingStore !== 'old'}
+              <div class="animate-spin h-4 w-4 border-2 border-red-300 border-t-red-500 rounded-full"></div>
+              Clearing {clearingStore}... {clearProgress}%
+            {:else}
+              Clear All Cache
+            {/if}
+          </button>
+          
+          {#snippet fallback()}
+            <div class="w-full px-4 py-3 text-sm text-gray-600 bg-gray-50 border border-gray-200 rounded-lg">
+              <p class="font-medium mb-1">Cache management requires administrator access</p>
+              <p class="text-xs text-gray-500">Contact your system administrator to clear cache data.</p>
+            </div>
+          {/snippet}
+        </PermissionGate>
       </div>
     {:else}
       <div class="text-center py-8 text-gray-500">

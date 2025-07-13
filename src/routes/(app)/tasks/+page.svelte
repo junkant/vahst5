@@ -7,6 +7,7 @@
   import { onMount } from 'svelte';
   import Icon from '$lib/components/icons/Icon.svelte';
   import { untrack } from 'svelte';
+  import PermissionGate from '$lib/components/permissions/PermissionGate.svelte';
   
   const clients = useClients();
   const taskStore = useJobStore();
@@ -299,12 +300,14 @@
   <div class="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 p-4">
     <div class="flex items-center justify-between mb-3">
       <h1 class="text-xl font-semibold text-gray-900 dark:text-gray-100">Tasks</h1>
-      <button 
-        onclick={createNewTask}
-        class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors"
-      >
-        New Task
-      </button>
+      <PermissionGate action="task_management_create_task">
+        <button 
+          onclick={createNewTask}
+          class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors"
+        >
+          New Task
+        </button>
+      </PermissionGate>
     </div>
     
     <!-- Selected Client Info -->
@@ -393,12 +396,14 @@
               : 'Create your first task to get started'}
         </p>
         {#if !searchQuery}
-          <button 
-            onclick={createNewTask}
-            class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
-          >
-            Create Your First Task
-          </button>
+          <PermissionGate action="task_management_create_task">
+            <button 
+              onclick={createNewTask}
+              class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+            >
+              Create Your First Task
+            </button>
+          </PermissionGate>
         {/if}
       </div>
     {:else}

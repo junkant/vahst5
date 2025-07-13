@@ -42,26 +42,25 @@ class FeatureFlagStore extends BaseStore {
     super();
     // Initialize from local storage for offline support
     this.loadFromLocalStorage();
-    
-    // Set up reactive subscription immediately during construction
+  }
+
+  // BaseStore implementation
+  init() {
+    // Set up reactive subscription in init, not constructor
     this.effectCleanup = $effect.root(() => {
       $effect(() => {
         const user = this.authStore.user;
         const tenant = this.authStore.tenant;
         
         if (user && tenant) {
-          // Get role from userTenants data
-          this.initialize(user.uid, tenant.id, tenant.role || 'team_member');
+          // Get role from tenant data or userTenants
+          const role = this.extractUserRole(user.uid, tenant);
+          this.initialize(user.uid, tenant.id, role);
         } else {
           this.cleanupListeners();
         }
       });
     });
-  }
-
-  // BaseStore implementation
-  init() {
-    // No longer need $effect here since it's in constructor
   }
 
   reset() {
@@ -72,6 +71,24 @@ class FeatureFlagStore extends BaseStore {
     this.permissionManager = null;
     this.tenantFlags = null;
     this.userFlags = null;
+  }
+
+  /**
+   * Extract user role from tenant data
+   */
+  private extractUserRole(userId: string, tenant: any): Role {
+    // First check if role is directly on tenant (from auth store)
+    if (tenant.role) {
+      return tenant.role as Role;
+    }
+    
+    // Check if current user is owner
+    if (tenant.ownerId === userId) {
+      return 'owner';
+    }
+    
+    // Default to team_member
+    return 'team_member';
   }
 
   /**
@@ -93,9 +110,71 @@ class FeatureFlagStore extends BaseStore {
     } catch (err) {
       console.error('Failed to initialize feature flags:', err);
       this.state.error = err as Error;
+      // Still allow app to function with default permissions
+      this.setDefaultPermissions(role);
     } finally {
       this.state.loading = false;
     }
+  }
+
+  /**
+   * Set default permissions based on role when Firebase fails
+   */
+  private setDefaultPermissions(role: Role) {
+    // Create a permission manager with comprehensive defaults
+    const defaultFlags = {
+      flags: {},
+      defaultsForRoles: {
+        owner: [
+          'task_management_create_task',
+          'task_management_assign_task',
+          'task_management_edit_task',
+          'task_management_delete_task',
+          'task_management_update_status',
+          'task_management_add_notes',
+          'task_management_view_all_tasks',
+          'user_management_invite_member',
+          'user_management_remove_member',
+          'user_management_approve_member',
+          'user_management_change_roles',
+          'user_management_create_client',
+          'user_management_edit_client',
+          'user_management_delete_client',
+          'user_management_manage_team',
+          'financial_create_invoice',
+          'financial_view_invoices_all',
+          'system_settings_manage_tenant',
+          'system_settings_manage_features'
+        ],
+        manager: [
+          'task_management_create_task',
+          'task_management_assign_task',
+          'task_management_edit_task',
+          'task_management_update_status',
+          'task_management_add_notes',
+          'task_management_view_all_tasks',
+          'user_management_invite_member',
+          'user_management_create_client',
+          'user_management_edit_client'
+        ],
+        team_member: [
+          'task_management_view_assigned_tasks',
+          'task_management_update_status',
+          'task_management_add_notes',
+          'task_management_complete_own_tasks'
+        ],
+        client: ['client_portal_view_projects']
+      }
+    };
+    
+    this.permissionManager = new PermissionManager(
+      this.authStore.user?.uid || '',
+      this.authStore.tenant?.id || '',
+      role,
+      defaultFlags
+    );
+    
+    this.refreshAllFlags();
   }
 
   /**
@@ -107,23 +186,45 @@ class FeatureFlagStore extends BaseStore {
 
     // Listen to tenant feature flags
     const tenantFlagsRef = doc(db, 'tenantFeatureFlags', tenantId);
-    const tenantUnsubscribe = onSnapshot(tenantFlagsRef, (snapshot) => {
-      if (snapshot.exists()) {
-        this.tenantFlags = snapshot.data() as TenantFeatureFlags;
-        this.updatePermissionManager(userId, tenantId, role);
+    const tenantUnsubscribe = onSnapshot(
+      tenantFlagsRef, 
+      (snapshot) => {
+        if (snapshot.exists()) {
+          this.tenantFlags = snapshot.data() as TenantFeatureFlags;
+          this.updatePermissionManager(userId, tenantId, role);
+        } else {
+          console.warn(`No feature flags document for tenant ${tenantId}, using defaults`);
+          this.setDefaultPermissions(role);
+        }
+      },
+      (error) => {
+        console.error('Error listening to tenant flags:', error);
+        this.setDefaultPermissions(role);
       }
-    });
+    );
     this.unsubscribers.push(tenantUnsubscribe);
 
     // Listen to user-specific flags (stored in userTenants)
     const userTenantRef = doc(db, 'users', userId, 'userTenants', tenantId);
-    const userUnsubscribe = onSnapshot(userTenantRef, (snapshot) => {
-      if (snapshot.exists()) {
-        const data = snapshot.data();
-        this.userFlags = data.featureFlags || null;
-        this.updatePermissionManager(userId, tenantId, role);
+    const userUnsubscribe = onSnapshot(
+      userTenantRef, 
+      (snapshot) => {
+        if (snapshot.exists()) {
+          const data = snapshot.data();
+          this.userFlags = data.featureFlags || null;
+          
+          // Also update role if available
+          if (data.role && this.permissionManager) {
+            const newRole = data.role as Role;
+            this.updatePermissionManager(userId, tenantId, newRole);
+          }
+        }
+      },
+      (error) => {
+        // User flags are optional, so just log
+        console.log('No user-specific feature flags');
       }
-    });
+    );
     this.unsubscribers.push(userUnsubscribe);
   }
 
@@ -131,7 +232,10 @@ class FeatureFlagStore extends BaseStore {
    * Update the permission manager and refresh flags
    */
   private updatePermissionManager(userId: string, tenantId: string, role: Role) {
-    if (!this.tenantFlags) return;
+    if (!this.tenantFlags) {
+      this.setDefaultPermissions(role);
+      return;
+    }
 
     this.permissionManager = new PermissionManager(
       userId,
@@ -170,8 +274,22 @@ class FeatureFlagStore extends BaseStore {
    * Check if user can perform an action with context
    */
   can(action: string, context?: any): boolean {
-    if (!this.permissionManager) return false;
+    if (!this.permissionManager) {
+      console.warn('Permission manager not initialized, denying access');
+      return false;
+    }
     return this.permissionManager.can(action, context);
+  }
+
+  /**
+   * Get all permissions for debugging
+   */
+  getAllPermissions(): Record<string, boolean> {
+    const result: Record<string, boolean> = {};
+    this.state.flags.forEach((value, key) => {
+      result[key] = value;
+    });
+    return result;
   }
 
   /**
@@ -318,6 +436,7 @@ let instance: FeatureFlagStore | null = null;
 export function useFeatureFlags() {
   if (!instance) {
     instance = new FeatureFlagStore();
+    instance.init(); // Initialize after creation
   }
   return instance;
 }

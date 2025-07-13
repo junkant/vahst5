@@ -9,36 +9,96 @@ import type {
 // Default feature flags for each role
 const DEFAULT_ROLE_FLAGS: Record<Role, string[]> = {
   owner: [
-    // Owners get everything by default
+    // Owners get everything by default - COMPREHENSIVE LIST
+    // Task Management
     'task_management_create_task',
     'task_management_assign_task',
+    'task_management_edit_task',
     'task_management_delete_task',
+    'task_management_update_status',
+    'task_management_add_notes',
+    'task_management_view_all_tasks',
+    'task_management_view_team_tasks',
+    'task_management_view_assigned_tasks',
+    'task_management_complete_own_tasks',
+    // User Management
     'user_management_invite_member',
     'user_management_remove_member',
     'user_management_approve_member',
+    'user_management_change_roles',
+    'user_management_create_client',
+    'user_management_edit_client',
+    'user_management_delete_client',
+    'user_management_view_all_clients',
+    'user_management_manage_team',
+    // Financial
     'financial_view_invoices_all',
-    'financial_create_invoices',
+    'financial_view_invoices_team',
+    'financial_create_invoice',
+    'financial_edit_invoice',
+    'financial_delete_invoice',
+    'financial_record_payment',
+    'financial_manage_expenses',
     'financial_manage_billing',
+    'financial_export_data',
+    'financial_view_reports',
+    // Reporting
     'reporting_view_all_reports',
+    'reporting_view_team_reports',
+    'reporting_view_own_reports',
     'reporting_export_data',
+    'reporting_create_custom_reports',
+    // System Settings
     'system_settings_manage_tenant',
     'system_settings_manage_features',
+    'system_settings_manage_integrations',
+    'system_settings_manage_storage',
+    'system_settings_view_settings',
+    'system_settings_view_audit_logs',
+    // Client Portal
+    'client_portal_manage_access',
+    'client_portal_view_projects',
+    'client_portal_submit_review',
+    'client_portal_view_invoices',
+    'client_portal_download_files',
+    'client_portal_send_messages',
+    'client_portal_view_timeline',
+    // Experimental
+    'experimental_access_beta_features',
+    'experimental_ai_task_suggestions',
+    'experimental_voice_commands',
+    'experimental_advanced_analytics'
   ],
   manager: [
     // Managers get team and task management
     'task_management_create_task',
     'task_management_assign_task',
+    'task_management_edit_task',
+    'task_management_update_status',
+    'task_management_add_notes',
+    'task_management_view_all_tasks',
+    'task_management_view_team_tasks',
     'user_management_invite_member',
     'user_management_approve_member',
+    'user_management_create_client',
+    'user_management_edit_client',
+    'user_management_view_all_clients',
     'financial_view_invoices_team',
+    'financial_create_invoice',
+    'financial_record_payment',
+    'financial_manage_expenses',
     'reporting_view_team_reports',
+    'reporting_export_data',
     'system_settings_manage_features',
   ],
   team_member: [
     // Team members get basic task features
     'task_management_create_task',
-    'task_management_view_assigned',
-    'task_management_complete_own',
+    'task_management_view_assigned_tasks',
+    'task_management_complete_own_tasks',
+    'task_management_update_status', // For their own tasks
+    'task_management_add_notes',
+    'user_management_create_client', // If enabled by tenant
     'reporting_view_own_reports',
   ],
   client: [

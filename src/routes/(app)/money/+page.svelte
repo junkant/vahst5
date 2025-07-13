@@ -3,6 +3,7 @@
   import { useClients } from '$lib/stores/client.svelte';
   import { onMount } from 'svelte';
   import Icon from '$lib/components/icons/Icon.svelte';
+  import PermissionGate from '$lib/components/permissions/PermissionGate.svelte';
   
   const clients = useClients();
   
@@ -123,13 +124,15 @@
             </p>
           {/if}
         </div>
-        <button
-          onclick={() => showNewInvoiceForm = true}
-          class="bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-blue-700 transition-colors"
-        >
-          <Icon name="plus" class="w-5 h-5" />
-          New Invoice
-        </button>
+        <PermissionGate action="financial_create_invoice">
+          <button
+            onclick={() => showNewInvoiceForm = true}
+            class="bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-blue-700 transition-colors"
+          >
+            <Icon name="plus" class="w-5 h-5" />
+            New Invoice
+          </button>
+        </PermissionGate>
       </div>
       
       <!-- Tab Navigation -->
@@ -232,12 +235,14 @@
               <div class="text-right">
                 <p class="text-lg font-semibold text-gray-900 dark:text-gray-100">{formatCurrency(invoice.amount)}</p>
                 {#if invoice.status !== 'paid'}
-                  <button
-                    onclick={() => markAsPaid(invoice.id)}
-                    class="text-xs text-blue-600 dark:text-blue-400 hover:underline mt-1"
-                  >
-                    Mark as paid
-                  </button>
+                  <PermissionGate action="financial_record_payment">
+                    <button
+                      onclick={() => markAsPaid(invoice.id)}
+                      class="text-xs text-blue-600 dark:text-blue-400 hover:underline mt-1"
+                    >
+                      Mark as paid
+                    </button>
+                  </PermissionGate>
                 {/if}
               </div>
             </div>
@@ -269,9 +274,11 @@
           {/each}
         </div>
         
-        <button class="w-full bg-white dark:bg-gray-800 rounded-lg shadow-sm p-4 text-center text-blue-600 dark:text-blue-400 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
-          + Add Expense
-        </button>
+        <PermissionGate action="financial_manage_expenses">
+          <button class="w-full bg-white dark:bg-gray-800 rounded-lg shadow-sm p-4 text-center text-blue-600 dark:text-blue-400 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+            + Add Expense
+          </button>
+        </PermissionGate>
       </div>
     {/if}
   </div>

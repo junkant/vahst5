@@ -172,7 +172,7 @@ const getAuthStore = () => {
   };
 };
 
-// Optimized team loading with batching
+// Optimized team loading with tenant-specific approach
 async function loadTeamMembers(): Promise<void> {
   const store = getAuthStore();
   const currentTenant = store.tenant;
@@ -188,89 +188,69 @@ async function loadTeamMembers(): Promise<void> {
   try {
     const members: TeamMember[] = [];
     
-    // IMPORTANT: First, add the owner from tenant data
-    if (currentTenant.ownerId) {
-      // Get owner details
-      let ownerData;
-      if (userCache.has(currentTenant.ownerId)) {
-        ownerData = userCache.get(currentTenant.ownerId);
-      } else {
-        const ownerDoc = await getDoc(doc(db, 'users', currentTenant.ownerId));
-        ownerData = ownerDoc.exists() ? ownerDoc.data() : null;
-        if (ownerData) {
-          userCache.set(currentTenant.ownerId, ownerData);
+    // IMPORTANT: First, add the current user if they belong to this tenant
+    if (store.user) {
+      try {
+        const currentUserTenantDoc = await getDoc(doc(db, 'userTenants', store.user.uid));
+        if (currentUserTenantDoc.exists()) {
+          const userData = currentUserTenantDoc.data();
+          const tenantData = userData.tenants?.[currentTenant.id];
+          
+          if (tenantData) {
+            // Add current user as a team member
+            members.push({
+              id: store.user.uid,
+              email: store.user.email || '',
+              name: store.user.displayName || store.user.email?.split('@')[0] || 'User',
+              role: tenantData.role || (store.user.uid === currentTenant.ownerId ? 'owner' : 'team_member'),
+              permissions: tenantData.permissions || getDefaultPermissions(tenantData.role || 'team_member'),
+              joinedAt: tenantData.joinedAt?.toDate() || new Date(),
+              status: tenantData.status || 'active'
+            });
+          } else if (store.user.uid === currentTenant.ownerId) {
+            // Current user is the owner but not in userTenants yet (just created tenant)
+            members.push({
+              id: store.user.uid,
+              email: store.user.email || '',
+              name: store.user.displayName || store.user.email?.split('@')[0] || 'Owner',
+              role: 'owner',
+              permissions: getDefaultPermissions('owner'),
+              joinedAt: currentTenant.createdAt || new Date(),
+              status: 'active'
+            });
+          }
+        } else if (store.user.uid === currentTenant.ownerId) {
+          // No userTenants doc exists yet (new signup)
+          members.push({
+            id: store.user.uid,
+            email: store.user.email || '',
+            name: store.user.displayName || store.user.email?.split('@')[0] || 'Owner',
+            role: 'owner',
+            permissions: getDefaultPermissions('owner'),
+            joinedAt: currentTenant.createdAt || new Date(),
+            status: 'active'
+          });
+        }
+      } catch (error) {
+        console.error('Error loading current user tenant data:', error);
+        // If error and user is owner, add them anyway
+        if (store.user.uid === currentTenant.ownerId) {
+          members.push({
+            id: store.user.uid,
+            email: store.user.email || '',
+            name: store.user.displayName || 'Owner',
+            role: 'owner',
+            permissions: getDefaultPermissions('owner'),
+            joinedAt: currentTenant.createdAt || new Date(),
+            status: 'active'
+          });
         }
       }
-      
-      // Add owner as a team member
-      members.push({
-        id: currentTenant.ownerId,
-        email: ownerData?.email || '',
-        name: ownerData?.displayName || ownerData?.name,
-        role: 'owner',
-        permissions: getDefaultPermissions('owner'),
-        joinedAt: currentTenant.createdAt || new Date(),
-        status: 'active'
-      });
     }
     
-    // Then get all other users who belong to this tenant
-    const userTenantsQuery = query(
-      collection(db, 'userTenants')
-    );
-    
-    const snapshot = await getDocs(userTenantsQuery);
-    const userIds: string[] = [];
-    
-    // First pass: collect user IDs that belong to this tenant (excluding owner)
-    snapshot.forEach((doc) => {
-      const data = doc.data();
-      if (data.tenants && data.tenants[currentTenant.id] && doc.id !== currentTenant.ownerId) {
-        userIds.push(doc.id);
-      }
-    });
-    
-    // Batch fetch user details
-    const userPromises = userIds.map(async (userId) => {
-      // Check cache first
-      if (userCache.has(userId)) {
-        return { id: userId, data: userCache.get(userId) };
-      }
-      
-      const userDoc = await getDoc(doc(db, 'users', userId));
-      const userData = userDoc.exists() ? userDoc.data() : null;
-      
-      // Cache the result
-      if (userData) {
-        userCache.set(userId, userData);
-      }
-      
-      return { id: userId, data: userData };
-    });
-    
-    const userResults = await Promise.all(userPromises);
-    
-    // Build team members list for non-owners
-    snapshot.forEach((doc) => {
-      const data = doc.data();
-      const tenantData = data.tenants?.[currentTenant.id];
-      
-      if (tenantData && doc.id !== currentTenant.ownerId) {
-        const userResult = userResults.find(u => u.id === doc.id);
-        const userData = userResult?.data;
-        
-        members.push({
-          id: doc.id,
-          email: userData?.email || '',
-          name: userData?.displayName || userData?.name,
-          role: tenantData.role || 'team_member',
-          permissions: tenantData.permissions || getDefaultPermissions(tenantData.role),
-          joinedAt: tenantData.joinedAt?.toDate() || new Date(),
-          status: tenantData.status || 'active',
-          invitedBy: tenantData.invitedBy
-        });
-      }
-    });
+    // For now, we'll only load the current user
+    // In the future, we can add a cloud function to get all team members
+    // or use a different data structure that's more query-friendly
     
     teamMembers = members;
     

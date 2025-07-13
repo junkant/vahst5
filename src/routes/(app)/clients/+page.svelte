@@ -7,6 +7,7 @@
   import { useTenant } from '$lib/stores/tenant.svelte';
   import { goto } from '$app/navigation';
   import Icon from '$lib/components/icons/Icon.svelte';
+  import PermissionGate from '$lib/components/permissions/PermissionGate.svelte';
   
   const clients = useClients();
   const tenant = useTenant();
@@ -99,13 +100,15 @@
     <div class="flex items-center justify-between mb-3">
       <h1 class="text-xl font-semibold text-gray-900 dark:text-gray-100">Clients</h1>
       <div class="flex space-x-2">
-        <button 
-          onclick={openNewClientForm}
-          class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center space-x-2"
-        >
-          <Icon name="plus" class="w-4 h-4" />
-          <span>Add Client</span>
-        </button>
+        <PermissionGate action="user_management_create_client">
+          <button 
+            onclick={openNewClientForm}
+            class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center space-x-2"
+          >
+            <Icon name="plus" class="w-4 h-4" />
+            <span>Add Client</span>
+          </button>
+        </PermissionGate>
       </div>
     </div>
     
@@ -181,12 +184,14 @@
             : 'Get started by adding your first client'}
         </p>
         {#if !searchQuery && statusFilter === 'all'}
-          <button 
-            onclick={openNewClientForm}
-            class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
-          >
-            Add Your First Client
-          </button>
+          <PermissionGate action="user_management_create_client">
+            <button 
+              onclick={openNewClientForm}
+              class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+            >
+              Add Your First Client
+            </button>
+          </PermissionGate>
         {/if}
       </div>
     {:else}
@@ -252,14 +257,16 @@
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                   </svg>
                 </button>
-                <button
-                  onclick={() => editClient(client)}
-                  class="p-2 text-gray-400 hover:text-gray-600 rounded hover:bg-gray-100 transition-colors"
-                  aria-label="Edit {client.name}"
-                  title="Edit client"
-                >
-                  <Icon name="edit" class="w-5 h-5" size={2} />
-                </button>
+                <PermissionGate action="user_management_edit_client">
+                  <button
+                    onclick={() => editClient(client)}
+                    class="p-2 text-gray-400 hover:text-gray-600 rounded hover:bg-gray-100 transition-colors"
+                    aria-label="Edit {client.name}"
+                    title="Edit client"
+                  >
+                    <Icon name="edit" class="w-5 h-5" size={2} />
+                  </button>
+                </PermissionGate>
               </div>
             </div>
             

@@ -8,6 +8,8 @@
   import StatusTimeline from './StatusTimeline.svelte';
   import PhotoUpload from './PhotoUpload.svelte';
   import { goto } from '$app/navigation';
+  import PermissionGate from '$lib/components/permissions/PermissionGate.svelte';
+  import { useFeatureFlags } from '$lib/stores/featureFlags.svelte';
   
   // Date formatting utility
   function formatDateTime(date: Date | any): string {
@@ -30,6 +32,11 @@
   
   const taskStore = useJobStore();
   const toast = useToast();
+  
+  // Permission checks
+  const featureFlags = useFeatureFlags();
+  const canUpdateStatus = $derived(featureFlags.can('task_management_update_status'));
+  const canAddNotes = $derived(featureFlags.can('task_management_add_notes'));
   
   let showStatusMenu = $state(false);
   let showTimeline = $state(false);
@@ -106,15 +113,24 @@
           {/if}
         </div>
         
-        <button
-          onclick={() => showStatusMenu = !showStatusMenu}
-          class="relative ml-3 px-3 py-1.5 text-sm font-medium rounded-full 
-                 bg-{getStatusColor(task.status)}-100 text-{getStatusColor(task.status)}-800
-                 hover:bg-{getStatusColor(task.status)}-200 transition-colors"
-        >
-          <Icon name={getStatusIcon(task.status)} class="w-4 h-4 inline mr-1" />
-          {task.status.replace('_', ' ')}
-        </button>
+        <PermissionGate action="task_management_update_status">
+          <button
+            onclick={() => showStatusMenu = !showStatusMenu}
+            class="relative ml-3 px-3 py-1.5 text-sm font-medium rounded-full 
+                   bg-{getStatusColor(task.status)}-100 text-{getStatusColor(task.status)}-800
+                   hover:bg-{getStatusColor(task.status)}-200 transition-colors"
+          >
+            <Icon name={getStatusIcon(task.status)} class="w-4 h-4 inline mr-1" />
+            {task.status.replace('_', ' ')}
+          </button>
+          {#snippet fallback()}
+            <span class="ml-3 px-3 py-1.5 text-sm font-medium rounded-full 
+                         bg-{getStatusColor(task.status)}-100 text-{getStatusColor(task.status)}-800">
+              <Icon name={getStatusIcon(task.status)} class="w-4 h-4 inline mr-1" />
+              {task.status.replace('_', ' ')}
+            </span>
+          {/snippet}
+        </PermissionGate>
       </div>
       
       <!-- Status change menu -->
@@ -142,23 +158,25 @@
       
       <!-- Quick actions -->
       <div class="flex items-center gap-2 mt-3">
-        {#if task.status === 'scheduled'}
-          <button
-            onclick={() => updateStatus('in_progress')}
-            class="flex-1 py-2 bg-green-600 text-white rounded-lg font-medium
-                   hover:bg-green-700 transition-colors"
-          >
-            Start Task
-          </button>
-        {:else if task.status === 'in_progress'}
-          <button
-            onclick={() => updateStatus('completed')}
-            class="flex-1 py-2 bg-blue-600 text-white rounded-lg font-medium
-                   hover:bg-blue-700 transition-colors"
-          >
-            Complete Task
-          </button>
-        {/if}
+        <PermissionGate action="task_management_update_status">
+          {#if task.status === 'scheduled'}
+            <button
+              onclick={() => updateStatus('in_progress')}
+              class="flex-1 py-2 bg-green-600 text-white rounded-lg font-medium
+                     hover:bg-green-700 transition-colors"
+            >
+              Start Task
+            </button>
+          {:else if task.status === 'in_progress'}
+            <button
+              onclick={() => updateStatus('completed')}
+              class="flex-1 py-2 bg-blue-600 text-white rounded-lg font-medium
+                     hover:bg-blue-700 transition-colors"
+            >
+              Complete Task
+            </button>
+          {/if}
+        </PermissionGate>
         
         <button
           onclick={() => showTimeline = true}
@@ -367,12 +385,14 @@
         <h3 class="text-sm font-medium text-gray-500 dark:text-gray-400">
           Notes ({task.notes?.length || 0})
         </h3>
-        <button
-          onclick={() => addingNote = true}
-          class="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300"
-        >
-          Add note
-        </button>
+        <PermissionGate action="task_management_add_notes">
+          <button
+            onclick={() => addingNote = true}
+            class="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300"
+          >
+            Add note
+          </button>
+        </PermissionGate>
       </div>
       
       {#if addingNote}

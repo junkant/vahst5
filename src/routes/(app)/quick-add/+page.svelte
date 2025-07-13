@@ -4,6 +4,7 @@
   import { useClients } from '$lib/stores/client.svelte';
   import NewClientForm from '$lib/components/client/NewClientForm.svelte';
   import Icon from '$lib/components/icons/Icon.svelte';
+  import { useFeatureFlags } from '$lib/stores/featureFlags.svelte';
   
   const clients = useClients();
   
@@ -11,13 +12,21 @@
   const newClientDialog = createDialog();
   const newJobDialog = createDialog();
   
-  const quickActions = [
+  // Permission checks
+  const featureFlags = useFeatureFlags();
+  const canCreateClient = $derived(featureFlags.can('user_management_create_client'));
+  const canCreateTask = $derived(featureFlags.can('task_management_create_task'));
+  const canCreateInvoice = $derived(featureFlags.can('financial_create_invoice'));
+  
+  const quickActions = $derived([
     {
       title: 'New Client',
       description: 'Add a new client to your database',
       icon: 'user-plus',
       color: 'bg-blue-500',
-      action: () => newClientDialog.open.set(true)
+      action: () => newClientDialog.open.set(true),
+      visible: canCreateClient,
+      permission: 'user_management_create_client'
     },
     {
       title: 'New Job',
@@ -35,23 +44,29 @@
           // No clients yet, prompt to create one first
           goto('/clients/new');
         }
-      }
+      },
+      visible: canCreateTask,
+      permission: 'task_management_create_task'
     },
     {
       title: 'Quick Invoice',
       description: 'Generate an invoice from completed work',
       icon: 'receipt',
       color: 'bg-purple-500',
-      action: () => goto('/invoices/new')
+      action: () => goto('/invoices/new'),
+      visible: canCreateInvoice,
+      permission: 'financial_create_invoice'
     },
     {
       title: 'Take Photo',
       description: 'Document equipment or job site',
       icon: 'camera',
       color: 'bg-orange-500',
-      action: () => goto('/photos/new')
+      action: () => goto('/photos/new'),
+      visible: true, // Photos might not need special permission
+      permission: null
     }
-  ];
+  ].filter(action => action.visible));
 </script>
 
 <div class="flex flex-col h-full bg-gray-50">
@@ -62,7 +77,7 @@
   
   <div class="flex-1 overflow-y-auto p-4">
     <div class="grid grid-cols-2 gap-4">
-      {#each quickActions as action}
+      {#each quickActions() as action}
         <button 
           class="bg-white rounded-lg border border-gray-200 p-4 
                  hover:shadow-md hover:border-gray-300 transition-all 

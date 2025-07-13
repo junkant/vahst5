@@ -4,6 +4,7 @@
   import { getStatusColor, getStatusIcon, getPriorityColor } from '$lib/types/task';
   import Icon from '$lib/components/icons/Icon.svelte';
   import { createSwipeable } from '$lib/utils/swipe';
+  import { useFeatureFlags } from '$lib/stores/featureFlags.svelte';
   
   // Date formatting utilities
   function formatTime(date: Date): string {
@@ -48,8 +49,15 @@
     showClient = true 
   }: Props = $props();
   
-  // Swipe actions based on current status
+  // Permission checks
+  const featureFlags = useFeatureFlags();
+  const canUpdateStatus = $derived(featureFlags.can('task_management_update_status'));
+  
+  // Swipe actions based on current status and permissions
   const swipeActions = $derived(() => {
+    // Only show swipe actions if user has permission to update status
+    if (!canUpdateStatus) return null;
+    
     switch (task.status) {
       case 'scheduled':
         return {

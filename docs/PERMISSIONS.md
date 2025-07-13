@@ -47,6 +47,30 @@ The new system uses feature flags:
 </PermissionGate>
 ```
 
+### Components Updated (Phase 1)
+
+The following components have been migrated to use the permission system:
+
+#### Task Management
+- ✅ `TaskCard.svelte` - Status change permissions
+- ✅ `TaskDetail.svelte` - Edit status, add notes permissions
+- ✅ `tasks/+page.svelte` - Create task button
+
+#### Client Management  
+- ✅ `ClientDetail.svelte` - Edit and delete client buttons
+- ✅ `clients/+page.svelte` - Create and edit client buttons
+- ✅ `NewClientForm.svelte` - Already implemented
+
+#### Financial
+- ✅ `money/+page.svelte` - Create invoice, record payment, manage expenses
+
+#### Settings
+- ✅ `StorageSettings.svelte` - Clear cache operations
+- ✅ `team/+page.svelte` - Team management (already implemented)
+
+#### Other
+- ✅ `quick-add/+page.svelte` - Dynamic quick actions based on permissions
+
 ## Usage Guide
 
 ### In Svelte Components
@@ -98,6 +122,8 @@ if (canCreateTask) {
 - `task_management_assign_task` - Assign tasks to team members
 - `task_management_edit_task` - Edit existing tasks
 - `task_management_delete_task` - Delete tasks
+- `task_management_update_status` - Change task status
+- `task_management_add_notes` - Add notes to tasks
 - `task_management_view_all_tasks` - View all tasks in the system
 - `task_management_view_team_tasks` - View team's tasks
 - `task_management_view_assigned_tasks` - View only assigned tasks
@@ -116,10 +142,14 @@ if (canCreateTask) {
 #### Financial
 - `financial_view_invoices_all` - View all invoices
 - `financial_view_invoices_team` - View team invoices
-- `financial_create_invoices` - Create new invoices
-- `financial_edit_invoices` - Edit existing invoices
+- `financial_create_invoice` - Create new invoices
+- `financial_edit_invoice` - Edit existing invoices
+- `financial_delete_invoice` - Delete invoices
+- `financial_record_payment` - Mark invoices as paid
+- `financial_manage_expenses` - Add and manage expenses
 - `financial_manage_billing` - Manage billing settings
 - `financial_export_data` - Export financial data
+- `financial_view_reports` - View financial reports
 
 #### Reporting
 - `reporting_view_all_reports` - View all reports
@@ -132,7 +162,9 @@ if (canCreateTask) {
 - `system_settings_manage_tenant` - Manage tenant settings
 - `system_settings_manage_features` - Toggle feature flags
 - `system_settings_manage_integrations` - Manage integrations
+- `system_settings_manage_storage` - Clear cache and manage storage
 - `system_settings_view_settings` - View settings
+- `system_settings_view_audit_logs` - View permission audit logs
 
 #### Client Portal
 - `client_portal_view_projects` - View projects

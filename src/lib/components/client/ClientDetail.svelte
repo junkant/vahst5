@@ -10,6 +10,7 @@
   import { onMount } from 'svelte';
   import type { Client } from '$lib/stores/client.svelte';
   import Icon from '$lib/components/icons/Icon.svelte';
+  import PermissionGate from '$lib/components/permissions/PermissionGate.svelte';
   
   interface Props {
     client: Client;
@@ -212,14 +213,16 @@
         </h2>
         <div class="flex items-center gap-2">
           {#if !isEditing}
-            <button
-              onclick={() => isEditing = true}
-              class="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
-              aria-label="Edit client"
-              disabled={isLoading}
-            >
-              <Icon name="edit" class="w-5 h-5" size={2} />
-            </button>
+            <PermissionGate action="user_management_edit_client">
+              <button
+                onclick={() => isEditing = true}
+                class="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+                aria-label="Edit client"
+                disabled={isLoading}
+              >
+                <Icon name="edit" class="w-5 h-5" size={2} />
+              </button>
+            </PermissionGate>
           {/if}
           <button 
             onclick={closeModal}
@@ -499,22 +502,26 @@
           </div>
         {:else}
           <div class="flex gap-2">
-            <button
-              onclick={() => isEditing = true}
-              class="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 
-                     transition-colors disabled:opacity-50"
-              disabled={isLoading}
-            >
-              Edit Client
-            </button>
-            <button
-              onclick={handleDelete}
-              class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 
-                     transition-colors disabled:opacity-50"
-              disabled={isLoading}
-            >
-              {isLoading ? 'Deleting...' : 'Delete'}
-            </button>
+            <PermissionGate action="user_management_edit_client">
+              <button
+                onclick={() => isEditing = true}
+                class="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 
+                       transition-colors disabled:opacity-50"
+                disabled={isLoading}
+              >
+                Edit Client
+              </button>
+            </PermissionGate>
+            <PermissionGate action="user_management_delete_client">
+              <button
+                onclick={handleDelete}
+                class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 
+                       transition-colors disabled:opacity-50"
+                disabled={isLoading}
+              >
+                {isLoading ? 'Deleting...' : 'Delete'}
+              </button>
+            </PermissionGate>
           </div>
         {/if}
       </div>

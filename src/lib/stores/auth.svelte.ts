@@ -66,6 +66,18 @@ if (typeof window !== 'undefined') {
           // Multiple tenants, no saved selection - user needs to choose
           currentTenant = null;
         }
+        
+        // Load team members if we have a tenant
+        if (currentTenant) {
+          try {
+            const { useTenant } = await import('./tenant.svelte');
+            const tenantStore = useTenant();
+            await tenantStore.loadTeamMembers();
+            console.log('✅ Team members loaded on auth state change');
+          } catch (error) {
+            console.error('Failed to load team members on auth:', error);
+          }
+        }
       } catch (err) {
         console.error('Failed to load tenant data:', err);
         error = err instanceof Error ? err.message : 'Failed to load tenant data';
@@ -126,10 +138,23 @@ async function signUp(email: string, password: string, businessName: string) {
     };
 
     await setDoc(tenantRef, tenantData);
+    console.log('✅ [SignUp] Tenant document created:', tenantRef.id);
 
     // Create initial feature flags for the tenant
     const featureFlags = createInitialFeatureFlags(tenantRef.id, newUser.uid);
-    await setDoc(doc(db, 'tenantFeatureFlags', tenantRef.id), featureFlags);
+    console.log('[SignUp] Creating feature flags with:', {
+      tenantId: tenantRef.id,
+      createdBy: newUser.uid,
+      flagsStructure: featureFlags
+    });
+    
+    try {
+      await setDoc(doc(db, 'tenantFeatureFlags', tenantRef.id), featureFlags);
+      console.log('✅ [SignUp] Feature flags created');
+    } catch (flagError) {
+      console.error('❌ [SignUp] Failed to create feature flags:', flagError);
+      // Continue even if feature flags fail - we can create them later
+    }
 
     // Create user profile
     await setDoc(doc(db, 'users', newUser.uid), {
@@ -161,6 +186,16 @@ async function signUp(email: string, password: string, businessName: string) {
     availableTenants = [newTenant];
     currentTenant = newTenant;
     localStorage.setItem('selectedTenantId', tenantRef.id);
+
+    // IMPORTANT: Load team members immediately so permissions work
+    try {
+      const { useTenant } = await import('./tenant.svelte');
+      const tenantStore = useTenant();
+      await tenantStore.loadTeamMembers();
+      console.log('✅ [SignUp] Team members loaded');
+    } catch (error) {
+      console.error('[SignUp] Failed to load team members:', error);
+    }
 
     return { user: newUser, error: null };
   } catch (err) {
@@ -237,6 +272,16 @@ async function setTenant(tenant: Tenant) {
     
     // Force client store to reload for new tenant
     clients.subscribeTenant(tenant.id);
+    
+    // Load team members for the new tenant
+    try {
+      const { useTenant } = await import('./tenant.svelte');
+      const tenantStore = useTenant();
+      await tenantStore.loadTeamMembers();
+      console.log(`✅ Team members loaded for tenant: ${tenant.name}`);
+    } catch (error) {
+      console.error('Failed to load team members:', error);
+    }
     
     console.log(`✅ Switched to tenant: ${tenant.name} (${tenant.id})`);
   } catch (error) {
@@ -334,10 +379,23 @@ async function createBusiness(businessName: string, businessType?: string) {
     };
 
     await setDoc(tenantRef, tenantData);
+    console.log('✅ Tenant document created:', tenantRef.id);
 
     // Create initial feature flags for the tenant
     const featureFlags = createInitialFeatureFlags(tenantRef.id, user.uid);
-    await setDoc(doc(db, 'tenantFeatureFlags', tenantRef.id), featureFlags);
+    console.log('Creating feature flags with:', {
+      tenantId: tenantRef.id,
+      createdBy: user.uid,
+      flagsStructure: featureFlags
+    });
+    
+    try {
+      await setDoc(doc(db, 'tenantFeatureFlags', tenantRef.id), featureFlags);
+      console.log('✅ Feature flags created');
+    } catch (flagError) {
+      console.error('❌ Failed to create feature flags:', flagError);
+      // Continue even if feature flags fail - we can create them later
+    }
 
     // Update user-tenant relationship
     const userTenantRef = doc(db, 'userTenants', user.uid);
@@ -386,6 +444,16 @@ async function createBusiness(businessName: string, businessType?: string) {
     // Update local state
     addTenant(newTenant);
     await setTenant(newTenant);
+    
+    // IMPORTANT: Load team members immediately so permissions work
+    try {
+      const { useTenant } = await import('./tenant.svelte');
+      const tenantStore = useTenant();
+      await tenantStore.loadTeamMembers();
+      console.log('✅ Team members loaded after business creation');
+    } catch (error) {
+      console.error('Failed to load team members:', error);
+    }
     
     return newTenant;
   } catch (error) {
