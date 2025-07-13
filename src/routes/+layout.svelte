@@ -6,6 +6,7 @@
   import { page } from '$app/stores';
   import { goto } from '$app/navigation';
   import { useAuth } from '$lib/stores/auth.svelte';
+  import { useFeatureFlags } from '$lib/stores/featureFlags.svelte';
   import { initializeClientStore, useClients, cleanupClientStore } from '$lib/stores/client.svelte';
   import { useJobStore, cleanupJobStore } from '$lib/stores/task.svelte';
   import { cleanupTeamStore } from '$lib/stores/team.svelte';
@@ -30,6 +31,7 @@
   let { children } = $props();
   
   const auth = useAuth();
+  const featureFlags = useFeatureFlags(); // Initialize early
   const clients = useClients();
   const taskStore = useJobStore();
   const offline = useOffline();
@@ -106,6 +108,7 @@
     !isPublicPage && (
       auth.isLoading || 
       !auth.tenantsLoaded ||
+      featureFlags.loading || // Add feature flags loading check
       (auth.isAuthenticated && auth.needsBusinessSelection() && !auth.tenant)
     )
   );
